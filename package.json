@@ -6,6 +6,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "check": "tsc --noEmit -p tsconfig.json",
+    "dev:api": "node --import tsx src/cli/server.ts",
     "spotify:auth": "node tools/spotify-auth-helper.mjs",
     "apple:developer-token": "node --import tsx src/cli/generate-apple-developer-token.ts",
     "apple:user-token": "node tools/serve-apple-user-token-helper.mjs",
@@ -14,6 +15,7 @@
   },
   "dependencies": {
     "dotenv": "^16.4.5",
+    "fastify": "^5.8.5",
     "jose": "^6.2.2"
   },
   "devDependencies": {

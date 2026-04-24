@@ -13,12 +13,26 @@ type AppConfig = {
   outputDir: string;
 };
 
-function requireEnv(name: string): string {
+type SpotifyConfig = {
+  spotifyClientId: string;
+  spotifyClientSecret: string;
+  spotifyRefreshToken: string;
+};
+
+export function requireEnv(name: string): string {
   const value = process.env[name]?.trim();
   if (!value) {
     throw new Error(`Missing required environment variable: ${name}`);
   }
   return value;
+}
+
+export function loadSpotifyConfig(): SpotifyConfig {
+  return {
+    spotifyClientId: requireEnv("SPOTIFY_CLIENT_ID"),
+    spotifyClientSecret: requireEnv("SPOTIFY_CLIENT_SECRET"),
+    spotifyRefreshToken: requireEnv("SPOTIFY_REFRESH_TOKEN")
+  };
 }
 
 export function loadConfig(): AppConfig {

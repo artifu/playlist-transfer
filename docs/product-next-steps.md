@@ -105,6 +105,12 @@ This maps naturally to a future backend:
 - improve error messages for `403` and `404`
 - keep transfer artifacts stable
 
+Status:
+
+- transfer analysis and execution are now split
+- Spotify playlist URL parsing exists
+- a local backend preview can visualize readable Spotify playlist contents
+
 ### Milestone 2: Add review semantics
 
 - classify results as `matched`, `needs_review`, or `unmatched`

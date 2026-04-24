@@ -105,6 +105,14 @@ Type-check the project:
 npm run check
 ```
 
+Run the local Spotify playlist preview backend:
+
+```bash
+npm run dev:api
+```
+
+Then open `http://127.0.0.1:8790`.
+
 ## Outputs
 
 The spike currently generates:
@@ -139,6 +147,7 @@ If a future mobile app introduces ads, app-store packaging, or paid tiers, this 
 - [docs/credentials-setup.md](./docs/credentials-setup.md): practical setup guide for Spotify and Apple Music credentials
 - [docs/e2e-validation.md](./docs/e2e-validation.md): real transfer validation results and follow-up work
 - [docs/product-next-steps.md](./docs/product-next-steps.md): next product and engineering priorities after validation
+- [docs/backend-preview.md](./docs/backend-preview.md): local backend and browser preview for Spotify playlist contents
 
 ## Product principles
 
