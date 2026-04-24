@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Apple Music User Token Helper</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        background: #f6f7f9;
+        color: #17191c;
+      }
+
+      body {
+        margin: 0;
+        padding: 40px 24px;
+      }
+
+      main {
+        max-width: 760px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        margin: 0 0 12px;
+        font-size: 28px;
+        line-height: 1.2;
+      }
+
+      p {
+        margin: 0 0 18px;
+        color: #4d535a;
+        line-height: 1.55;
+      }
+
+      label {
+        display: block;
+        margin: 22px 0 8px;
+        font-weight: 650;
+      }
+
+      textarea,
+      input {
+        box-sizing: border-box;
+        width: 100%;
+        border: 1px solid #c8ccd2;
+        border-radius: 8px;
+        padding: 12px;
+        font: 14px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        background: #ffffff;
+      }
+
+      textarea {
+        min-height: 120px;
+        resize: vertical;
+      }
+
+      button {
+        margin-top: 18px;
+        appearance: none;
+        border: 0;
+        border-radius: 8px;
+        padding: 12px 16px;
+        background: #17191c;
+        color: #ffffff;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      button:disabled {
+        cursor: wait;
+        opacity: 0.65;
+      }
+
+      pre {
+        overflow-wrap: anywhere;
+        white-space: pre-wrap;
+        border: 1px solid #d8dce2;
+        border-radius: 8px;
+        padding: 14px;
+        min-height: 88px;
+        background: #ffffff;
+        font: 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+
+      .status {
+        margin-top: 16px;
+        font-weight: 650;
+      }
+    </style>
+    <script src="https://js-cdn.music.apple.com/musickit/v1/musickit.js"></script>
+  </head>
+  <body>
+    <main>
+      <h1>Apple Music User Token Helper</h1>
+      <p>
+        Paste the Apple Music developer token from your local <code>.env</code>, then authorize with
+        Apple Music. The page will print the music user token required by the local spike.
+      </p>
+
+      <label for="developer-token">Developer token</label>
+      <textarea id="developer-token" spellcheck="false" placeholder="Paste APPLE_MUSIC_DEVELOPER_TOKEN here"></textarea>
+
+      <label for="app-name">App name</label>
+      <input id="app-name" value="PlaylistTransfer" />
+
+      <button id="authorize">Authorize Apple Music</button>
+
+      <p id="status" class="status"></p>
+
+      <label for="user-token">Music user token</label>
+      <pre id="user-token"></pre>
+    </main>
+
+    <script>
+      const button = document.querySelector("#authorize");
+      const developerToken = document.querySelector("#developer-token");
+      const appName = document.querySelector("#app-name");
+      const status = document.querySelector("#status");
+      const userToken = document.querySelector("#user-token");
+
+      async function hydrateDeveloperToken() {
+        try {
+          const response = await fetch("/developer-token", { cache: "no-store" });
+          if (!response.ok) {
+            return;
+          }
+
+          const data = await response.json();
+          if (data.developerToken) {
+            developerToken.value = data.developerToken;
+            status.textContent = "Developer token loaded from local .env.";
+          }
+        } catch {
+          status.textContent = "Paste the developer token manually when opening this file directly.";
+        }
+      }
+
+      hydrateDeveloperToken();
+
+      button.addEventListener("click", async () => {
+        const token = developerToken.value.trim();
+
+        if (!token) {
+          status.textContent = "Paste the developer token first.";
+          return;
+        }
+
+        button.disabled = true;
+        status.textContent = "Opening Apple Music authorization...";
+        userToken.textContent = "";
+
+        try {
+          if (!window.MusicKit) {
+            throw new Error("MusicKit did not load. Try opening this page in Safari or Chrome.");
+          }
+
+          await MusicKit.configure({
+            developerToken: token,
+            app: {
+              name: appName.value.trim() || "PlaylistTransfer",
+              build: "local-spike"
+            },
+            storefrontId: "us",
+            suppressErrorDialog: false
+          });
+
+          const music = MusicKit.getInstance();
+          const authorizedToken = await music.authorize();
+          const resolvedToken =
+            authorizedToken ||
+            music.musicUserToken ||
+            music.api?.musicUserToken ||
+            window.MusicKit?.getInstance?.()?.musicUserToken;
+
+          if (!resolvedToken) {
+            status.textContent =
+              "Apple authorization completed, but no music user token was returned. Open the browser console for details.";
+            userToken.textContent = JSON.stringify(
+              {
+                authorizedToken,
+                isAuthorized: music.isAuthorized,
+                hasMusicUserToken: Boolean(music.musicUserToken)
+              },
+              null,
+              2
+            );
+            return;
+          }
+
+          userToken.textContent = resolvedToken;
+          status.textContent = "Authorized. Put this value in APPLE_MUSIC_USER_TOKEN.";
+        } catch (error) {
+          console.error(error);
+          status.textContent = error instanceof Error ? error.message : String(error);
+          userToken.textContent = error instanceof Error ? error.stack || error.message : String(error);
+        } finally {
+          button.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -24,6 +24,12 @@ type ApplePlaylistCreateResponse = {
   }>;
 };
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 export class AppleMusicClient {
   constructor(
     private readonly developerToken: string,
@@ -45,12 +51,26 @@ export class AppleMusicClient {
     url.searchParams.set("types", "songs");
     url.searchParams.set("limit", String(limit));
 
-    const response = await fetchJson<AppleSearchResponse>(url.toString(), {
-      headers: this.headers
-    });
+    let response: AppleSearchResponse | null = null;
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        response = await fetchJson<AppleSearchResponse>(url.toString(), {
+          headers: this.headers
+        });
+        break;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (!message.includes("HTTP 429") || attempt === 2) {
+          throw error;
+        }
+
+        await sleep(750 * (attempt + 1));
+      }
+    }
 
     return (
-      response.results?.songs?.data.map((song) => ({
+      response?.results?.songs?.data.map((song) => ({
         id: song.id,
         name: song.attributes.name,
         artistName: song.attributes.artistName,

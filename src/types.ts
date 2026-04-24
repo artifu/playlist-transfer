@@ -36,6 +36,8 @@ export type MatchResult = {
   confidence: number;
   reason: MatchReason | null;
   candidate: AppleSongCandidate | null;
+  searchTerm?: string;
+  candidates?: AppleSongCandidate[];
 };
 
 export type TransferReport = {

@@ -83,6 +83,8 @@ cp .env.example .env
 - `APPLE_MUSIC_STOREFRONT`
 - `SPOTIFY_PLAYLIST_ID`
 
+For the full credential checklist and tomorrow's setup flow, see [docs/credentials-setup.md](./docs/credentials-setup.md).
+
 ## Run the spike
 
 Dry run, without creating a playlist in Apple Music:
@@ -134,6 +136,8 @@ If a future mobile app introduces ads, app-store packaging, or paid tiers, this 
 - [docs/monetization.md](./docs/monetization.md): monetization options and constraints
 - [docs/project-kickoff.md](./docs/project-kickoff.md): initial framing and product thesis
 - [docs/project-history.md](./docs/project-history.md): how the project started and what phase it is in
+- [docs/credentials-setup.md](./docs/credentials-setup.md): practical setup guide for Spotify and Apple Music credentials
+- [docs/e2e-validation.md](./docs/e2e-validation.md): real transfer validation results and follow-up work
 
 ## Product principles
 

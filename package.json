@@ -6,11 +6,15 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "check": "tsc --noEmit -p tsconfig.json",
+    "spotify:auth": "node tools/spotify-auth-helper.mjs",
+    "apple:developer-token": "node --import tsx src/cli/generate-apple-developer-token.ts",
+    "apple:user-token": "node tools/serve-apple-user-token-helper.mjs",
     "transfer:dry": "node --import tsx src/cli/transfer.ts --dry-run",
     "transfer": "node --import tsx src/cli/transfer.ts"
   },
   "dependencies": {
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "jose": "^6.2.2"
   },
   "devDependencies": {
     "@types/node": "^22.15.3",

@@ -14,6 +14,17 @@ export function buildSearchTerm(track: SpotifyTrack): string {
   return `${track.name} ${primaryArtist}`.trim();
 }
 
+export function buildSearchTerms(track: SpotifyTrack): string[] {
+  const primaryArtist = track.artists[0] ?? "";
+  const terms = [
+    `${track.name} ${primaryArtist}`,
+    track.album ? `${track.name} ${track.album}` : "",
+    track.name
+  ];
+
+  return [...new Set(terms.map((term) => term.trim()).filter(Boolean))];
+}
+
 export function pickBestMatch(track: SpotifyTrack, candidates: AppleSongCandidate[]): MatchResult {
   if (candidates.length === 0) {
     return {
