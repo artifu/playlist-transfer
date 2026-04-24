@@ -1,7 +1,8 @@
 import { AppleMusicClient } from "../providers/apple.js";
 import { SpotifyClient } from "../providers/spotify.js";
-import type { MatchResult, TransferReport } from "../types.js";
-import { buildSearchTerms, pickBestMatch } from "../matching/match-track.js";
+import type { TransferReport } from "../types.js";
+import { analyzeTransfer } from "./analyze-transfer.js";
+import { createApplePlaylistFromMatches } from "./create-apple-playlist.js";
 
 type RunTransferInput = {
   spotify: SpotifyClient;
@@ -11,49 +12,20 @@ type RunTransferInput = {
 };
 
 export async function runTransfer(input: RunTransferInput): Promise<TransferReport> {
-  const playlist = await input.spotify.getPlaylist(input.spotifyPlaylistId);
-  const results: MatchResult[] = [];
-
-  for (const track of playlist.tracks) {
-    const searchTerms = buildSearchTerms(track);
-    const candidates = [];
-
-    for (const searchTerm of searchTerms) {
-      candidates.push(...(await input.apple.searchSongs(searchTerm)));
-    }
-
-    results.push({
-      ...pickBestMatch(track, candidates),
-      searchTerm: searchTerms.join(" | "),
-      candidates
-    });
-  }
-
-  const matchedSongIds = results
-    .filter((result) => result.matched && result.candidate)
-    .map((result) => result.candidate!.id);
+  const analysis = await analyzeTransfer(input);
 
   let createdApplePlaylistId: string | null = null;
   if (!input.dryRun) {
-    const playlistName = `${playlist.name} (Transferred from Spotify)`;
-    createdApplePlaylistId = await input.apple.createPlaylist(
-      playlistName,
-      "Transferred from Spotify with PlaylistTransfer."
-    );
-    await input.apple.addTracksToPlaylist(createdApplePlaylistId, matchedSongIds);
+    createdApplePlaylistId = await createApplePlaylistFromMatches({
+      apple: input.apple,
+      playlistName: analysis.playlistName,
+      results: analysis.results
+    });
   }
 
-  const matchedCount = results.filter((result) => result.matched).length;
-  const unmatchedCount = results.length - matchedCount;
-
   return {
-    playlistName: playlist.name,
-    playlistId: playlist.id,
-    matchedCount,
-    unmatchedCount,
-    matchRate: results.length === 0 ? 0 : matchedCount / results.length,
+    ...analysis,
     createdApplePlaylistId,
-    dryRun: input.dryRun,
-    results
+    dryRun: input.dryRun
   };
 }

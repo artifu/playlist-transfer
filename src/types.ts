@@ -50,3 +50,5 @@ export type TransferReport = {
   dryRun: boolean;
   results: MatchResult[];
 };
+
+export type TransferAnalysis = Omit<TransferReport, "createdApplePlaylistId" | "dryRun">;

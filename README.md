@@ -138,6 +138,7 @@ If a future mobile app introduces ads, app-store packaging, or paid tiers, this 
 - [docs/project-history.md](./docs/project-history.md): how the project started and what phase it is in
 - [docs/credentials-setup.md](./docs/credentials-setup.md): practical setup guide for Spotify and Apple Music credentials
 - [docs/e2e-validation.md](./docs/e2e-validation.md): real transfer validation results and follow-up work
+- [docs/product-next-steps.md](./docs/product-next-steps.md): next product and engineering priorities after validation
 
 ## Product principles
 

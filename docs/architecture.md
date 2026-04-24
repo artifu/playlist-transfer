@@ -77,11 +77,21 @@ Responsibilities:
 ## Matching pipeline
 
 1. Normalize title, artist, featuring text, remix markers, and punctuation.
-2. Try exact-ish title + primary artist search.
+2. Search Apple Music with multiple query shapes.
 3. Score candidate results.
 4. Prefer ISRC when available.
 5. Flag low-confidence matches for manual review.
 6. Save match outcomes for future reuse.
+
+## Current core modules
+
+The validated spike now maps to a backend-ready flow:
+
+- `analyzeTransfer`: reads the Spotify playlist and produces match results without writing to Apple Music
+- `createApplePlaylistFromMatches`: creates the destination playlist and adds matched songs
+- `runTransfer`: CLI-level orchestration that combines analysis, optional execution, and reporting
+
+This split matters for the app experience because users should see a preview before committing to a transfer.
 
 ## Data model outline
 
@@ -99,7 +109,9 @@ Responsibilities:
 - `POST /auth/spotify/start`
 - `POST /auth/apple/start`
 - `POST /transfers`
+- `POST /transfers/:id/analyze`
 - `GET /transfers/:id`
+- `POST /transfers/:id/execute`
 - `POST /transfers/:id/retry-unmatched`
 - `GET /transfers/:id/unmatched.csv`
 
