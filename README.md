@@ -115,6 +115,8 @@ Then open `http://127.0.0.1:8790`.
 
 The backend includes both public-link and authenticated-API paths. The public path is the current product wedge because it can preview supported Spotify playlist links without Spotify OAuth.
 
+The preferred public-link prototype reads Spotify's public embed session and public web client metadata, so it can handle larger playlists than the visible embed page alone. It falls back to embed-page metadata if the richer public path stops working.
+
 Probe a public Spotify playlist link without OAuth:
 
 ```bash

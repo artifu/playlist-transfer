@@ -2,6 +2,8 @@ import { parseSpotifyPlaylistInput } from "../lib/spotify-url.js";
 import type { SpotifyPlaylist, SpotifyTrack } from "../types.js";
 
 const DEFAULT_TIMEOUT_MS = 20_000;
+const SPOTIFY_PUBLIC_METADATA_CONCURRENCY = 4;
+const SPOTIFY_BASE62_ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 type FetchTextResult = {
   url: string;
@@ -32,6 +34,20 @@ export type PublicSpotifyHtmlProbe = {
   tracks: SpotifyTrack[];
 };
 
+export type PublicSpotifySpclientProbe = {
+  url: string;
+  status: number;
+  ok: boolean;
+  playlistLength: number;
+  playlistRows: number;
+  uniqueTrackCount: number;
+  dedupedDuplicateCount: number;
+  skippedRowCount: number;
+  metadataErrorCount: number;
+  extractedTrackCount: number;
+  tracks: SpotifyTrack[];
+};
+
 export type PublicSpotifyProbeReport = {
   input: string;
   playlistId: string;
@@ -49,14 +65,22 @@ export type PublicSpotifyProbeReport = {
       };
   openPage: PublicSpotifyHtmlProbe | { error: string };
   embedPage: PublicSpotifyHtmlProbe | { error: string };
+  spclient: PublicSpotifySpclientProbe | { error: string };
 };
 
 export type PublicSpotifyPlaylist = SpotifyPlaylist & {
-  source: "spotify-public-embed";
+  source: "spotify-public-spclient" | "spotify-public-embed";
   limitations: string[];
 };
 
-export const PUBLIC_SPOTIFY_METADATA_LIMITATIONS = [
+export const PUBLIC_SPOTIFY_SPCLIENT_LIMITATIONS = [
+  "Uses Spotify public embed session metadata and an internal public web endpoint",
+  "Duplicate Spotify track IDs are removed for safer Apple Music playlist creation",
+  "Rows without Spotify track IDs and tracks with unreadable metadata are skipped",
+  "Spotify may change this public web surface"
+];
+
+export const PUBLIC_SPOTIFY_EMBED_LIMITATIONS = [
   "No ISRC from public embed metadata",
   "Album metadata is often missing",
   "Spotify may change this public page structure"
@@ -72,6 +96,14 @@ function publicSpotifyEmbedUrl(playlistId: string): string {
 
 function publicSpotifyOembedUrl(playlistId: string): string {
   return `https://open.spotify.com/oembed?url=${encodeURIComponent(publicSpotifyPlaylistUrl(playlistId))}`;
+}
+
+function publicSpotifySpclientPlaylistUrl(playlistId: string): string {
+  return `https://spclient.wg.spotify.com/playlist/v2/playlist/${playlistId}?format=json`;
+}
+
+function publicSpotifyTrackMetadataUrl(trackId: string): string {
+  return `https://spclient.wg.spotify.com/metadata/4/track/${spotifyBase62ToHex(trackId)}`;
 }
 
 function browserLikeHeaders(): Record<string, string> {
@@ -122,6 +154,21 @@ async function fetchJson(url: string): Promise<FetchJsonResult> {
   };
 }
 
+async function fetchJsonValue<T>(url: string, headers: Record<string, string>): Promise<T> {
+  const response = await fetch(url, {
+    headers,
+    redirect: "follow",
+    signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS)
+  });
+  const text = await response.text();
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status} for ${url}: ${text.slice(0, 240)}`);
+  }
+
+  return JSON.parse(text) as T;
+}
+
 function decodeHtmlEntities(value: string): string {
   return value
     .replaceAll("&quot;", '"')
@@ -147,6 +194,10 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   }
 
   return value as Record<string, unknown>;
+}
+
+function nestedRecord(value: unknown, key: string): Record<string, unknown> | null {
+  return asRecord(asRecord(value)?.[key]);
 }
 
 function artistNames(value: unknown): string[] {
@@ -217,6 +268,20 @@ function spotifyTrackIdFromUri(uri: string | null): string | null {
 
   const match = uri.match(/spotify:track:([A-Za-z0-9]{22})|\/track\/([A-Za-z0-9]{22})/);
   return match?.[1] ?? match?.[2] ?? null;
+}
+
+function spotifyBase62ToHex(value: string): string {
+  let number = 0n;
+
+  for (const character of value) {
+    const digit = SPOTIFY_BASE62_ALPHABET.indexOf(character);
+    if (digit < 0) {
+      throw new Error(`Invalid Spotify base62 character: ${character}`);
+    }
+    number = number * 62n + BigInt(digit);
+  }
+
+  return number.toString(16).padStart(32, "0");
 }
 
 function durationMs(value: unknown): number | null {
@@ -318,11 +383,36 @@ function extractNextData(html: string): {
   found: boolean;
   tracks: SpotifyTrack[];
 } {
+  const payload = extractNextDataPayload(html);
+  if (!payload.found) {
+    return {
+      found: false,
+      tracks: []
+    };
+  }
+
+  if (!payload.data) {
+    return {
+      found: true,
+      tracks: []
+    };
+  }
+
+  return {
+    found: true,
+    tracks: collectTrackCandidates(payload.data)
+  };
+}
+
+function extractNextDataPayload(html: string): {
+  found: boolean;
+  data: unknown | null;
+} {
   const match = html.match(/<script[^>]+id=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i);
   if (!match?.[1]) {
     return {
       found: false,
-      tracks: []
+      data: null
     };
   }
 
@@ -330,12 +420,12 @@ function extractNextData(html: string): {
     const data = JSON.parse(decodeHtmlEntities(match[1])) as unknown;
     return {
       found: true,
-      tracks: collectTrackCandidates(data)
+      data
     };
   } catch {
     return {
       found: true,
-      tracks: []
+      data: null
     };
   }
 }
@@ -384,6 +474,189 @@ function oembedString(json: unknown, key: string): string | null {
   return record ? compactText(record[key]) : null;
 }
 
+function embedAccessToken(html: string): string | null {
+  const payload = extractNextDataPayload(html);
+  const props = nestedRecord(payload.data, "props");
+  const pageProps = nestedRecord(props, "pageProps");
+  const state = nestedRecord(pageProps, "state");
+  const settings = nestedRecord(state, "settings");
+  const session = nestedRecord(settings, "session");
+
+  return compactText(session?.accessToken);
+}
+
+type SpclientPlaylistResponse = {
+  length?: number;
+  attributes?: {
+    name?: string;
+  };
+  contents?: {
+    pos?: number;
+    truncated?: boolean;
+    items?: Array<{
+      uri?: string;
+      attributes?: {
+        itemId?: string;
+      };
+    }>;
+  };
+};
+
+type SpclientTrackMetadata = {
+  name?: string;
+  album?: {
+    name?: string;
+  };
+  artist?: Array<{
+    name?: string;
+  }>;
+  duration?: number;
+  external_id?: Array<{
+    type?: string;
+    id?: string;
+  }>;
+  canonical_uri?: string;
+};
+
+function bearerHeaders(accessToken: string): Record<string, string> {
+  return {
+    ...browserLikeHeaders(),
+    Accept: "application/json",
+    Authorization: `Bearer ${accessToken}`
+  };
+}
+
+function dedupeTrackIds(items: Array<{ uri?: string }>): {
+  trackIds: string[];
+  duplicateCount: number;
+  skippedRowCount: number;
+} {
+  const trackIds: string[] = [];
+  const seen = new Set<string>();
+  let duplicateCount = 0;
+  let skippedRowCount = 0;
+
+  for (const item of items) {
+    const trackId = spotifyTrackIdFromUri(compactText(item.uri));
+    if (!trackId) {
+      skippedRowCount += 1;
+      continue;
+    }
+
+    if (seen.has(trackId)) {
+      duplicateCount += 1;
+      continue;
+    }
+
+    seen.add(trackId);
+    trackIds.push(trackId);
+  }
+
+  return {
+    trackIds,
+    duplicateCount,
+    skippedRowCount
+  };
+}
+
+function isrcFromMetadata(metadata: SpclientTrackMetadata): string | null {
+  const isrc = metadata.external_id?.find(
+    (externalId) => externalId.type?.toLowerCase() === "isrc"
+  )?.id;
+
+  return compactText(isrc);
+}
+
+function metadataToSpotifyTrack(trackId: string, metadata: SpclientTrackMetadata): SpotifyTrack {
+  const name = compactText(metadata.name);
+  if (!name) {
+    throw new Error(`Missing track name for ${trackId}`);
+  }
+
+  return {
+    spotifyTrackId: trackId,
+    isrc: isrcFromMetadata(metadata),
+    name,
+    artists:
+      metadata.artist
+        ?.map((artist) => compactText(artist.name))
+        .filter((artist): artist is string => Boolean(artist)) ?? [],
+    album: compactText(metadata.album?.name),
+    durationMs: durationMs(metadata.duration)
+  };
+}
+
+async function mapWithConcurrency<T, U>(
+  values: T[],
+  concurrency: number,
+  mapper: (value: T, index: number) => Promise<U>
+): Promise<U[]> {
+  const results = new Array<U>(values.length);
+  let nextIndex = 0;
+
+  async function worker(): Promise<void> {
+    while (nextIndex < values.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await mapper(values[index], index);
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, values.length) }, () => worker())
+  );
+
+  return results;
+}
+
+async function fetchSpclientTrack(
+  accessToken: string,
+  trackId: string
+): Promise<SpotifyTrack> {
+  const metadata = await fetchJsonValue<SpclientTrackMetadata>(
+    publicSpotifyTrackMetadataUrl(trackId),
+    bearerHeaders(accessToken)
+  );
+
+  return metadataToSpotifyTrack(trackId, metadata);
+}
+
+async function fetchSpclientProbe(
+  playlistId: string,
+  accessToken: string
+): Promise<PublicSpotifySpclientProbe> {
+  const url = publicSpotifySpclientPlaylistUrl(playlistId);
+  const playlist = await fetchJsonValue<SpclientPlaylistResponse>(url, bearerHeaders(accessToken));
+  const items = playlist.contents?.items ?? [];
+  const { trackIds, duplicateCount, skippedRowCount } = dedupeTrackIds(items);
+  const metadataResults = await mapWithConcurrency(
+    trackIds,
+    SPOTIFY_PUBLIC_METADATA_CONCURRENCY,
+    async (trackId): Promise<SpotifyTrack | null> => {
+      try {
+        return await fetchSpclientTrack(accessToken, trackId);
+      } catch {
+        return null;
+      }
+    }
+  );
+  const tracks = metadataResults.filter((track): track is SpotifyTrack => Boolean(track));
+
+  return {
+    url,
+    status: 200,
+    ok: true,
+    playlistLength: playlist.length ?? items.length,
+    playlistRows: items.length,
+    uniqueTrackCount: trackIds.length,
+    dedupedDuplicateCount: duplicateCount,
+    skippedRowCount,
+    metadataErrorCount: metadataResults.length - tracks.length,
+    extractedTrackCount: tracks.length,
+    tracks
+  };
+}
+
 export async function probePublicSpotifyPlaylist(input: string): Promise<PublicSpotifyProbeReport> {
   const playlistId = parseSpotifyPlaylistInput(input);
   const [oembed, openPage, embedPage] = await Promise.allSettled([
@@ -391,6 +664,27 @@ export async function probePublicSpotifyPlaylist(input: string): Promise<PublicS
     fetchText(publicSpotifyPlaylistUrl(playlistId)),
     fetchText(publicSpotifyEmbedUrl(playlistId))
   ]);
+  const spclient =
+    embedPage.status === "fulfilled"
+      ? await (async (): Promise<PublicSpotifySpclientProbe | { error: string }> => {
+          const accessToken = embedAccessToken(embedPage.value.text);
+          if (!accessToken) {
+            return {
+              error: "Could not find an anonymous Spotify embed access token."
+            };
+          }
+
+          try {
+            return await fetchSpclientProbe(playlistId, accessToken);
+          } catch (error) {
+            return {
+              error: errorMessage(error)
+            };
+          }
+        })()
+      : {
+          error: "Could not fetch Spotify embed page."
+        };
 
   return {
     input,
@@ -419,11 +713,17 @@ export async function probePublicSpotifyPlaylist(input: string): Promise<PublicS
         ? summarizeHtmlProbe(embedPage.value)
         : {
             error: errorMessage(embedPage.reason)
-          }
+          },
+    spclient
   };
 }
 
 export function bestPublicSpotifyTracks(report: PublicSpotifyProbeReport): SpotifyTrack[] {
+  const spclientTracks = "tracks" in report.spclient ? report.spclient.tracks : [];
+  if (spclientTracks.length > 0) {
+    return spclientTracks;
+  }
+
   const embedTracks = "tracks" in report.embedPage ? report.embedPage.tracks : [];
   const openTracks = "tracks" in report.openPage ? report.openPage.tracks : [];
   return embedTracks.length >= openTracks.length ? embedTracks : openTracks;
@@ -440,6 +740,7 @@ export function publicSpotifyPlaylistName(report: PublicSpotifyProbeReport): str
 export async function getPublicSpotifyPlaylist(input: string): Promise<PublicSpotifyPlaylist> {
   const report = await probePublicSpotifyPlaylist(input);
   const tracks = bestPublicSpotifyTracks(report);
+  const usedSpclient = "tracks" in report.spclient && report.spclient.tracks.length > 0;
 
   if (tracks.length === 0) {
     throw new Error("Could not read tracks from Spotify public pages for this playlist.");
@@ -448,10 +749,12 @@ export async function getPublicSpotifyPlaylist(input: string): Promise<PublicSpo
   return {
     id: report.playlistId,
     name: publicSpotifyPlaylistName(report),
-    description: "Read from Spotify public embed metadata without Spotify OAuth.",
+    description: usedSpclient
+      ? "Read from Spotify public embed session metadata and public web endpoints without Spotify user OAuth."
+      : "Read from Spotify public embed metadata without Spotify user OAuth.",
     totalItems: tracks.length,
     tracks,
-    source: "spotify-public-embed",
-    limitations: PUBLIC_SPOTIFY_METADATA_LIMITATIONS
+    source: usedSpclient ? "spotify-public-spclient" : "spotify-public-embed",
+    limitations: usedSpclient ? PUBLIC_SPOTIFY_SPCLIENT_LIMITATIONS : PUBLIC_SPOTIFY_EMBED_LIMITATIONS
   };
 }

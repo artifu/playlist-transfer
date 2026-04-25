@@ -41,13 +41,14 @@ Run:
 npm run spotify:public-probe -- "https://open.spotify.com/playlist/6NwrTvQmJgGK9TVgJOkQtp"
 ```
 
-The probe does not use `.env` and does not use OAuth.
+The probe does not use `.env` and does not use Spotify user OAuth.
 
 It currently tests:
 
 - Spotify oEmbed
 - the public open playlist page
 - the public embed playlist page
+- the anonymous Spotify embed session against Spotify's public web client endpoints
 
 Outputs are written to:
 
@@ -55,21 +56,35 @@ Outputs are written to:
 artifacts/public-probe-<playlist-id>.json
 ```
 
-## Initial findings
+## Findings
 
 The first probes produced an important result:
 
 - Spotify oEmbed exposed title, thumbnail, and iframe URL, but not tracks
 - the normal public playlist page did not expose a usable track list
-- the public embed playlist page exposed `50` track-like objects
+- the public embed playlist page exposed track-like objects, but may render only the first page of a larger playlist
+- the embed page includes an anonymous session token intended for Spotify's public web/embed client
+- that anonymous token can read `spclient.wg.spotify.com/playlist/v2/playlist/<playlist-id>?format=json`
+- the `spclient` playlist response can include the full playlist rows, not only the visible embed rows
+- the same anonymous token can read per-track metadata from `spclient.wg.spotify.com/metadata/4/track/<track-gid>`
 
 Tested examples:
 
 - `Daily Test`: API-readable user-owned playlist, `50` tracks found from embed page
 - `Daily Mix test`: public playlist that returned `403` through the authenticated Web API, `50` tracks found from embed page
 - `Daily Mix 1`: generated/personalized playlist that returned `404` through the authenticated Web API, `50` tracks found from embed page
+- `Lullaby Renditions...` large public playlist: Spotify app showed `504` rows, embed HTML exposed `100`, and the public `spclient` path returned `504` rows
 
-This is the strongest signal so far that a no-Spotify-login ingestion path may be possible.
+This is the strongest signal so far that a no-Spotify-login ingestion path is technically possible.
+
+The large-playlist probe found:
+
+- playlist rows: `504`
+- unique Spotify track IDs after dedupe: `494`
+- metadata responses: `494 / 494`
+- duplicate Spotify track IDs removed: `10`
+
+The project intentionally dedupes repeated Spotify track IDs in the public path for now. That gives us a safer first product behavior and avoids creating accidental duplicate rows in Apple Music while the ingestion path is still being hardened.
 
 ## Current implementation
 
@@ -83,7 +98,10 @@ It can:
 
 - parse a Spotify playlist URL or playlist ID
 - probe oEmbed, the public playlist page, and the public embed page
-- extract track-like objects from embedded JSON
+- extract the anonymous embed session token from `__NEXT_DATA__`
+- fetch full playlist rows through Spotify's public web client endpoint when available
+- fetch richer per-track metadata through Spotify's public web client metadata endpoint
+- fall back to embedded JSON extraction if the public web client path stops working
 - normalize those tracks into the same `SpotifyTrack` shape used by the authenticated API path
 - expose a reusable `getPublicSpotifyPlaylist` function for app/backend flows
 
@@ -102,19 +120,28 @@ This means the repo now has a real no-Spotify-OAuth prototype path, not only a o
 
 ## Current extracted fields
 
-The public embed path currently yields:
+The preferred public `spclient` path currently yields:
+
+- Spotify track ID
+- track name
+- artist names
+- album name
+- duration
+- ISRC, when present in Spotify metadata
+
+The fallback public embed path currently yields:
 
 - Spotify track ID, derived from embedded Spotify URI metadata
 - track name
 - artist names
 - duration
 
-It does not currently yield:
+The fallback embed path does not reliably yield:
 
 - ISRC
 - album name
 
-That means the no-login path can probably support Apple Music search, but with less matching confidence than the authenticated Spotify API path.
+That means the preferred public path can support higher-confidence Apple Music search than the earlier embed-only approach, while the fallback path can still support title/artist matching with lower confidence.
 
 ## What the probe looks for
 
@@ -140,7 +167,7 @@ If it cannot, the product should support a layered fallback:
 
 ## Product implication
 
-The product promise should not become "any Spotify link works" until this probe succeeds across many playlists.
+The product promise should still be careful. The technical path works on the tested playlists, including a 504-row playlist, but it relies on Spotify's public web/embed surface rather than a documented Web API contract.
 
 Safer current promise:
 
@@ -149,7 +176,26 @@ Safer current promise:
 ## Next investigation steps
 
 - run the probe against more playlist types and sizes
-- determine whether embed pages expose more than 50 tracks for large playlists
 - run Apple Music matching from larger public-extracted playlists
-- compare match quality between authenticated API metadata and public embed metadata
+- compare match quality between authenticated API metadata and public `spclient` metadata
+- cache public metadata lookups so repeated probes do not hammer Spotify's public web endpoints
+- add rate-limit/backoff behavior around public metadata fetching
 - decide whether to add a fallback path for pasted text or CSV when Spotify blocks public extraction
+
+## Production risk
+
+This path is very attractive for user experience because it avoids Spotify login, but it is not a stable official API integration.
+
+Known risks:
+
+- Spotify can change the embed page structure.
+- Spotify can remove or reshape the anonymous session payload.
+- Spotify can change, rate-limit, or block the public `spclient` endpoints.
+- App-store review or platform policy may require a more conservative fallback if this is considered scraping or undocumented API use.
+
+Recommended product architecture:
+
+1. Try public-link extraction first.
+2. If it works, show the playlist preview immediately.
+3. If it fails, ask the user to connect Spotify through official OAuth.
+4. If OAuth still cannot access the playlist, offer manual import through pasted text or CSV.

@@ -25,6 +25,15 @@ async function main(): Promise<void> {
         playlistName: publicSpotifyPlaylistName(report),
         openPageTracks: "extractedTrackCount" in report.openPage ? report.openPage.extractedTrackCount : 0,
         embedPageTracks: "extractedTrackCount" in report.embedPage ? report.embedPage.extractedTrackCount : 0,
+        spclientPlaylistLength: "playlistLength" in report.spclient ? report.spclient.playlistLength : null,
+        spclientPlaylistRows: "playlistRows" in report.spclient ? report.spclient.playlistRows : null,
+        spclientUniqueTracks: "uniqueTrackCount" in report.spclient ? report.spclient.uniqueTrackCount : null,
+        spclientDedupedDuplicates:
+          "dedupedDuplicateCount" in report.spclient ? report.spclient.dedupedDuplicateCount : null,
+        spclientSkippedRows: "skippedRowCount" in report.spclient ? report.spclient.skippedRowCount : null,
+        spclientMetadataErrors:
+          "metadataErrorCount" in report.spclient ? report.spclient.metadataErrorCount : null,
+        spclientTracks: "extractedTrackCount" in report.spclient ? report.spclient.extractedTrackCount : 0,
         selectedTrackCount: bestPublicSpotifyTracks(report).length,
         artifactPath
       },
