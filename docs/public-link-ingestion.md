@@ -161,9 +161,10 @@ If the public probe can consistently extract a meaningful track list, we can bui
 If it cannot, the product should support a layered fallback:
 
 - try public link extraction
-- if blocked, ask user to connect Spotify
-- if still blocked, explain how to copy the playlist into their account
-- optionally accept pasted text or CSV as a manual import
+- if blocked and the user owns the playlist, guide them to make it public or add it to their profile
+- if blocked and the user does not own the playlist, guide them to copy/add it into a new playlist in their own Spotify account, make that playlist public, and share the new link
+- optionally accept pasted text, CSV, or Spotify account-data JSON as a later manual import path
+- keep Spotify OAuth as a backburner fallback, not the MVP foundation
 
 ## Product implication
 
@@ -197,5 +198,8 @@ Recommended product architecture:
 
 1. Try public-link extraction first.
 2. If it works, show the playlist preview immediately.
-3. If it fails, ask the user to connect Spotify through official OAuth.
-4. If OAuth still cannot access the playlist, offer manual import through pasted text or CSV.
+3. Analyze Apple Music matches before writing anything.
+4. Create the destination playlist from confident matches only.
+5. If public extraction fails, guide the user to make or copy the Spotify playlist into a normal public playlist and retry.
+6. Later, offer manual import through pasted text, CSV, or Spotify data export.
+7. Keep Spotify OAuth as an optional advanced fallback if the app ever gets approved for broader access.

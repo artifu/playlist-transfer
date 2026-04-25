@@ -29,6 +29,7 @@ It can run four actions:
 
 - `Preview Public`: reads the public Spotify embed page without Spotify OAuth
 - `Analyze Public`: reads the public Spotify embed page, then searches Apple Music
+- `Create Apple Playlist`: reads the public Spotify link, searches Apple Music, then creates a playlist from confident matches
 - `Preview API`: reads the playlist through the authenticated Spotify Web API
 - `Analyze API`: reads the playlist through the authenticated Spotify Web API, then searches Apple Music
 
@@ -162,15 +163,18 @@ Response:
       "confidence": 1,
       "reason": "isrc",
       "appleCandidate": {},
+      "candidateCount": 5,
       "candidates": []
     }
   ]
 }
 ```
 
+The local backend caps the returned `candidates` list per item for UI performance. `candidateCount` preserves how many Apple Music candidates were considered.
+
 ### `POST /api/transfers/analyze-public`
 
-Public link analysis. This endpoint reads Spotify tracks from public embed metadata, then uses Apple Music credentials to search for matches.
+Public link analysis. This endpoint reads Spotify tracks from public metadata, then uses Apple Music credentials to search for matches.
 
 Request:
 
@@ -188,6 +192,34 @@ Current note:
 - A production version should use background jobs, progress updates, caching, or a tighter search strategy.
 - Public analysis has higher confidence when the `spotify-public-spclient` path works because that path can include ISRC, album, artist, and duration metadata.
 - Public analysis has lower confidence when it falls back to `spotify-public-embed`, because the embed-only metadata does not include ISRC and often does not include album metadata.
+
+### `POST /api/transfers/create-public`
+
+Public link transfer. This endpoint reads a public Spotify playlist, analyzes Apple Music matches, then creates an Apple Music playlist from confident matches only.
+
+Request:
+
+```json
+{
+  "input": "https://open.spotify.com/playlist/6NwrTvQmJgGK9TVgJOkQtp"
+}
+```
+
+The response shape matches `POST /api/transfers/analyze-public`, with two added fields:
+
+```json
+{
+  "createdApplePlaylistId": "p.abc123",
+  "createdFromConfidenceThreshold": 0.8
+}
+```
+
+Important behavior:
+
+- matches with confidence `>= 0.8` are added to Apple Music
+- low-confidence `needs_review` matches are shown in the report but not written
+- unmatched tracks are shown in the report but not written
+- this endpoint writes to the signed-in Apple Music user's library
 
 ## Expected failure modes
 
@@ -220,7 +252,9 @@ Near-term product behavior should be:
 1. user pastes a Spotify playlist link
 2. backend tries public extraction first
 3. app shows tracks without asking for Spotify login when possible
-4. if public extraction fails, app asks for Spotify connection or offers manual import
-5. app analyzes Apple Music matches before creating a destination playlist
+4. app analyzes Apple Music matches before creating a destination playlist
+5. app creates from confident matches only
+6. if public extraction fails, app guides the user to make or copy the Spotify playlist into a public playlist and retry
+7. later, app can offer manual text, CSV, or Spotify data import as a final fallback
 
 This keeps the dream flow alive while avoiding a brittle promise that every Spotify link will always work.

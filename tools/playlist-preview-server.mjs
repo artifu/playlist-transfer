@@ -6,6 +6,7 @@ import { AppleMusicClient } from "../dist/providers/apple.js";
 import { SpotifyClient } from "../dist/providers/spotify.js";
 import { getPublicSpotifyPlaylist } from "../dist/providers/spotify-public.js";
 import { analyzeSpotifyPlaylist, analyzeTransfer } from "../dist/transfer/analyze-transfer.js";
+import { createApplePlaylistFromMatches } from "../dist/transfer/create-apple-playlist.js";
 
 const host = process.env.HOST ?? "127.0.0.1";
 const port = Number(process.env.PORT ?? 8790);
@@ -32,6 +33,38 @@ function matchStatus(result) {
   if (!result.matched) return "unmatched";
   if (result.confidence < 0.8) return "needs_review";
   return "matched";
+}
+
+function serializeAnalysis(analysis, playlistExtra = {}, options = {}) {
+  const candidateLimit = options.candidateLimit ?? 3;
+  const items = analysis.results.map((result, index) => ({
+    index: index + 1,
+    status: matchStatus(result),
+    source: result.source,
+    confidence: result.confidence,
+    reason: result.reason,
+    appleCandidate: result.candidate,
+    searchTerm: result.searchTerm,
+    candidateCount: result.candidates?.length ?? 0,
+    candidates: (result.candidates ?? []).slice(0, candidateLimit)
+  }));
+
+  return {
+    playlist: {
+      id: analysis.playlistId,
+      name: analysis.playlistName,
+      totalItems: analysis.results.length,
+      ...playlistExtra
+    },
+    summary: {
+      matchedCount: analysis.matchedCount,
+      unmatchedCount: analysis.unmatchedCount,
+      needsReviewCount: items.filter((item) => item.status === "needs_review").length,
+      confidentMatchCount: items.filter((item) => item.status === "matched").length,
+      matchRate: analysis.matchRate
+    },
+    items
+  };
 }
 
 function errorMessage(error) {
@@ -154,31 +187,7 @@ async function handleTransferAnalyze(request, response) {
       apple: createAppleMusicClient(),
       spotifyPlaylistId: playlistId
     });
-    const items = analysis.results.map((result, index) => ({
-      index: index + 1,
-      status: matchStatus(result),
-      source: result.source,
-      confidence: result.confidence,
-      reason: result.reason,
-      appleCandidate: result.candidate,
-      searchTerm: result.searchTerm,
-      candidates: result.candidates ?? []
-    }));
-
-    sendJson(response, 200, {
-      playlist: {
-        id: analysis.playlistId,
-        name: analysis.playlistName,
-        totalItems: analysis.results.length
-      },
-      summary: {
-        matchedCount: analysis.matchedCount,
-        unmatchedCount: analysis.unmatchedCount,
-        needsReviewCount: items.filter((item) => item.status === "needs_review").length,
-        matchRate: analysis.matchRate
-      },
-      items
-    });
+    sendJson(response, 200, serializeAnalysis(analysis));
   } catch (error) {
     sendJson(response, statusForError(error), {
       error: true,
@@ -193,32 +202,12 @@ async function handlePublicTransferAnalyze(request, response) {
     const input = body.input ?? body.playlistUrl ?? body.playlistId ?? "";
     const playlist = await getPublicSpotifyPlaylist(input);
     const analysis = await analyzeSpotifyPlaylist(playlist, createAppleMusicClient());
-    const items = analysis.results.map((result, index) => ({
-      index: index + 1,
-      status: matchStatus(result),
-      source: result.source,
-      confidence: result.confidence,
-      reason: result.reason,
-      appleCandidate: result.candidate,
-      searchTerm: result.searchTerm,
-      candidates: result.candidates ?? []
-    }));
 
     sendJson(response, 200, {
-      playlist: {
-        id: analysis.playlistId,
-        name: analysis.playlistName,
-        totalItems: analysis.results.length,
+      ...serializeAnalysis(analysis, {
         source: playlist.source,
         limitations: playlist.limitations
-      },
-      summary: {
-        matchedCount: analysis.matchedCount,
-        unmatchedCount: analysis.unmatchedCount,
-        needsReviewCount: items.filter((item) => item.status === "needs_review").length,
-        matchRate: analysis.matchRate
-      },
-      items
+      })
     });
   } catch (error) {
     sendJson(response, statusForError(error), {
@@ -228,112 +217,444 @@ async function handlePublicTransferAnalyze(request, response) {
   }
 }
 
-function renderPage() {
+async function handlePublicTransferCreate(request, response) {
+  try {
+    const body = await readJsonBody(request);
+    const input = body.input ?? body.playlistUrl ?? body.playlistId ?? "";
+    const playlist = await getPublicSpotifyPlaylist(input);
+    const apple = createAppleMusicClient();
+    const analysis = await analyzeSpotifyPlaylist(playlist, apple);
+    const createdApplePlaylistId = await createApplePlaylistFromMatches({
+      apple,
+      playlistName: analysis.playlistName,
+      results: analysis.results,
+      minConfidence: 0.8
+    });
+
+    sendJson(response, 200, {
+      ...serializeAnalysis(analysis, {
+        source: playlist.source,
+        limitations: playlist.limitations
+      }),
+      createdApplePlaylistId,
+      createdFromConfidenceThreshold: 0.8
+    });
+  } catch (error) {
+    sendJson(response, statusForError(error), {
+      error: true,
+      message: errorMessage(error)
+    });
+  }
+}
+
+function renderMvpPage() {
   return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>PlaylistTransfer Analyzer</title>
+  <title>PlaylistTransfer MVP</title>
   <style>
-    body { margin: 0; background: #f4f6f3; color: #171917; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-    main { max-width: 1120px; margin: 0 auto; padding: 32px 20px 56px; }
-    header { border-bottom: 1px solid #d8ddd3; padding-bottom: 20px; }
-    h1 { margin: 0; font-size: clamp(30px, 5vw, 52px); line-height: 1; }
-    p { color: #596156; line-height: 1.5; }
-    form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; margin: 26px 0; }
-    input { min-width: 0; border: 1px solid #c7cec2; border-radius: 8px; padding: 13px 14px; font: inherit; background: #fff; }
-    .actions { display: flex; flex-wrap: wrap; gap: 10px; }
-    button { border: 0; border-radius: 8px; padding: 0 18px; min-height: 48px; background: #172019; color: #fff; font-weight: 800; cursor: pointer; }
-    button:disabled { opacity: 0.65; cursor: wait; }
-    table { width: 100%; border-collapse: collapse; margin-top: 18px; background: #fff; border: 1px solid #d8ddd3; }
-    th, td { padding: 11px 12px; border-bottom: 1px solid #e4e8df; text-align: left; vertical-align: top; }
-    th { background: #eef2ea; color: #3e463b; font-size: 13px; text-transform: uppercase; }
-    td { font-size: 14px; }
-    .track { font-weight: 750; }
-    .meta, .mono, #status { color: #596156; }
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
-    .badge { display: inline-flex; border-radius: 999px; padding: 4px 9px; font-size: 12px; font-weight: 800; text-transform: uppercase; }
-    .matched { background: #dcefd7; color: #245927; }
-    .needs_review { background: #fff1c7; color: #7a5600; }
-    .unmatched { background: #f8dada; color: #8f1c1c; }
-    .error { color: #9b1c1c; }
-    @media (max-width: 700px) { form { display: grid; } .actions { display: grid; } table { display: block; overflow-x: auto; } }
+    :root {
+      --ink: #20160f;
+      --paper: #fff7e8;
+      --card: rgba(255, 252, 242, 0.9);
+      --line: rgba(32, 22, 15, 0.14);
+      --muted: #796d5f;
+      --tomato: #ff5b43;
+      --sun: #ffc94a;
+      --sage: #b8d889;
+      --mint: #dff2c7;
+      --blue: #315f72;
+      --shadow: 0 24px 70px rgba(77, 48, 23, 0.16);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: "Avenir Next", "Gill Sans", "Trebuchet MS", sans-serif;
+      background:
+        radial-gradient(circle at 12% 10%, rgba(255, 201, 74, 0.52), transparent 28rem),
+        radial-gradient(circle at 88% 6%, rgba(184, 216, 137, 0.65), transparent 26rem),
+        linear-gradient(135deg, #fffaf0 0%, #f8ead5 46%, #eef4d4 100%);
+      min-height: 100vh;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(32, 22, 15, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(32, 22, 15, 0.035) 1px, transparent 1px);
+      background-size: 34px 34px;
+      mask-image: linear-gradient(to bottom, black, transparent 84%);
+    }
+    main { width: min(1160px, calc(100% - 28px)); margin: 0 auto; padding: 24px 0 54px; }
+    .hero {
+      display: grid;
+      grid-template-columns: 1.08fr 0.92fr;
+      gap: 20px;
+      align-items: stretch;
+      margin-top: 10px;
+    }
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 30px;
+      background: var(--card);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+    }
+    .intro { padding: clamp(24px, 5vw, 52px); position: relative; overflow: hidden; }
+    .intro::after {
+      content: "";
+      position: absolute;
+      width: 180px;
+      height: 180px;
+      right: -54px;
+      bottom: -54px;
+      border-radius: 999px;
+      background: repeating-linear-gradient(45deg, rgba(255, 91, 67, 0.25), rgba(255, 91, 67, 0.25) 10px, transparent 10px, transparent 20px);
+    }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid rgba(32, 22, 15, 0.16);
+      border-radius: 999px;
+      padding: 7px 11px;
+      background: #fffdf6;
+      color: var(--blue);
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      font-size: 12px;
+    }
+    h1 {
+      margin: 18px 0 14px;
+      max-width: 780px;
+      font-family: Charter, Georgia, serif;
+      font-size: clamp(42px, 8vw, 84px);
+      line-height: 0.92;
+      letter-spacing: -0.06em;
+    }
+    p { color: var(--muted); line-height: 1.55; }
+    .lead { max-width: 650px; font-size: clamp(17px, 2.4vw, 22px); }
+    .recipe {
+      display: grid;
+      gap: 12px;
+      padding: 20px;
+    }
+    .step-card {
+      padding: 18px;
+      border-radius: 22px;
+      background: #fffdf6;
+      border: 1px solid var(--line);
+    }
+    .step-card strong { display: block; font-size: 16px; }
+    .step-card span { display: block; margin-top: 4px; color: var(--muted); font-size: 14px; line-height: 1.4; }
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 0.88fr) minmax(0, 1.12fr);
+      gap: 18px;
+      margin-top: 18px;
+    }
+    .import-card { padding: 22px; position: sticky; top: 16px; align-self: start; }
+    label { display: block; font-weight: 850; margin-bottom: 10px; }
+    .input-row { display: grid; gap: 10px; }
+    input {
+      width: 100%;
+      min-height: 54px;
+      border: 1px solid rgba(32, 22, 15, 0.18);
+      border-radius: 17px;
+      padding: 0 16px;
+      font: inherit;
+      color: var(--ink);
+      background: #fffdf8;
+      outline: none;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.8);
+    }
+    input:focus { border-color: rgba(255, 91, 67, 0.75); box-shadow: 0 0 0 4px rgba(255, 91, 67, 0.14); }
+    .button-grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 14px; }
+    button {
+      border: 0;
+      border-radius: 17px;
+      min-height: 52px;
+      padding: 0 16px;
+      font: inherit;
+      font-weight: 900;
+      cursor: pointer;
+      color: var(--ink);
+      transition: transform 160ms ease, opacity 160ms ease, box-shadow 160ms ease;
+    }
+    button:hover:not(:disabled) { transform: translateY(-1px); }
+    button:disabled { opacity: 0.48; cursor: wait; transform: none; }
+    .primary { background: var(--tomato); color: #fffaf1; box-shadow: 0 12px 24px rgba(255, 91, 67, 0.24); }
+    .secondary { background: var(--sun); }
+    .safe { background: var(--sage); }
+    .ghost { background: #fffdf6; border: 1px solid var(--line); color: var(--blue); }
+    #status {
+      min-height: 24px;
+      margin: 14px 0 0;
+      font-weight: 800;
+      color: var(--blue);
+    }
+    #status.error { color: #b3271b; }
+    .result-card { padding: 22px; min-height: 460px; }
+    .empty {
+      min-height: 380px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      color: var(--muted);
+      border: 1px dashed rgba(32, 22, 15, 0.18);
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.34);
+    }
+    .summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 16px 0; }
+    .metric {
+      padding: 14px;
+      border-radius: 18px;
+      background: #fffdf6;
+      border: 1px solid var(--line);
+    }
+    .metric b { display: block; font-size: 25px; line-height: 1; }
+    .metric span { color: var(--muted); font-size: 12px; font-weight: 850; text-transform: uppercase; letter-spacing: 0.04em; }
+    .source-note {
+      border-left: 5px solid var(--sage);
+      background: rgba(223, 242, 199, 0.55);
+      border-radius: 16px;
+      padding: 12px 14px;
+      color: var(--blue);
+      font-weight: 750;
+      line-height: 1.4;
+    }
+    .table-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 22px; margin-top: 16px; background: #fffdf6; }
+    table { width: 100%; border-collapse: collapse; min-width: 720px; }
+    th, td { padding: 12px 14px; border-bottom: 1px solid rgba(32, 22, 15, 0.09); text-align: left; vertical-align: top; font-size: 14px; }
+    th { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; background: rgba(255, 201, 74, 0.13); }
+    tr:last-child td { border-bottom: 0; }
+    .track { font-weight: 900; }
+    .meta, .mono { color: var(--muted); }
+    .mono { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 12px; }
+    .badge { display: inline-flex; border-radius: 999px; padding: 5px 9px; font-size: 11px; font-weight: 950; text-transform: uppercase; white-space: nowrap; }
+    .matched { background: var(--mint); color: #30510f; }
+    .needs_review { background: #fff0bc; color: #815806; }
+    .unmatched { background: #ffe0db; color: #a53022; }
+    .fallback { margin-top: 18px; padding: 22px; }
+    .fallback h2, .result-card h2 { margin: 0 0 8px; font-family: Charter, Georgia, serif; font-size: clamp(28px, 4vw, 42px); letter-spacing: -0.04em; }
+    .fallback-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 14px; }
+    .fallback-card { background: #fffdf6; border: 1px solid var(--line); border-radius: 22px; padding: 16px; }
+    .fallback-card b { display: block; margin-bottom: 8px; }
+    .fallback-card ol { margin: 0; padding-left: 20px; color: var(--muted); line-height: 1.55; }
+    details { margin-top: 16px; }
+    summary { cursor: pointer; color: var(--blue); font-weight: 900; }
+    .dev-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+    @media (max-width: 860px) {
+      main { width: min(100% - 20px, 620px); padding-top: 10px; }
+      .hero, .workspace, .fallback-grid { grid-template-columns: 1fr; }
+      .recipe { padding: 14px; }
+      .import-card { position: static; }
+      .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      h1 { font-size: clamp(42px, 15vw, 72px); }
+      .dev-actions { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
   <main>
-    <header>
-      <h1>Playlist Analyzer</h1>
-      <p>Paste a Spotify playlist link to preview public tracks without Spotify OAuth, or compare the authenticated API path.</p>
-    </header>
-    <form id="form">
-      <input id="playlist-input" autocomplete="off" placeholder="https://open.spotify.com/playlist/..." />
-      <div class="actions">
-        <button type="submit" value="public-preview">Preview Public</button>
-        <button type="submit" value="public-analyze">Analyze Public</button>
-        <button type="submit" value="api-preview">Preview API</button>
-        <button type="submit" value="api-analyze">Analyze API</button>
+    <section class="hero">
+      <div class="panel intro">
+        <span class="eyebrow">No Spotify login first</span>
+        <h1>Turn a Spotify link into an Apple Music playlist.</h1>
+        <p class="lead">Paste a public playlist link, verify what we can read, review Apple Music matches, then create the destination playlist from confident matches only.</p>
       </div>
-    </form>
-    <div id="status"></div>
-    <section id="result"></section>
+      <aside class="panel recipe" aria-label="MVP flow">
+        <div class="step-card"><strong>1. Import public link</strong><span>Uses Spotify public embed metadata and falls back cleanly if Spotify blocks the link.</span></div>
+        <div class="step-card"><strong>2. Match before writing</strong><span>Shows matched, needs review, and unmatched rows before touching Apple Music.</span></div>
+        <div class="step-card"><strong>3. Create safely</strong><span>Writes only confident matches. Risky matches stay in the report.</span></div>
+      </aside>
+    </section>
+
+    <section class="workspace">
+      <section class="panel import-card">
+        <label for="playlist-input">Spotify playlist link</label>
+        <div class="input-row">
+          <input id="playlist-input" autocomplete="off" placeholder="https://open.spotify.com/playlist/..." />
+        </div>
+        <div class="button-grid">
+          <button id="preview-public" class="primary">Preview public link</button>
+          <button id="analyze-public" class="secondary" disabled>Analyze Apple matches</button>
+          <button id="create-public" class="safe" disabled>Create Apple playlist</button>
+        </div>
+        <div id="status"></div>
+        <details>
+          <summary>Developer comparison tools</summary>
+          <div class="dev-actions">
+            <button id="preview-api" class="ghost">Preview API path</button>
+            <button id="analyze-api" class="ghost">Analyze API path</button>
+          </div>
+        </details>
+      </section>
+
+      <section class="panel result-card">
+        <div id="result" class="empty">
+          <div>
+            <strong>Paste a link to start.</strong>
+            <p>We will show the playlist contents before asking Apple Music to do anything.</p>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <section id="fallback" class="panel fallback" hidden>
+      <h2>If Spotify blocks the link</h2>
+      <p>The mobile-friendly fallback is not file export. It is helping the user create a public, normal playlist link that can be imported.</p>
+      <div class="fallback-grid">
+        <div class="fallback-card">
+          <b>I own this playlist</b>
+          <ol><li>Open it in Spotify.</li><li>Tap the three dots.</li><li>Make it public or add it to profile.</li><li>Share the link again.</li></ol>
+        </div>
+        <div class="fallback-card">
+          <b>Someone shared it with me</b>
+          <ol><li>Open it in Spotify.</li><li>Add it to a new playlist in your account.</li><li>Make the new playlist public.</li><li>Share the new link.</li></ol>
+        </div>
+        <div class="fallback-card">
+          <b>Still blocked</b>
+          <ol><li>Use Spotify Desktop later.</li><li>Export/copy the track list.</li><li>Import text or CSV in the next product phase.</li></ol>
+        </div>
+      </div>
+    </section>
   </main>
+
   <script>
-    const form = document.querySelector("#form");
     const input = document.querySelector("#playlist-input");
     const status = document.querySelector("#status");
     const result = document.querySelector("#result");
-    const buttons = [...document.querySelectorAll("button")];
-    function esc(value) { return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;"); }
-    function duration(ms) { if (!ms) return ""; const s = Math.round(ms / 1000); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
-    function pct(value) { return typeof value === "number" ? Math.round(value * 100) + "%" : ""; }
+    const fallback = document.querySelector("#fallback");
+    const buttons = {
+      previewPublic: document.querySelector("#preview-public"),
+      analyzePublic: document.querySelector("#analyze-public"),
+      createPublic: document.querySelector("#create-public"),
+      previewApi: document.querySelector("#preview-api"),
+      analyzeApi: document.querySelector("#analyze-api")
+    };
+    let lastPreview = null;
+    let lastAnalysis = null;
+
+    function esc(value) {
+      return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
+    }
+    function duration(ms) {
+      if (!ms) return "";
+      const seconds = Math.round(ms / 1000);
+      return Math.floor(seconds / 60) + ":" + String(seconds % 60).padStart(2, "0");
+    }
+    function pct(value) {
+      return typeof value === "number" ? Math.round(value * 100) + "%" : "";
+    }
+    function setBusy(isBusy, message) {
+      Object.values(buttons).forEach((button) => button.disabled = isBusy || button.dataset.locked === "true");
+      if (!isBusy) {
+        buttons.analyzePublic.disabled = !lastPreview;
+        buttons.createPublic.disabled = !lastAnalysis;
+      }
+      status.className = "";
+      status.textContent = message || "";
+    }
+    async function postJson(endpoint, value) {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ input: value })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Request failed.");
+      return data;
+    }
     function sourceNote(data) {
-      const source = data.playlist.source ? "<div class='meta'>Source: " + esc(data.playlist.source) + "</div>" : "";
-      const limits = Array.isArray(data.playlist.limitations) && data.playlist.limitations.length ? "<div class='mono'>Limitations: " + esc(data.playlist.limitations.join(" · ")) + "</div>" : "";
-      return source + limits;
+      const source = data.playlist.source ? "<div class='source-note'>Source: " + esc(data.playlist.source) + ". " + esc((data.playlist.limitations || [])[0] || "") + "</div>" : "";
+      return source;
+    }
+    function rowsNote(total, rendered) {
+      return total > rendered ? "<p class='meta'>Showing first " + rendered + " rows in the prototype UI. The backend response contains all " + total + " rows.</p>" : "";
     }
     function renderPreview(data) {
-      const rows = data.tracks.map((track, index) => "<tr><td>" + (index + 1) + "</td><td><div class='track'>" + esc(track.name) + "</div><div>" + esc(track.artists.join(", ")) + "</div></td><td>" + esc(track.album) + "</td><td>" + duration(track.durationMs) + "</td><td class='mono'>" + esc(track.isrc || "") + "</td></tr>").join("");
-      result.innerHTML = "<h2>" + esc(data.playlist.name) + "</h2><div class='meta'>" + data.tracks.length + " readable tracks · Spotify ID " + esc(data.playlist.id) + "</div>" + sourceNote(data) + "<table><thead><tr><th>#</th><th>Song</th><th>Album</th><th>Time</th><th>ISRC</th></tr></thead><tbody>" + rows + "</tbody></table>";
+      const renderedTracks = data.tracks.slice(0, 140);
+      const rows = renderedTracks.map((track, index) =>
+        "<tr><td>" + (index + 1) + "</td><td><div class='track'>" + esc(track.name) + "</div><div class='meta'>" + esc(track.artists.join(", ")) + "</div></td><td>" + esc(track.album || "") + "</td><td>" + duration(track.durationMs) + "</td><td class='mono'>" + esc(track.isrc || "") + "</td></tr>"
+      ).join("");
+      result.className = "";
+      result.innerHTML =
+        "<h2>" + esc(data.playlist.name) + "</h2>" +
+        "<p class='meta'>Spotify ID " + esc(data.playlist.id) + "</p>" +
+        "<div class='summary'><div class='metric'><b>" + data.tracks.length + "</b><span>Readable tracks</span></div><div class='metric'><b>" + esc(data.playlist.source || "public") + "</b><span>Import path</span></div><div class='metric'><b>" + data.tracks.filter((track) => track.isrc).length + "</b><span>With ISRC</span></div><div class='metric'><b>" + data.tracks.filter((track) => track.album).length + "</b><span>With album</span></div></div>" +
+        sourceNote(data) +
+        rowsNote(data.tracks.length, renderedTracks.length) +
+        "<div class='table-wrap'><table><thead><tr><th>#</th><th>Song</th><th>Album</th><th>Time</th><th>ISRC</th></tr></thead><tbody>" + rows + "</tbody></table></div>";
     }
-    function renderAnalysis(data) {
-      const rows = data.items.map((item) => {
+    function renderAnalysis(data, createdApplePlaylistId) {
+      const renderedItems = data.items.slice(0, 160);
+      const rows = renderedItems.map((item) => {
         const source = item.source;
         const candidate = item.appleCandidate;
-        const apple = candidate ? "<div class='track'>" + esc(candidate.name) + "</div><div>" + esc(candidate.artistName) + "</div><div class='mono'>" + esc(candidate.albumName || "") + "</div>" : "<span class='mono'>No candidate selected</span>";
-        return "<tr><td>" + item.index + "</td><td><span class='badge " + esc(item.status) + "'>" + esc(item.status.replaceAll("_", " ")) + "</span></td><td><div class='track'>" + esc(source.name) + "</div><div>" + esc(source.artists.join(", ")) + "</div><div class='mono'>" + esc(source.album || "") + "</div></td><td>" + apple + "</td><td>" + pct(item.confidence) + "</td><td class='mono'>" + esc(item.reason || "") + "</td></tr>";
+        const apple = candidate ? "<div class='track'>" + esc(candidate.name) + "</div><div class='meta'>" + esc(candidate.artistName) + "</div><div class='mono'>" + esc(candidate.albumName || "") + "</div>" : "<span class='mono'>No candidate selected</span>";
+        return "<tr><td>" + item.index + "</td><td><span class='badge " + esc(item.status) + "'>" + esc(item.status.replaceAll("_", " ")) + "</span></td><td><div class='track'>" + esc(source.name) + "</div><div class='meta'>" + esc(source.artists.join(", ")) + "</div><div class='mono'>" + esc(source.album || "") + "</div></td><td>" + apple + "</td><td>" + pct(item.confidence) + "</td><td class='mono'>" + esc(item.reason || "") + "</td></tr>";
       }).join("");
-      result.innerHTML = "<h2>" + esc(data.playlist.name) + "</h2><div class='meta'>" + data.summary.matchedCount + " matched · " + data.summary.needsReviewCount + " needs review · " + data.summary.unmatchedCount + " unmatched · " + pct(data.summary.matchRate) + " match rate</div>" + sourceNote(data) + "<table><thead><tr><th>#</th><th>Status</th><th>Spotify</th><th>Apple Music Candidate</th><th>Confidence</th><th>Reason</th></tr></thead><tbody>" + rows + "</tbody></table>";
+      const created = createdApplePlaylistId ? "<div class='source-note'>Created Apple Music playlist: <span class='mono'>" + esc(createdApplePlaylistId) + "</span>. Only confident matches were added.</div>" : "";
+      result.className = "";
+      result.innerHTML =
+        "<h2>" + esc(data.playlist.name) + "</h2>" +
+        "<div class='summary'><div class='metric'><b>" + data.summary.confidentMatchCount + "</b><span>Ready</span></div><div class='metric'><b>" + data.summary.needsReviewCount + "</b><span>Review</span></div><div class='metric'><b>" + data.summary.unmatchedCount + "</b><span>Missing</span></div><div class='metric'><b>" + pct(data.summary.matchRate) + "</b><span>Any match</span></div></div>" +
+        created +
+        sourceNote(data) +
+        rowsNote(data.items.length, renderedItems.length) +
+        "<div class='table-wrap'><table><thead><tr><th>#</th><th>Status</th><th>Spotify</th><th>Apple Music candidate</th><th>Confidence</th><th>Reason</th></tr></thead><tbody>" + rows + "</tbody></table></div>";
     }
-    form.addEventListener("submit", async (event) => {
-      event.preventDefault();
+    function renderError(error) {
+      result.className = "empty";
+      result.innerHTML = "<div><strong>Public import could not read this link.</strong><p>" + esc(error.message || error) + "</p><p>Use the fallback guide below, then paste the new Spotify link here.</p></div>";
+      fallback.hidden = false;
+    }
+    async function run(endpoint, options) {
       const value = input.value.trim();
       if (!value) return;
-      const action = event.submitter?.value ?? "public-preview";
-      buttons.forEach((button) => button.disabled = true);
-      status.className = "";
-      status.textContent = action.includes("preview") ? "Reading playlist..." : "Analyzing matches...";
-      result.innerHTML = "";
+      fallback.hidden = true;
       try {
-        const endpoints = {
-          "public-preview": "/api/spotify/public-playlist-preview",
-          "public-analyze": "/api/transfers/analyze-public",
-          "api-preview": "/api/spotify/playlist-preview",
-          "api-analyze": "/api/transfers/analyze"
-        };
-        const endpoint = endpoints[action] ?? endpoints["public-preview"];
-        const response = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ input: value }) });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message || "Request failed.");
-        status.textContent = action.includes("preview") ? "Playlist loaded." : "Analysis complete.";
-        action.includes("preview") ? renderPreview(data) : renderAnalysis(data);
+        setBusy(true, options.message);
+        const data = await postJson(endpoint, value);
+        if (options.kind === "preview") {
+          lastPreview = data;
+          lastAnalysis = null;
+          renderPreview(data);
+          status.textContent = "Playlist loaded. Next: analyze Apple Music matches.";
+        } else {
+          lastAnalysis = data;
+          renderAnalysis(data, data.createdApplePlaylistId);
+          status.textContent = data.createdApplePlaylistId ? "Apple Music playlist created." : "Analysis complete. Review before creating.";
+        }
       } catch (error) {
         status.className = "error";
         status.textContent = error instanceof Error ? error.message : String(error);
+        renderError(error);
       } finally {
-        buttons.forEach((button) => button.disabled = false);
+        setBusy(false);
       }
+    }
+    buttons.previewPublic.addEventListener("click", () => run("/api/spotify/public-playlist-preview", { kind: "preview", message: "Reading public Spotify link..." }));
+    buttons.analyzePublic.addEventListener("click", () => run("/api/transfers/analyze-public", { kind: "analysis", message: "Matching against Apple Music..." }));
+    buttons.createPublic.addEventListener("click", () => {
+      if (window.confirm("Create an Apple Music playlist from confident matches only?")) {
+        run("/api/transfers/create-public", { kind: "analysis", message: "Creating Apple Music playlist from confident matches..." });
+      }
+    });
+    buttons.previewApi.addEventListener("click", () => run("/api/spotify/playlist-preview", { kind: "preview", message: "Reading through authenticated Spotify API..." }));
+    buttons.analyzeApi.addEventListener("click", () => run("/api/transfers/analyze", { kind: "analysis", message: "Analyzing through authenticated API path..." }));
+    input.addEventListener("input", () => {
+      lastPreview = null;
+      lastAnalysis = null;
+      buttons.analyzePublic.disabled = true;
+      buttons.createPublic.disabled = true;
     });
   </script>
 </body>
@@ -350,7 +671,7 @@ const server = createServer(async (request, response) => {
   }
 
   if (method === "GET" && url.pathname === "/") {
-    sendHtml(response, renderPage());
+    sendHtml(response, renderMvpPage());
     return;
   }
 
@@ -371,6 +692,11 @@ const server = createServer(async (request, response) => {
 
   if (method === "POST" && url.pathname === "/api/transfers/analyze-public") {
     await handlePublicTransferAnalyze(request, response);
+    return;
+  }
+
+  if (method === "POST" && url.pathname === "/api/transfers/create-public") {
+    await handlePublicTransferCreate(request, response);
     return;
   }
 
