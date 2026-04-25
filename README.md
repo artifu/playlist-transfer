@@ -105,13 +105,21 @@ Type-check the project:
 npm run check
 ```
 
-Run the local Spotify playlist preview backend:
+Run the local playlist preview backend:
 
 ```bash
 npm run dev:api
 ```
 
 Then open `http://127.0.0.1:8790`.
+
+The backend includes both public-link and authenticated-API paths. The public path is the current product wedge because it can preview supported Spotify playlist links without Spotify OAuth.
+
+Probe a public Spotify playlist link without OAuth:
+
+```bash
+npm run spotify:public-probe -- "https://open.spotify.com/playlist/..."
+```
 
 ## Outputs
 
@@ -148,6 +156,7 @@ If a future mobile app introduces ads, app-store packaging, or paid tiers, this 
 - [docs/e2e-validation.md](./docs/e2e-validation.md): real transfer validation results and follow-up work
 - [docs/product-next-steps.md](./docs/product-next-steps.md): next product and engineering priorities after validation
 - [docs/backend-preview.md](./docs/backend-preview.md): local backend and browser preview for Spotify playlist contents
+- [docs/public-link-ingestion.md](./docs/public-link-ingestion.md): investigation into reading public Spotify playlist links without OAuth
 
 ## Product principles
 

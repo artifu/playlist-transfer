@@ -1,7 +1,7 @@
 import { buildSearchTerms, pickBestMatch } from "../matching/match-track.js";
 import { AppleMusicClient } from "../providers/apple.js";
 import { SpotifyClient } from "../providers/spotify.js";
-import type { AppleSongCandidate, MatchResult, TransferAnalysis } from "../types.js";
+import type { AppleSongCandidate, MatchResult, SpotifyPlaylist, TransferAnalysis } from "../types.js";
 
 type AnalyzeTransferInput = {
   spotify: SpotifyClient;
@@ -19,8 +19,10 @@ function dedupeCandidates(candidates: AppleSongCandidate[]): AppleSongCandidate[
   return [...byId.values()];
 }
 
-export async function analyzeTransfer(input: AnalyzeTransferInput): Promise<TransferAnalysis> {
-  const playlist = await input.spotify.getPlaylist(input.spotifyPlaylistId);
+export async function analyzeSpotifyPlaylist(
+  playlist: SpotifyPlaylist,
+  apple: AppleMusicClient
+): Promise<TransferAnalysis> {
   const results: MatchResult[] = [];
 
   for (const track of playlist.tracks) {
@@ -28,7 +30,7 @@ export async function analyzeTransfer(input: AnalyzeTransferInput): Promise<Tran
     const candidates: AppleSongCandidate[] = [];
 
     for (const searchTerm of searchTerms) {
-      candidates.push(...(await input.apple.searchSongs(searchTerm)));
+      candidates.push(...(await apple.searchSongs(searchTerm)));
     }
 
     const uniqueCandidates = dedupeCandidates(candidates);
@@ -51,4 +53,9 @@ export async function analyzeTransfer(input: AnalyzeTransferInput): Promise<Tran
     matchRate: results.length === 0 ? 0 : matchedCount / results.length,
     results
   };
+}
+
+export async function analyzeTransfer(input: AnalyzeTransferInput): Promise<TransferAnalysis> {
+  const playlist = await input.spotify.getPlaylist(input.spotifyPlaylistId);
+  return analyzeSpotifyPlaylist(playlist, input.apple);
 }

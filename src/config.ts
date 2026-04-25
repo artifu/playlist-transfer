@@ -19,6 +19,12 @@ type SpotifyConfig = {
   spotifyRefreshToken: string;
 };
 
+type AppleMusicConfig = {
+  appleMusicDeveloperToken: string;
+  appleMusicUserToken: string;
+  appleMusicStorefront: string;
+};
+
 export function requireEnv(name: string): string {
   const value = process.env[name]?.trim();
   if (!value) {
@@ -32,6 +38,14 @@ export function loadSpotifyConfig(): SpotifyConfig {
     spotifyClientId: requireEnv("SPOTIFY_CLIENT_ID"),
     spotifyClientSecret: requireEnv("SPOTIFY_CLIENT_SECRET"),
     spotifyRefreshToken: requireEnv("SPOTIFY_REFRESH_TOKEN")
+  };
+}
+
+export function loadAppleMusicConfig(): AppleMusicConfig {
+  return {
+    appleMusicDeveloperToken: requireEnv("APPLE_MUSIC_DEVELOPER_TOKEN"),
+    appleMusicUserToken: requireEnv("APPLE_MUSIC_USER_TOKEN"),
+    appleMusicStorefront: process.env.APPLE_MUSIC_STOREFRONT?.trim() || "us"
   };
 }
 

@@ -4,18 +4,18 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
     "check": "tsc --noEmit -p tsconfig.json",
-    "dev:api": "node --import tsx src/cli/server.ts",
+    "dev:api": "npm run build && node tools/playlist-preview-server.mjs",
     "spotify:auth": "node tools/spotify-auth-helper.mjs",
-    "apple:developer-token": "node --import tsx src/cli/generate-apple-developer-token.ts",
+    "spotify:public-probe": "npm run build && node dist/cli/spotify-public-probe.js",
+    "apple:developer-token": "npm run build && node dist/cli/generate-apple-developer-token.js",
     "apple:user-token": "node tools/serve-apple-user-token-helper.mjs",
-    "transfer:dry": "node --import tsx src/cli/transfer.ts --dry-run",
-    "transfer": "node --import tsx src/cli/transfer.ts"
+    "transfer:dry": "npm run build && node dist/cli/transfer.js --dry-run",
+    "transfer": "npm run build && node dist/cli/transfer.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
-    "fastify": "^5.8.5",
     "jose": "^6.2.2"
   },
   "devDependencies": {
