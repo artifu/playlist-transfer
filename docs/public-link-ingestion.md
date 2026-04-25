@@ -107,12 +107,12 @@ The public embed path currently yields:
 - Spotify track ID, derived from embedded Spotify URI metadata
 - track name
 - artist names
+- duration
 
 It does not currently yield:
 
 - ISRC
 - album name
-- duration
 
 That means the no-login path can probably support Apple Music search, but with less matching confidence than the authenticated Spotify API path.
 

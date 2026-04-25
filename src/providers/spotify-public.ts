@@ -58,7 +58,6 @@ export type PublicSpotifyPlaylist = SpotifyPlaylist & {
 
 export const PUBLIC_SPOTIFY_METADATA_LIMITATIONS = [
   "No ISRC from public embed metadata",
-  "No duration from public embed metadata",
   "Album metadata is often missing",
   "Spotify may change this public page structure"
 ];
@@ -220,6 +219,14 @@ function spotifyTrackIdFromUri(uri: string | null): string | null {
   return match?.[1] ?? match?.[2] ?? null;
 }
 
+function durationMs(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return null;
+  }
+
+  return value;
+}
+
 function normalizeTrackCandidate(value: Record<string, unknown>): SpotifyTrack | null {
   const name = compactText(value.name ?? value.title);
   if (!name) {
@@ -238,7 +245,7 @@ function normalizeTrackCandidate(value: Record<string, unknown>): SpotifyTrack |
       albumName(value.albumOfTrack) ??
       albumName(value.album) ??
       null,
-    durationMs: null
+    durationMs: durationMs(value.duration_ms) ?? durationMs(value.durationMs) ?? durationMs(value.duration)
   };
 }
 
@@ -261,7 +268,8 @@ function collectTrackCandidates(
   if (looksLikeTrackObject(value)) {
     const track = normalizeTrackCandidate(value);
     if (track) {
-      const key = [track.spotifyTrackId, track.name, track.artists.join(","), track.album].join("|");
+      const rowUid = compactText(value.uid);
+      const key = [rowUid ?? track.spotifyTrackId, track.name, track.artists.join(","), track.album].join("|");
       if (!seen.has(key)) {
         seen.add(key);
         tracks.push(track);
@@ -337,7 +345,7 @@ function dedupeTracks(tracks: SpotifyTrack[]): SpotifyTrack[] {
   const seen = new Set<string>();
 
   for (const track of tracks) {
-    const key = [track.spotifyTrackId, track.name, track.artists.join(","), track.album].join("|");
+    const key = [track.spotifyTrackId, track.name, track.artists.join(","), track.album, track.durationMs].join("|");
     if (!seen.has(key)) {
       seen.add(key);
       unique.push(track);
@@ -350,7 +358,7 @@ function dedupeTracks(tracks: SpotifyTrack[]): SpotifyTrack[] {
 function summarizeHtmlProbe(probe: FetchTextResult): PublicSpotifyHtmlProbe {
   const jsonLd = extractJsonLd(probe.text);
   const nextData = extractNextData(probe.text);
-  const tracks = dedupeTracks([...jsonLd.tracks, ...nextData.tracks]);
+  const tracks = nextData.tracks.length > 0 ? nextData.tracks : dedupeTracks(jsonLd.tracks);
 
   return {
     url: probe.url,

@@ -107,7 +107,6 @@ Response:
     "source": "spotify-public-embed",
     "limitations": [
       "No ISRC from public embed metadata",
-      "No duration from public embed metadata",
       "Album metadata is often missing",
       "Spotify may change this public page structure"
     ]
@@ -119,7 +118,7 @@ Response:
       "name": "...",
       "artists": ["..."],
       "album": null,
-      "durationMs": null
+      "durationMs": 123000
     }
   ]
 }
@@ -184,7 +183,7 @@ Current note:
 
 - `Analyze Matches` can be slow on 50-track playlists because it performs multiple Apple Music searches per track.
 - A production version should use background jobs, progress updates, caching, or a tighter search strategy.
-- Public analysis has lower matching confidence because public embed metadata does not include ISRC or duration.
+- Public analysis has lower matching confidence because public embed metadata does not include ISRC and often does not include album metadata.
 
 ## Expected failure modes
 
