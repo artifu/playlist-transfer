@@ -24,10 +24,16 @@ type ApplePlaylistCreateResponse = {
   }>;
 };
 
+const searchCache = new Map<string, Promise<AppleSongCandidate[]>>();
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+}
+
+function searchCacheKey(storefront: string, term: string, limit: number): string {
+  return `${storefront}:${limit}:${term.toLowerCase()}`;
 }
 
 export class AppleMusicClient {
@@ -46,6 +52,27 @@ export class AppleMusicClient {
   }
 
   async searchSongs(term: string, limit = 5): Promise<AppleSongCandidate[]> {
+    const normalizedTerm = term.trim();
+    if (!normalizedTerm) {
+      return [];
+    }
+
+    const cacheKey = searchCacheKey(this.storefront, normalizedTerm, limit);
+    const cached = searchCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const request = this.fetchSearchSongs(normalizedTerm, limit).catch((error: unknown) => {
+      searchCache.delete(cacheKey);
+      throw error;
+    });
+
+    searchCache.set(cacheKey, request);
+    return request;
+  }
+
+  private async fetchSearchSongs(term: string, limit: number): Promise<AppleSongCandidate[]> {
     const url = new URL(`https://api.music.apple.com/v1/catalog/${this.storefront}/search`);
     url.searchParams.set("term", term);
     url.searchParams.set("types", "songs");

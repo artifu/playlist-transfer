@@ -189,6 +189,10 @@ The response shape matches `POST /api/transfers/analyze`, with an added `playlis
 Current note:
 
 - `Analyze Matches` can be slow on large playlists because it performs multiple Apple Music searches per track.
+- The local MVP UI analyzes the first `50` tracks by default so large-playlist testing stays interactive.
+- The request accepts `limit` or `analysisLimit` when testing larger batches, capped at `500`.
+- Apple Music analysis uses bounded track concurrency, stops searching a track once an ISRC match is found, and caches catalog searches in-process for faster retries.
+- Public Spotify playlist reads are cached in-process by playlist ID, so the normal `Preview -> Analyze` path reuses the full public import result.
 - A production version should use background jobs, progress updates, caching, or a tighter search strategy.
 - Public analysis has higher confidence when the `spotify-public-spclient` path works because that path can include ISRC, album, artist, and duration metadata.
 - Public analysis has lower confidence when it falls back to `spotify-public-embed`, because the embed-only metadata does not include ISRC and often does not include album metadata.
@@ -217,6 +221,7 @@ The response shape matches `POST /api/transfers/analyze-public`, with two added 
 Important behavior:
 
 - matches with confidence `>= 0.8` are added to Apple Music
+- the local MVP UI creates from the selected analysis size, not always the entire playlist
 - low-confidence `needs_review` matches are shown in the report but not written
 - unmatched tracks are shown in the report but not written
 - this endpoint writes to the signed-in Apple Music user's library

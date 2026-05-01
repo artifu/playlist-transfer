@@ -10,6 +10,8 @@ import { createApplePlaylistFromMatches } from "../dist/transfer/create-apple-pl
 
 const host = process.env.HOST ?? "127.0.0.1";
 const port = Number(process.env.PORT ?? 8790);
+const DEFAULT_PUBLIC_ANALYSIS_LIMIT = 50;
+const MAX_PUBLIC_ANALYSIS_LIMIT = 500;
 
 function createSpotifyClient() {
   const config = loadSpotifyConfig();
@@ -64,6 +66,38 @@ function serializeAnalysis(analysis, playlistExtra = {}, options = {}) {
       matchRate: analysis.matchRate
     },
     items
+  };
+}
+
+function numberFromBody(value, fallback) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
+}
+
+function analysisLimitFromBody(body) {
+  return Math.min(
+    numberFromBody(body.limit ?? body.analysisLimit, DEFAULT_PUBLIC_ANALYSIS_LIMIT),
+    MAX_PUBLIC_ANALYSIS_LIMIT
+  );
+}
+
+function slicePlaylistForAnalysis(playlist, limit) {
+  const tracks = playlist.tracks.slice(0, limit);
+
+  return {
+    ...playlist,
+    totalItems: tracks.length,
+    tracks
+  };
+}
+
+function playlistAnalysisMetadata(playlist, analyzedTrackCount) {
+  return {
+    source: playlist.source,
+    limitations: playlist.limitations,
+    originalTotalItems: playlist.totalItems,
+    analyzedTrackCount,
+    partialAnalysis: analyzedTrackCount < playlist.totalItems
   };
 }
 
@@ -200,14 +234,13 @@ async function handlePublicTransferAnalyze(request, response) {
   try {
     const body = await readJsonBody(request);
     const input = body.input ?? body.playlistUrl ?? body.playlistId ?? "";
+    const limit = analysisLimitFromBody(body);
     const playlist = await getPublicSpotifyPlaylist(input);
-    const analysis = await analyzeSpotifyPlaylist(playlist, createAppleMusicClient());
+    const analysisPlaylist = slicePlaylistForAnalysis(playlist, limit);
+    const analysis = await analyzeSpotifyPlaylist(analysisPlaylist, createAppleMusicClient());
 
     sendJson(response, 200, {
-      ...serializeAnalysis(analysis, {
-        source: playlist.source,
-        limitations: playlist.limitations
-      })
+      ...serializeAnalysis(analysis, playlistAnalysisMetadata(playlist, analysisPlaylist.tracks.length))
     });
   } catch (error) {
     sendJson(response, statusForError(error), {
@@ -221,9 +254,11 @@ async function handlePublicTransferCreate(request, response) {
   try {
     const body = await readJsonBody(request);
     const input = body.input ?? body.playlistUrl ?? body.playlistId ?? "";
+    const limit = analysisLimitFromBody(body);
     const playlist = await getPublicSpotifyPlaylist(input);
+    const analysisPlaylist = slicePlaylistForAnalysis(playlist, limit);
     const apple = createAppleMusicClient();
-    const analysis = await analyzeSpotifyPlaylist(playlist, apple);
+    const analysis = await analyzeSpotifyPlaylist(analysisPlaylist, apple);
     const createdApplePlaylistId = await createApplePlaylistFromMatches({
       apple,
       playlistName: analysis.playlistName,
@@ -232,10 +267,7 @@ async function handlePublicTransferCreate(request, response) {
     });
 
     sendJson(response, 200, {
-      ...serializeAnalysis(analysis, {
-        source: playlist.source,
-        limitations: playlist.limitations
-      }),
+      ...serializeAnalysis(analysis, playlistAnalysisMetadata(playlist, analysisPlaylist.tracks.length)),
       createdApplePlaylistId,
       createdFromConfidenceThreshold: 0.8
     });
@@ -376,6 +408,27 @@ function renderMvpPage() {
     }
     input:focus { border-color: rgba(255, 91, 67, 0.75); box-shadow: 0 0 0 4px rgba(255, 91, 67, 0.14); }
     .button-grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 14px; }
+    .option-row {
+      display: grid;
+      gap: 8px;
+      margin-top: 14px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(255, 253, 246, 0.58);
+    }
+    .option-row label { margin: 0; font-size: 13px; color: var(--blue); }
+    select {
+      width: 100%;
+      min-height: 44px;
+      border: 1px solid rgba(32, 22, 15, 0.18);
+      border-radius: 14px;
+      padding: 0 12px;
+      font: inherit;
+      font-weight: 800;
+      color: var(--ink);
+      background: #fffdf8;
+    }
     button {
       border: 0;
       border-radius: 17px;
@@ -487,6 +540,14 @@ function renderMvpPage() {
           <button id="analyze-public" class="secondary" disabled>Analyze Apple matches</button>
           <button id="create-public" class="safe" disabled>Create Apple playlist</button>
         </div>
+        <div class="option-row">
+          <label for="analysis-limit">Analysis size</label>
+          <select id="analysis-limit">
+            <option value="50" selected>Fast sample: first 50 tracks</option>
+            <option value="100">Bigger sample: first 100 tracks</option>
+            <option value="500">Full playlist: up to 500 tracks</option>
+          </select>
+        </div>
         <div id="status"></div>
         <details>
           <summary>Developer comparison tools</summary>
@@ -532,6 +593,7 @@ function renderMvpPage() {
     const status = document.querySelector("#status");
     const result = document.querySelector("#result");
     const fallback = document.querySelector("#fallback");
+    const analysisLimit = document.querySelector("#analysis-limit");
     const buttons = {
       previewPublic: document.querySelector("#preview-public"),
       analyzePublic: document.querySelector("#analyze-public"),
@@ -562,11 +624,11 @@ function renderMvpPage() {
       status.className = "";
       status.textContent = message || "";
     }
-    async function postJson(endpoint, value) {
+    async function postJson(endpoint, value, options = {}) {
       const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input: value })
+        body: JSON.stringify({ input: value, ...options })
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Request failed.");
@@ -578,6 +640,13 @@ function renderMvpPage() {
     }
     function rowsNote(total, rendered) {
       return total > rendered ? "<p class='meta'>Showing first " + rendered + " rows in the prototype UI. The backend response contains all " + total + " rows.</p>" : "";
+    }
+    function selectedAnalysisLabel() {
+      return analysisLimit.options[analysisLimit.selectedIndex]?.textContent || "selected tracks";
+    }
+    function partialNote(data) {
+      if (!data.playlist.partialAnalysis) return "";
+      return "<div class='source-note'>Fast sample mode: analyzed " + data.playlist.analyzedTrackCount + " of " + data.playlist.originalTotalItems + " readable tracks. Use “Full playlist” when you are ready to wait.</div>";
     }
     function renderPreview(data) {
       const renderedTracks = data.tracks.slice(0, 140);
@@ -607,6 +676,7 @@ function renderMvpPage() {
         "<h2>" + esc(data.playlist.name) + "</h2>" +
         "<div class='summary'><div class='metric'><b>" + data.summary.confidentMatchCount + "</b><span>Ready</span></div><div class='metric'><b>" + data.summary.needsReviewCount + "</b><span>Review</span></div><div class='metric'><b>" + data.summary.unmatchedCount + "</b><span>Missing</span></div><div class='metric'><b>" + pct(data.summary.matchRate) + "</b><span>Any match</span></div></div>" +
         created +
+        partialNote(data) +
         sourceNote(data) +
         rowsNote(data.items.length, renderedItems.length) +
         "<div class='table-wrap'><table><thead><tr><th>#</th><th>Status</th><th>Spotify</th><th>Apple Music candidate</th><th>Confidence</th><th>Reason</th></tr></thead><tbody>" + rows + "</tbody></table></div>";
@@ -622,7 +692,8 @@ function renderMvpPage() {
       fallback.hidden = true;
       try {
         setBusy(true, options.message);
-        const data = await postJson(endpoint, value);
+        const shouldSendLimit = options.kind !== "preview";
+        const data = await postJson(endpoint, value, shouldSendLimit ? { limit: analysisLimit.value } : {});
         if (options.kind === "preview") {
           lastPreview = data;
           lastAnalysis = null;
@@ -642,10 +713,10 @@ function renderMvpPage() {
       }
     }
     buttons.previewPublic.addEventListener("click", () => run("/api/spotify/public-playlist-preview", { kind: "preview", message: "Reading public Spotify link..." }));
-    buttons.analyzePublic.addEventListener("click", () => run("/api/transfers/analyze-public", { kind: "analysis", message: "Matching against Apple Music..." }));
+    buttons.analyzePublic.addEventListener("click", () => run("/api/transfers/analyze-public", { kind: "analysis", message: "Matching " + selectedAnalysisLabel().toLowerCase() + " against Apple Music. First run can take a moment; retries are cached." }));
     buttons.createPublic.addEventListener("click", () => {
       if (window.confirm("Create an Apple Music playlist from confident matches only?")) {
-        run("/api/transfers/create-public", { kind: "analysis", message: "Creating Apple Music playlist from confident matches..." });
+        run("/api/transfers/create-public", { kind: "analysis", message: "Creating Apple Music playlist from confident matches in " + selectedAnalysisLabel().toLowerCase() + "..." });
       }
     });
     buttons.previewApi.addEventListener("click", () => run("/api/spotify/playlist-preview", { kind: "preview", message: "Reading through authenticated Spotify API..." }));

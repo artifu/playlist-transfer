@@ -4,6 +4,7 @@ import type { SpotifyPlaylist, SpotifyTrack } from "../types.js";
 const DEFAULT_TIMEOUT_MS = 20_000;
 const SPOTIFY_PUBLIC_METADATA_CONCURRENCY = 4;
 const SPOTIFY_BASE62_ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const publicPlaylistCache = new Map<string, Promise<PublicSpotifyPlaylist>>();
 
 type FetchTextResult = {
   url: string;
@@ -737,7 +738,7 @@ export function publicSpotifyPlaylistName(report: PublicSpotifyProbeReport): str
   return `Spotify playlist ${report.playlistId}`;
 }
 
-export async function getPublicSpotifyPlaylist(input: string): Promise<PublicSpotifyPlaylist> {
+async function fetchPublicSpotifyPlaylist(input: string): Promise<PublicSpotifyPlaylist> {
   const report = await probePublicSpotifyPlaylist(input);
   const tracks = bestPublicSpotifyTracks(report);
   const usedSpclient = "tracks" in report.spclient && report.spclient.tracks.length > 0;
@@ -757,4 +758,20 @@ export async function getPublicSpotifyPlaylist(input: string): Promise<PublicSpo
     source: usedSpclient ? "spotify-public-spclient" : "spotify-public-embed",
     limitations: usedSpclient ? PUBLIC_SPOTIFY_SPCLIENT_LIMITATIONS : PUBLIC_SPOTIFY_EMBED_LIMITATIONS
   };
+}
+
+export async function getPublicSpotifyPlaylist(input: string): Promise<PublicSpotifyPlaylist> {
+  const playlistId = parseSpotifyPlaylistInput(input);
+  const cached = publicPlaylistCache.get(playlistId);
+  if (cached) {
+    return cached;
+  }
+
+  const request = fetchPublicSpotifyPlaylist(playlistId).catch((error: unknown) => {
+    publicPlaylistCache.delete(playlistId);
+    throw error;
+  });
+
+  publicPlaylistCache.set(playlistId, request);
+  return request;
 }
