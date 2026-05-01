@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { createServer } from "node:http";
 import { loadAppleMusicConfig, loadSpotifyConfig } from "../dist/config.js";
 import { HttpError } from "../dist/lib/http.js";
@@ -12,6 +13,8 @@ const host = process.env.HOST ?? "127.0.0.1";
 const port = Number(process.env.PORT ?? 8790);
 const DEFAULT_PUBLIC_ANALYSIS_LIMIT = 50;
 const MAX_PUBLIC_ANALYSIS_LIMIT = 500;
+const JOB_RETENTION_MS = 10 * 60 * 1000;
+const jobs = new Map();
 
 function createSpotifyClient() {
   const config = loadSpotifyConfig();
@@ -99,6 +102,108 @@ function playlistAnalysisMetadata(playlist, analyzedTrackCount) {
     analyzedTrackCount,
     partialAnalysis: analyzedTrackCount < playlist.totalItems
   };
+}
+
+function createJob(kind) {
+  const job = {
+    id: randomUUID(),
+    kind,
+    status: "queued",
+    phase: "Queued",
+    progress: 0,
+    completed: 0,
+    total: 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    result: null,
+    error: null
+  };
+
+  jobs.set(job.id, job);
+  setTimeout(() => {
+    jobs.delete(job.id);
+  }, JOB_RETENTION_MS).unref();
+
+  return job;
+}
+
+function updateJob(job, patch) {
+  Object.assign(job, patch, {
+    updatedAt: new Date().toISOString()
+  });
+}
+
+function serializeJob(job) {
+  return {
+    id: job.id,
+    kind: job.kind,
+    status: job.status,
+    phase: job.phase,
+    progress: job.progress,
+    completed: job.completed,
+    total: job.total,
+    createdAt: job.createdAt,
+    updatedAt: job.updatedAt,
+    result: job.result,
+    error: job.error
+  };
+}
+
+async function runPublicTransferAnalyzeJob(job, body) {
+  const input = body.input ?? body.playlistUrl ?? body.playlistId ?? "";
+  const limit = analysisLimitFromBody(body);
+
+  try {
+    updateJob(job, {
+      status: "running",
+      phase: "Reading public Spotify playlist",
+      progress: 4
+    });
+
+    const playlist = await getPublicSpotifyPlaylist(input);
+    const analysisPlaylist = slicePlaylistForAnalysis(playlist, limit);
+
+    updateJob(job, {
+      phase: `Matching Apple Music (0/${analysisPlaylist.tracks.length})`,
+      progress: 10,
+      completed: 0,
+      total: analysisPlaylist.tracks.length,
+      playlistName: playlist.name,
+      originalTotalItems: playlist.totalItems
+    });
+
+    const analysis = await analyzeSpotifyPlaylist(
+      analysisPlaylist,
+      createAppleMusicClient(),
+      {
+        onTrackComplete: ({ completed, total }) => {
+          updateJob(job, {
+            phase: `Matching Apple Music (${completed}/${total})`,
+            completed,
+            total,
+            progress: Math.min(95, Math.round(10 + (completed / Math.max(total, 1)) * 85))
+          });
+        }
+      }
+    );
+
+    updateJob(job, {
+      status: "complete",
+      phase: "Analysis complete",
+      progress: 100,
+      result: serializeAnalysis(
+        analysis,
+        playlistAnalysisMetadata(playlist, analysisPlaylist.tracks.length)
+      )
+    });
+  } catch (error) {
+    updateJob(job, {
+      status: "error",
+      phase: "Analysis failed",
+      progress: 100,
+      error: errorMessage(error)
+    });
+  }
 }
 
 function errorMessage(error) {
@@ -248,6 +353,34 @@ async function handlePublicTransferAnalyze(request, response) {
       message: errorMessage(error)
     });
   }
+}
+
+async function handlePublicTransferAnalyzeJob(request, response) {
+  try {
+    const body = await readJsonBody(request);
+    const job = createJob("public-analysis");
+
+    runPublicTransferAnalyzeJob(job, body);
+    sendJson(response, 202, serializeJob(job));
+  } catch (error) {
+    sendJson(response, statusForError(error), {
+      error: true,
+      message: errorMessage(error)
+    });
+  }
+}
+
+function handleJobStatus(jobId, response) {
+  const job = jobs.get(jobId);
+  if (!job) {
+    sendJson(response, 404, {
+      error: true,
+      message: "Job not found."
+    });
+    return;
+  }
+
+  sendJson(response, 200, serializeJob(job));
 }
 
 async function handlePublicTransferCreate(request, response) {
@@ -453,6 +586,44 @@ function renderMvpPage() {
       color: var(--blue);
     }
     #status.error { color: #b3271b; }
+    .progress-shell {
+      display: none;
+      margin-top: 12px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(255, 253, 246, 0.72);
+    }
+    .progress-shell.active { display: block; }
+    .progress-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--blue);
+      font-size: 13px;
+      font-weight: 900;
+    }
+    .progress-track {
+      position: relative;
+      height: 12px;
+      overflow: hidden;
+      margin-top: 9px;
+      border-radius: 999px;
+      background: rgba(32, 22, 15, 0.09);
+    }
+    .progress-bar {
+      width: 0%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--tomato), var(--sun), var(--sage));
+      transition: width 260ms ease;
+    }
+    .progress-detail {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
     .result-card { padding: 22px; min-height: 460px; }
     .empty {
       min-height: 380px;
@@ -549,6 +720,16 @@ function renderMvpPage() {
           </select>
         </div>
         <div id="status"></div>
+        <div id="progress-shell" class="progress-shell" aria-live="polite">
+          <div class="progress-top">
+            <span id="progress-phase">Preparing</span>
+            <span id="progress-percent">0%</span>
+          </div>
+          <div class="progress-track">
+            <div id="progress-bar" class="progress-bar"></div>
+          </div>
+          <p id="progress-detail" class="progress-detail">Waiting to start.</p>
+        </div>
         <details>
           <summary>Developer comparison tools</summary>
           <div class="dev-actions">
@@ -594,6 +775,11 @@ function renderMvpPage() {
     const result = document.querySelector("#result");
     const fallback = document.querySelector("#fallback");
     const analysisLimit = document.querySelector("#analysis-limit");
+    const progressShell = document.querySelector("#progress-shell");
+    const progressPhase = document.querySelector("#progress-phase");
+    const progressPercent = document.querySelector("#progress-percent");
+    const progressBar = document.querySelector("#progress-bar");
+    const progressDetail = document.querySelector("#progress-detail");
     const buttons = {
       previewPublic: document.querySelector("#preview-public"),
       analyzePublic: document.querySelector("#analyze-public"),
@@ -624,6 +810,23 @@ function renderMvpPage() {
       status.className = "";
       status.textContent = message || "";
     }
+    function setProgress(job) {
+      const progress = Math.max(0, Math.min(100, Number(job.progress || 0)));
+      progressShell.classList.add("active");
+      progressPhase.textContent = job.phase || "Working";
+      progressPercent.textContent = progress + "%";
+      progressBar.style.width = progress + "%";
+      progressDetail.textContent = job.total
+        ? job.completed + " of " + job.total + " tracks processed."
+        : "Preparing the playlist and match job.";
+    }
+    function resetProgress() {
+      progressShell.classList.remove("active");
+      progressPhase.textContent = "Preparing";
+      progressPercent.textContent = "0%";
+      progressBar.style.width = "0%";
+      progressDetail.textContent = "Waiting to start.";
+    }
     async function postJson(endpoint, value, options = {}) {
       const response = await fetch(endpoint, {
         method: "POST",
@@ -633,6 +836,21 @@ function renderMvpPage() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Request failed.");
       return data;
+    }
+    async function startJob(endpoint, value, options = {}) {
+      const job = await postJson(endpoint, value, options);
+      setProgress(job);
+
+      while (true) {
+        await new Promise((resolve) => setTimeout(resolve, 650));
+        const response = await fetch("/api/jobs/" + encodeURIComponent(job.id));
+        const current = await response.json();
+        if (!response.ok) throw new Error(current.message || "Could not read job progress.");
+        setProgress(current);
+
+        if (current.status === "complete") return current.result;
+        if (current.status === "error") throw new Error(current.error || "Job failed.");
+      }
     }
     function sourceNote(data) {
       const source = data.playlist.source ? "<div class='source-note'>Source: " + esc(data.playlist.source) + ". " + esc((data.playlist.limitations || [])[0] || "") + "</div>" : "";
@@ -693,7 +911,13 @@ function renderMvpPage() {
       try {
         setBusy(true, options.message);
         const shouldSendLimit = options.kind !== "preview";
-        const data = await postJson(endpoint, value, shouldSendLimit ? { limit: analysisLimit.value } : {});
+        if (options.kind === "preview") {
+          resetProgress();
+        }
+        const payload = shouldSendLimit ? { limit: analysisLimit.value } : {};
+        const data = options.job
+          ? await startJob(endpoint, value, payload)
+          : await postJson(endpoint, value, payload);
         if (options.kind === "preview") {
           lastPreview = data;
           lastAnalysis = null;
@@ -713,7 +937,7 @@ function renderMvpPage() {
       }
     }
     buttons.previewPublic.addEventListener("click", () => run("/api/spotify/public-playlist-preview", { kind: "preview", message: "Reading public Spotify link..." }));
-    buttons.analyzePublic.addEventListener("click", () => run("/api/transfers/analyze-public", { kind: "analysis", message: "Matching " + selectedAnalysisLabel().toLowerCase() + " against Apple Music. First run can take a moment; retries are cached." }));
+    buttons.analyzePublic.addEventListener("click", () => run("/api/transfers/analyze-public-job", { kind: "analysis", job: true, message: "Matching " + selectedAnalysisLabel().toLowerCase() + " against Apple Music. First run can take a moment; retries are cached." }));
     buttons.createPublic.addEventListener("click", () => {
       if (window.confirm("Create an Apple Music playlist from confident matches only?")) {
         run("/api/transfers/create-public", { kind: "analysis", message: "Creating Apple Music playlist from confident matches in " + selectedAnalysisLabel().toLowerCase() + "..." });
@@ -746,6 +970,11 @@ const server = createServer(async (request, response) => {
     return;
   }
 
+  if (method === "GET" && url.pathname.startsWith("/api/jobs/")) {
+    handleJobStatus(url.pathname.slice("/api/jobs/".length), response);
+    return;
+  }
+
   if (method === "POST" && url.pathname === "/api/spotify/playlist-preview") {
     await handlePlaylistPreview(request, response);
     return;
@@ -763,6 +992,11 @@ const server = createServer(async (request, response) => {
 
   if (method === "POST" && url.pathname === "/api/transfers/analyze-public") {
     await handlePublicTransferAnalyze(request, response);
+    return;
+  }
+
+  if (method === "POST" && url.pathname === "/api/transfers/analyze-public-job") {
+    await handlePublicTransferAnalyzeJob(request, response);
     return;
   }
 

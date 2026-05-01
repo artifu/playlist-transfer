@@ -11,6 +11,12 @@ type AnalyzeTransferInput = {
 
 type AnalyzeSpotifyPlaylistOptions = {
   trackConcurrency?: number;
+  onTrackComplete?: (progress: {
+    completed: number;
+    total: number;
+    index: number;
+    result: MatchResult;
+  }) => void;
 };
 
 const DEFAULT_TRACK_ANALYSIS_CONCURRENCY = 4;
@@ -88,10 +94,21 @@ export async function analyzeSpotifyPlaylist(
     1,
     options.trackConcurrency ?? DEFAULT_TRACK_ANALYSIS_CONCURRENCY
   );
+  let completed = 0;
   const results = await mapWithConcurrency(
     playlist.tracks,
     trackConcurrency,
-    (track) => analyzeTrack(track, apple)
+    async (track, index) => {
+      const result = await analyzeTrack(track, apple);
+      completed += 1;
+      options.onTrackComplete?.({
+        completed,
+        total: playlist.tracks.length,
+        index,
+        result
+      });
+      return result;
+    }
   );
 
   const matchedCount = results.filter((result) => result.matched).length;

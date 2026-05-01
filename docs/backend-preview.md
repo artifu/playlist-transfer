@@ -29,6 +29,7 @@ It can run four actions:
 
 - `Preview Public`: reads the public Spotify embed page without Spotify OAuth
 - `Analyze Public`: reads the public Spotify embed page, then searches Apple Music
+- `Analyze Public` in the MVP UI runs as a background job and polls progress while tracks are matched
 - `Create Apple Playlist`: reads the public Spotify link, searches Apple Music, then creates a playlist from confident matches
 - `Preview API`: reads the playlist through the authenticated Spotify Web API
 - `Analyze API`: reads the playlist through the authenticated Spotify Web API, then searches Apple Music
@@ -185,6 +186,40 @@ Request:
 ```
 
 The response shape matches `POST /api/transfers/analyze`, with an added `playlist.source` and `playlist.limitations`.
+
+### `POST /api/transfers/analyze-public-job`
+
+Starts the same public-link analysis as a background job and returns immediately.
+
+Request:
+
+```json
+{
+  "input": "https://open.spotify.com/playlist/6NwrTvQmJgGK9TVgJOkQtp",
+  "limit": 50
+}
+```
+
+Response:
+
+```json
+{
+  "id": "...",
+  "status": "queued",
+  "phase": "Queued",
+  "progress": 0,
+  "completed": 0,
+  "total": 0
+}
+```
+
+Poll progress:
+
+```text
+GET /api/jobs/<job-id>
+```
+
+When `status` becomes `complete`, the job response includes `result` with the same shape as `POST /api/transfers/analyze-public`.
 
 Current note:
 
