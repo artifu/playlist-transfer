@@ -259,7 +259,30 @@ Important behavior:
 - the local MVP UI creates from the selected analysis size, not always the entire playlist
 - low-confidence `needs_review` matches are shown in the report but not written
 - unmatched tracks are shown in the report but not written
+- no Apple Music playlist is created when there are zero confident matches
 - this endpoint writes to the signed-in Apple Music user's library
+
+### `POST /api/transfers/create-public-job`
+
+Starts public playlist creation as a background job and returns immediately. The MVP UI uses this endpoint so playlist creation shows progress instead of looking frozen after the confirmation dialog.
+
+Request:
+
+```json
+{
+  "input": "https://open.spotify.com/playlist/6NwrTvQmJgGK9TVgJOkQtp",
+  "limit": 50,
+  "analysis": {}
+}
+```
+
+If `analysis` is provided, the job creates from the already-reviewed match report instead of re-running Apple Music matching. Poll with:
+
+```text
+GET /api/jobs/<job-id>
+```
+
+When `status` becomes `complete`, the job response includes `result.createdApplePlaylistId`.
 
 ## Expected failure modes
 

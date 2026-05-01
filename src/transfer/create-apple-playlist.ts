@@ -14,6 +14,10 @@ export async function createApplePlaylistFromMatches(input: CreateApplePlaylistI
     .filter((result) => result.matched && result.candidate && result.confidence >= minConfidence)
     .map((result) => result.candidate!.id);
 
+  if (matchedSongIds.length === 0) {
+    throw new Error("No confident Apple Music matches are available to create a playlist.");
+  }
+
   const createdApplePlaylistId = await input.apple.createPlaylist(
     `${input.playlistName} (Transferred from Spotify)`,
     "Transferred from Spotify with PlaylistTransfer."

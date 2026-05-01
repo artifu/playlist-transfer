@@ -72,6 +72,25 @@ function serializeAnalysis(analysis, playlistExtra = {}, options = {}) {
   };
 }
 
+function transferReportFromSerializedAnalysis(serializedAnalysis) {
+  return {
+    playlistName: serializedAnalysis.playlist.name,
+    playlistId: serializedAnalysis.playlist.id,
+    matchedCount: serializedAnalysis.summary.matchedCount,
+    unmatchedCount: serializedAnalysis.summary.unmatchedCount,
+    matchRate: serializedAnalysis.summary.matchRate,
+    results: serializedAnalysis.items.map((item) => ({
+      source: item.source,
+      matched: item.status !== "unmatched" && Boolean(item.appleCandidate),
+      confidence: item.confidence,
+      reason: item.reason,
+      candidate: item.appleCandidate,
+      searchTerm: item.searchTerm,
+      candidates: item.candidates ?? []
+    }))
+  };
+}
+
 function numberFromBody(value, fallback) {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
@@ -200,6 +219,100 @@ async function runPublicTransferAnalyzeJob(job, body) {
     updateJob(job, {
       status: "error",
       phase: "Analysis failed",
+      progress: 100,
+      error: errorMessage(error)
+    });
+  }
+}
+
+async function runPublicTransferCreateJob(job, body) {
+  const input = body.input ?? body.playlistUrl ?? body.playlistId ?? "";
+  const limit = analysisLimitFromBody(body);
+
+  try {
+    let serializedAnalysis = body.analysis ?? null;
+
+    if (!serializedAnalysis) {
+      updateJob(job, {
+        status: "running",
+        phase: "Analyzing before creation",
+        progress: 4
+      });
+
+      const playlist = await getPublicSpotifyPlaylist(input);
+      const analysisPlaylist = slicePlaylistForAnalysis(playlist, limit);
+
+      updateJob(job, {
+        phase: `Matching Apple Music (0/${analysisPlaylist.tracks.length})`,
+        progress: 10,
+        completed: 0,
+        total: analysisPlaylist.tracks.length,
+        playlistName: playlist.name,
+        originalTotalItems: playlist.totalItems
+      });
+
+      const analysis = await analyzeSpotifyPlaylist(
+        analysisPlaylist,
+        createAppleMusicClient(),
+        {
+          onTrackComplete: ({ completed, total }) => {
+            updateJob(job, {
+              phase: `Matching Apple Music (${completed}/${total})`,
+              completed,
+              total,
+              progress: Math.min(82, Math.round(10 + (completed / Math.max(total, 1)) * 72))
+            });
+          }
+        }
+      );
+
+      serializedAnalysis = serializeAnalysis(
+        analysis,
+        playlistAnalysisMetadata(playlist, analysisPlaylist.tracks.length)
+      );
+    } else {
+      updateJob(job, {
+        status: "running",
+        phase: "Using reviewed analysis",
+        progress: 72,
+        completed: serializedAnalysis.items?.length ?? 0,
+        total: serializedAnalysis.items?.length ?? 0
+      });
+    }
+
+    const report = transferReportFromSerializedAnalysis(serializedAnalysis);
+    const confidentCount = report.results.filter(
+      (result) => result.matched && result.candidate && result.confidence >= 0.8
+    ).length;
+
+    updateJob(job, {
+      phase: `Creating Apple Music playlist with ${confidentCount} confident matches`,
+      progress: 88,
+      completed: confidentCount,
+      total: confidentCount
+    });
+
+    const createdApplePlaylistId = await createApplePlaylistFromMatches({
+      apple: createAppleMusicClient(),
+      playlistName: report.playlistName,
+      results: report.results,
+      minConfidence: 0.8
+    });
+
+    updateJob(job, {
+      status: "complete",
+      phase: "Apple Music playlist created",
+      progress: 100,
+      result: {
+        ...serializedAnalysis,
+        createdApplePlaylistId,
+        createdFromConfidenceThreshold: 0.8
+      }
+    });
+  } catch (error) {
+    updateJob(job, {
+      status: "error",
+      phase: "Playlist creation failed",
       progress: 100,
       error: errorMessage(error)
     });
@@ -361,6 +474,21 @@ async function handlePublicTransferAnalyzeJob(request, response) {
     const job = createJob("public-analysis");
 
     runPublicTransferAnalyzeJob(job, body);
+    sendJson(response, 202, serializeJob(job));
+  } catch (error) {
+    sendJson(response, statusForError(error), {
+      error: true,
+      message: errorMessage(error)
+    });
+  }
+}
+
+async function handlePublicTransferCreateJob(request, response) {
+  try {
+    const body = await readJsonBody(request);
+    const job = createJob("public-create");
+
+    runPublicTransferCreateJob(job, body);
     sendJson(response, 202, serializeJob(job));
   } catch (error) {
     sendJson(response, statusForError(error), {
@@ -888,7 +1016,7 @@ function renderMvpPage() {
         const apple = candidate ? "<div class='track'>" + esc(candidate.name) + "</div><div class='meta'>" + esc(candidate.artistName) + "</div><div class='mono'>" + esc(candidate.albumName || "") + "</div>" : "<span class='mono'>No candidate selected</span>";
         return "<tr><td>" + item.index + "</td><td><span class='badge " + esc(item.status) + "'>" + esc(item.status.replaceAll("_", " ")) + "</span></td><td><div class='track'>" + esc(source.name) + "</div><div class='meta'>" + esc(source.artists.join(", ")) + "</div><div class='mono'>" + esc(source.album || "") + "</div></td><td>" + apple + "</td><td>" + pct(item.confidence) + "</td><td class='mono'>" + esc(item.reason || "") + "</td></tr>";
       }).join("");
-      const created = createdApplePlaylistId ? "<div class='source-note'>Created Apple Music playlist: <span class='mono'>" + esc(createdApplePlaylistId) + "</span>. Only confident matches were added.</div>" : "";
+      const created = createdApplePlaylistId ? "<div class='source-note'>Created Apple Music playlist: <span class='mono'>" + esc(createdApplePlaylistId) + "</span>. Only confident matches were added. Open Apple Music to see it in your library.</div>" : "";
       result.className = "";
       result.innerHTML =
         "<h2>" + esc(data.playlist.name) + "</h2>" +
@@ -915,6 +1043,9 @@ function renderMvpPage() {
           resetProgress();
         }
         const payload = shouldSendLimit ? { limit: analysisLimit.value } : {};
+        if (options.includeAnalysis && lastAnalysis) {
+          payload.analysis = lastAnalysis;
+        }
         const data = options.job
           ? await startJob(endpoint, value, payload)
           : await postJson(endpoint, value, payload);
@@ -940,7 +1071,7 @@ function renderMvpPage() {
     buttons.analyzePublic.addEventListener("click", () => run("/api/transfers/analyze-public-job", { kind: "analysis", job: true, message: "Matching " + selectedAnalysisLabel().toLowerCase() + " against Apple Music. First run can take a moment; retries are cached." }));
     buttons.createPublic.addEventListener("click", () => {
       if (window.confirm("Create an Apple Music playlist from confident matches only?")) {
-        run("/api/transfers/create-public", { kind: "analysis", message: "Creating Apple Music playlist from confident matches in " + selectedAnalysisLabel().toLowerCase() + "..." });
+        run("/api/transfers/create-public-job", { kind: "analysis", job: true, includeAnalysis: true, message: "Creating Apple Music playlist from confident matches in " + selectedAnalysisLabel().toLowerCase() + "..." });
       }
     });
     buttons.previewApi.addEventListener("click", () => run("/api/spotify/playlist-preview", { kind: "preview", message: "Reading through authenticated Spotify API..." }));
@@ -1002,6 +1133,11 @@ const server = createServer(async (request, response) => {
 
   if (method === "POST" && url.pathname === "/api/transfers/create-public") {
     await handlePublicTransferCreate(request, response);
+    return;
+  }
+
+  if (method === "POST" && url.pathname === "/api/transfers/create-public-job") {
+    await handlePublicTransferCreateJob(request, response);
     return;
   }
 
