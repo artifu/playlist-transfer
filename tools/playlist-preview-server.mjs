@@ -115,6 +115,7 @@ function slicePlaylistForAnalysis(playlist, limit) {
 
 function playlistAnalysisMetadata(playlist, analyzedTrackCount) {
   return {
+    imageUrl: playlist.imageUrl,
     source: playlist.source,
     limitations: playlist.limitations,
     originalTotalItems: playlist.totalItems,
@@ -392,6 +393,7 @@ async function handlePlaylistPreview(request, response) {
         id: playlist.id,
         name: playlist.name,
         description: playlist.description,
+        imageUrl: playlist.imageUrl,
         totalItems: playlist.totalItems
       },
       tracks: playlist.tracks
@@ -415,6 +417,7 @@ async function handlePublicPlaylistPreview(request, response) {
         id: playlist.id,
         name: playlist.name,
         description: playlist.description,
+        imageUrl: playlist.imageUrl,
         totalItems: playlist.totalItems,
         source: playlist.source,
         limitations: playlist.limitations
@@ -1546,6 +1549,27 @@ function renderStudioMvpPage() {
     .sleeve.big { width: 104px; height: 104px; }
     .sleeve.small { width: 42px; height: 42px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.18); }
 
+    .artwork {
+      flex: 0 0 auto;
+      object-fit: cover;
+      background: var(--bg-inset);
+      border: 1px solid var(--line);
+    }
+
+    .artwork.big {
+      width: 104px;
+      height: 104px;
+      border-radius: 7px;
+      box-shadow: 0 20px 42px rgba(11, 11, 13, 0.14);
+    }
+
+    .artwork.small {
+      width: 42px;
+      height: 42px;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    }
+
     .playlist-card {
       display: flex;
       gap: 14px;
@@ -1966,6 +1990,7 @@ function renderStudioMvpPage() {
             <button id="preview-public" class="primary">Preview public link</button>
             <button id="analyze-public" class="primary" disabled>Analyze matches</button>
             <button id="create-public" class="dest" disabled><span class="service-mark apple">A</span>Create Apple Music playlist</button>
+            <button id="demo-report" class="soft" type="button">Try demo match report</button>
           </div>
 
           <div class="controls-row">
@@ -2046,11 +2071,214 @@ function renderStudioMvpPage() {
       previewPublic: document.querySelector("#preview-public"),
       analyzePublic: document.querySelector("#analyze-public"),
       createPublic: document.querySelector("#create-public"),
+      demoReport: document.querySelector("#demo-report"),
       previewApi: document.querySelector("#preview-api"),
       analyzeApi: document.querySelector("#analyze-api")
     };
     let lastPreview = null;
     let lastAnalysis = null;
+    let isDemoAnalysis = false;
+    const DEMO_ANALYSIS = {
+      playlist: {
+        id: "demo-chaos",
+        name: "Chaos Match Demo",
+        description: "Local demo fixture with guaranteed ready, review, and missing rows.",
+        imageUrl: "https://i.scdn.co/image/ab67616d00001e0274340a1d254acd2da8d15d88",
+        totalItems: 8,
+        source: "demo-fixture",
+        limitations: ["Local UI-only fixture. No Spotify or Apple Music writes happen in demo mode."],
+        originalTotalItems: 8,
+        analyzedTrackCount: 8,
+        partialAnalysis: false
+      },
+      summary: {
+        matchedCount: 6,
+        unmatchedCount: 2,
+        needsReviewCount: 3,
+        confidentMatchCount: 3,
+        matchRate: 0.75
+      },
+      items: [
+        {
+          index: 1,
+          status: "matched",
+          source: {
+            spotifyTrackId: "demo-ready-1",
+            isrc: "USWB19903414",
+            name: "Dreams - 2004 Remaster",
+            artists: ["Fleetwood Mac"],
+            album: "Rumours (Super Deluxe)",
+            albumImageUrl: "https://i.scdn.co/image/ab67616d0000485174340a1d254acd2da8d15d88",
+            durationMs: 257000
+          },
+          confidence: 1,
+          reason: "isrc",
+          appleCandidate: {
+            id: "demo.apple.ready.1",
+            name: "Dreams",
+            artistName: "Fleetwood Mac",
+            albumName: "Rumours (Super Deluxe Edition)",
+            durationMs: 257000,
+            isrc: "USWB19903414"
+          },
+          candidates: []
+        },
+        {
+          index: 2,
+          status: "matched",
+          source: {
+            spotifyTrackId: "demo-ready-2",
+            isrc: "GBUM71505078",
+            name: "Tiny Dancer",
+            artists: ["Elton John"],
+            album: "Almost Famous (Music From The Motion Picture)",
+            albumImageUrl: "https://i.scdn.co/image/ab67616d000048518e610c61e84e03606cd4567a",
+            durationMs: 374000
+          },
+          confidence: 0.96,
+          reason: "exact-title-artist",
+          appleCandidate: {
+            id: "demo.apple.ready.2",
+            name: "Tiny Dancer",
+            artistName: "Elton John",
+            albumName: "Almost Famous (Music from the Motion Picture)",
+            durationMs: 374000,
+            isrc: "GBUM71505078"
+          },
+          candidates: []
+        },
+        {
+          index: 3,
+          status: "matched",
+          source: {
+            spotifyTrackId: "demo-ready-3",
+            isrc: "USSM17200474",
+            name: "Lovely Day",
+            artists: ["Bill Withers"],
+            album: "Menagerie",
+            albumImageUrl: "https://i.scdn.co/image/ab67616d0000485142918a903e31c6c8cda9af15",
+            durationMs: 255000
+          },
+          confidence: 0.82,
+          reason: "normalized-title-artist",
+          appleCandidate: {
+            id: "demo.apple.ready.3",
+            name: "Lovely Day",
+            artistName: "Bill Withers",
+            albumName: "Menagerie",
+            durationMs: 255000,
+            isrc: "USSM17200474"
+          },
+          candidates: []
+        },
+        {
+          index: 4,
+          status: "needs_review",
+          source: {
+            spotifyTrackId: "demo-review-1",
+            isrc: null,
+            name: "Skinny Love - Live at Bonnaroo",
+            artists: ["Bon Iver"],
+            album: "Bonnaroo 2009",
+            albumImageUrl: "https://i.scdn.co/image/ab67616d000048518f87b499e98a2f59a365dc69",
+            durationMs: 282000
+          },
+          confidence: 0.55,
+          reason: "artist-only-fallback",
+          appleCandidate: {
+            id: "demo.apple.review.1",
+            name: "Skinny Love",
+            artistName: "Bon Iver",
+            albumName: "For Emma, Forever Ago",
+            durationMs: 238000,
+            isrc: null
+          },
+          candidates: []
+        },
+        {
+          index: 5,
+          status: "needs_review",
+          source: {
+            spotifyTrackId: "demo-review-2",
+            isrc: null,
+            name: "July - Demo",
+            artists: ["Noah Cyrus"],
+            album: "Bedroom Demos",
+            albumImageUrl: "https://i.scdn.co/image/ab67616d00004851bdf370788983da6c3c214d16",
+            durationMs: 203000
+          },
+          confidence: 0.55,
+          reason: "artist-only-fallback",
+          appleCandidate: {
+            id: "demo.apple.review.2",
+            name: "July",
+            artistName: "Noah Cyrus",
+            albumName: "THE END OF EVERYTHING",
+            durationMs: 156000,
+            isrc: null
+          },
+          candidates: []
+        },
+        {
+          index: 6,
+          status: "needs_review",
+          source: {
+            spotifyTrackId: "demo-review-3",
+            isrc: null,
+            name: "Dreamers - Xaphoon Jones Remix",
+            artists: ["Savoir Adore", "Xaphoon Jones"],
+            album: "Dreamers",
+            albumImageUrl: "https://i.scdn.co/image/ab67616d0000485127c2c785794816e0bf38baac",
+            durationMs: 259000
+          },
+          confidence: 0.55,
+          reason: "artist-only-fallback",
+          appleCandidate: {
+            id: "demo.apple.review.3",
+            name: "Dreamers",
+            artistName: "Savoir Adore",
+            albumName: "Dreamers - EP",
+            durationMs: 257000,
+            isrc: null
+          },
+          candidates: []
+        },
+        {
+          index: 7,
+          status: "unmatched",
+          source: {
+            spotifyTrackId: "demo-missing-1",
+            isrc: null,
+            name: "Untitled Basement Bootleg #4",
+            artists: ["The Tape Hiss Committee"],
+            album: "Private Uploads",
+            albumImageUrl: null,
+            durationMs: 199000
+          },
+          confidence: 0,
+          reason: null,
+          appleCandidate: null,
+          candidates: []
+        },
+        {
+          index: 8,
+          status: "unmatched",
+          source: {
+            spotifyTrackId: "demo-missing-2",
+            isrc: null,
+            name: "Rain on the Window - Voice Memo",
+            artists: ["Unknown Living Room"],
+            album: "Phone Recordings",
+            albumImageUrl: null,
+            durationMs: 91000
+          },
+          confidence: 0,
+          reason: null,
+          appleCandidate: null,
+          candidates: []
+        }
+      ]
+    };
 
     function esc(value) {
       return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
@@ -2064,6 +2292,15 @@ function renderStudioMvpPage() {
 
     function pct(value) {
       return typeof value === "number" ? Math.round(value * 100) + "%" : "";
+    }
+
+    function artworkHtml(track, size = "small") {
+      const url = track?.albumImageUrl || track?.imageUrl;
+      if (!url) {
+        return "<div class='sleeve " + esc(size) + "'></div>";
+      }
+
+      return "<img class='artwork " + esc(size) + "' src='" + esc(url) + "' alt='' loading='lazy' />";
     }
 
     function setBusy(isBusy, message) {
@@ -2155,14 +2392,17 @@ function renderStudioMvpPage() {
 
     function renderPreview(data) {
       const renderedTracks = data.tracks.slice(0, 18);
+      const playlistArtwork = {
+        albumImageUrl: data.playlist.imageUrl || data.tracks.find((track) => track.albumImageUrl)?.albumImageUrl
+      };
       const rows = renderedTracks.map((track, index) =>
-        "<div class='track-row'><div class='track-index'>" + String(index + 1).padStart(2, "0") + "</div><div class='sleeve small'></div><div class='track-body'><div class='track-title'>" + esc(track.name) + "</div><div class='track-meta'>" + esc(track.artists.join(", ")) + (track.album ? " - " + esc(track.album) : "") + "</div></div><div class='confidence'>" + duration(track.durationMs) + "</div></div>"
+        "<div class='track-row'><div class='track-index'>" + String(index + 1).padStart(2, "0") + "</div>" + artworkHtml(track, "small") + "<div class='track-body'><div class='track-title'>" + esc(track.name) + "</div><div class='track-meta'>" + esc(track.artists.join(", ")) + (track.album ? " - " + esc(track.album) : "") + "</div></div><div class='confidence'>" + duration(track.durationMs) + "</div></div>"
       ).join("");
 
       result.className = "";
       result.innerHTML =
         "<div class='screen-head'><div><div class='screen-kicker eyebrow'><span class='service-mark spotify'>S</span> We found your playlist</div><h2 class='display screen-title'>Here's what we'll be working with.</h2><p class='mini-copy'>Nothing is transferred yet. We'll show Apple Music matches first.</p></div></div>" +
-        "<div class='playlist-card'><div class='sleeve big'></div><div><div class='eyebrow'>Public Spotify playlist</div><div class='playlist-name'>" + esc(data.playlist.name) + "</div><div class='playlist-meta'><span>" + data.tracks.length + " tracks</span><span>" + data.tracks.filter((track) => track.isrc).length + " with ISRC</span></div></div></div>" +
+        "<div class='playlist-card'>" + artworkHtml(playlistArtwork, "big") + "<div><div class='eyebrow'>Public Spotify playlist</div><div class='playlist-name'>" + esc(data.playlist.name) + "</div><div class='playlist-meta'><span>" + data.tracks.length + " tracks</span><span>" + data.tracks.filter((track) => track.isrc).length + " with ISRC</span></div></div></div>" +
         "<div class='route-card'><span class='service-mark spotify'>S</span><span class='eyebrow'>to</span><span class='service-mark apple'>A</span><div class='route-copy'>Will create a new Apple Music playlist after review.</div></div>" +
         sourceNote(data) +
         "<div class='group-title'>First tracks</div><div class='track-list'>" + rows + "</div>" +
@@ -2177,7 +2417,7 @@ function renderStudioMvpPage() {
         ? "<div class='candidate-card " + tone + "'><div class='candidate-label'>Apple Music candidate</div><div class='track-title'>" + esc(candidate.name) + "</div><div class='track-meta'>" + esc(candidate.artistName) + (candidate.albumName ? " - " + esc(candidate.albumName) : "") + "</div><div class='track-meta mono'>" + esc(item.reason || "") + "</div></div>"
         : "<div class='candidate-card missing'><div class='candidate-label'>No confident match</div><div class='track-meta'>" + esc(item.reason || "No candidate selected.") + "</div></div>";
 
-      return "<div class='track-row'><div class='track-index'>" + item.index + "</div><div class='track-body'><div class='track-title'>" + esc(source.name) + "</div><div class='track-meta'>" + esc(source.artists.join(", ")) + (source.album ? " - " + esc(source.album) : "") + "</div><div class='status-pill " + esc(item.status) + "'>" + statusLabel(item.status) + "</div>" + candidateHtml + "</div><div class='confidence'>" + pct(item.confidence) + "</div></div>";
+      return "<div class='track-row'><div class='track-index'>" + item.index + "</div>" + artworkHtml(source, "small") + "<div class='track-body'><div class='track-title'>" + esc(source.name) + "</div><div class='track-meta'>" + esc(source.artists.join(", ")) + (source.album ? " - " + esc(source.album) : "") + "</div><div class='status-pill " + esc(item.status) + "'>" + statusLabel(item.status) + "</div>" + candidateHtml + "</div><div class='confidence'>" + pct(item.confidence) + "</div></div>";
     }
 
     function renderMatchGroup(label, items, tone, renderLimit) {
@@ -2223,10 +2463,25 @@ function renderStudioMvpPage() {
       fallback.hidden = false;
     }
 
+    function loadDemoReport() {
+      resetProgress();
+      fallback.hidden = true;
+      input.value = "demo://chaos-match-report";
+      lastPreview = null;
+      lastAnalysis = DEMO_ANALYSIS;
+      isDemoAnalysis = true;
+      renderAnalysis(DEMO_ANALYSIS);
+      buttons.analyzePublic.disabled = true;
+      buttons.createPublic.disabled = true;
+      status.className = "";
+      status.textContent = "Demo mode loaded. Creation is disabled so this cannot write to Apple Music.";
+    }
+
     async function run(endpoint, options) {
       const value = input.value.trim();
       if (!value) return;
       fallback.hidden = true;
+      isDemoAnalysis = false;
       try {
         setBusy(true, options.message);
         const shouldSendLimit = options.kind !== "preview";
@@ -2267,18 +2522,28 @@ function renderStudioMvpPage() {
     buttons.previewPublic.addEventListener("click", () => run("/api/spotify/public-playlist-preview", { kind: "preview", message: "Reading public Spotify link..." }));
     buttons.analyzePublic.addEventListener("click", () => run("/api/transfers/analyze-public-job", { kind: "analysis", job: true, message: "Matching " + selectedAnalysisLabel().toLowerCase() + " against Apple Music. First run can take a moment; retries are cached." }));
     buttons.createPublic.addEventListener("click", () => {
+      if (isDemoAnalysis) {
+        window.alert("Demo mode cannot create an Apple Music playlist.");
+        return;
+      }
+
       if (window.confirm("Create an Apple Music playlist from confident matches only?")) {
         run("/api/transfers/create-public-job", { kind: "analysis", job: true, includeAnalysis: true, message: "Creating Apple Music playlist from confident matches in " + selectedAnalysisLabel().toLowerCase() + "..." });
       }
     });
+    buttons.demoReport.addEventListener("click", loadDemoReport);
     buttons.previewApi.addEventListener("click", () => run("/api/spotify/playlist-preview", { kind: "preview", message: "Reading through authenticated Spotify API..." }));
     buttons.analyzeApi.addEventListener("click", () => run("/api/transfers/analyze", { kind: "analysis", message: "Analyzing through authenticated API path..." }));
     input.addEventListener("input", () => {
       lastPreview = null;
       lastAnalysis = null;
+      isDemoAnalysis = false;
       buttons.analyzePublic.disabled = true;
       buttons.createPublic.disabled = true;
     });
+    if (new URLSearchParams(window.location.search).get("demo") === "chaos") {
+      loadDemoReport();
+    }
   </script>
 </body>
 </html>`;

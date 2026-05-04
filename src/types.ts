@@ -4,6 +4,7 @@ export type SpotifyTrack = {
   name: string;
   artists: string[];
   album: string | null;
+  albumImageUrl?: string | null;
   durationMs: number | null;
 };
 
@@ -11,6 +12,7 @@ export type SpotifyPlaylist = {
   id: string;
   name: string;
   description: string | null;
+  imageUrl?: string | null;
   totalItems: number;
   tracks: SpotifyTrack[];
 };

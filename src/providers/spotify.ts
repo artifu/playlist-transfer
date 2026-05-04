@@ -16,6 +16,11 @@ type SpotifyPlaylistPage = {
       };
       album?: {
         name?: string;
+        images?: Array<{
+          url?: string;
+          width?: number;
+          height?: number;
+        }>;
       };
       artists?: Array<{ name: string }>;
     } | null;
@@ -28,10 +33,35 @@ type SpotifyPlaylistResponse = {
   id: string;
   name: string;
   description: string | null;
+  images?: Array<{
+    url?: string;
+    width?: number;
+    height?: number;
+  }>;
   items?: {
     total: number;
   };
 };
+
+function bestSpotifyImageUrl(
+  images: Array<{ url?: string; width?: number; height?: number }> | undefined,
+  preferredWidth = 300
+): string | null {
+  if (!images?.length) {
+    return null;
+  }
+
+  return (
+    [...images]
+      .filter((image) => image.url)
+      .sort(
+        (left, right) =>
+          Math.abs((left.width ?? preferredWidth) - preferredWidth) -
+          Math.abs((right.width ?? preferredWidth) - preferredWidth)
+      )[0]
+      ?.url ?? null
+  );
+}
 
 export class SpotifyClient {
   constructor(
@@ -103,6 +133,7 @@ export class SpotifyClient {
               ?.map((artist: { name: string }) => artist.name)
               .filter((artistName): artistName is string => Boolean(artistName)) ?? [],
           album: item.album?.name ?? null,
+          albumImageUrl: bestSpotifyImageUrl(item.album?.images),
           durationMs: item.duration_ms ?? null
         });
       }
@@ -114,6 +145,7 @@ export class SpotifyClient {
       id: metadata.id,
       name: metadata.name,
       description: metadata.description,
+      imageUrl: bestSpotifyImageUrl(metadata.images),
       totalItems,
       tracks
     };

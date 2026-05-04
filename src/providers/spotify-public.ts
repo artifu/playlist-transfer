@@ -245,6 +245,47 @@ function albumName(value: unknown): string | null {
   return null;
 }
 
+function spotifyImageUrlFromFileId(fileId: unknown): string | null {
+  const id = compactText(fileId);
+  return id ? `https://i.scdn.co/image/${id}` : null;
+}
+
+function imageUrl(value: unknown): string | null {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value === "string") {
+    const compacted = compactText(value);
+    return compacted?.startsWith("http") ? compacted : null;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const url = imageUrl(item);
+      if (url) {
+        return url;
+      }
+    }
+
+    return null;
+  }
+
+  const record = asRecord(value);
+  if (!record) {
+    return null;
+  }
+
+  return (
+    imageUrl(record.url) ??
+    imageUrl(record.contentUrl) ??
+    imageUrl(record.thumbnailUrl) ??
+    spotifyImageUrlFromFileId(record.file_id) ??
+    imageUrl(record.image) ??
+    imageUrl(record.images)
+  );
+}
+
 function looksLikeTrackObject(value: unknown): value is Record<string, unknown> {
   const record = asRecord(value);
   if (!record) {
@@ -311,6 +352,13 @@ function normalizeTrackCandidate(value: Record<string, unknown>): SpotifyTrack |
       albumName(value.albumOfTrack) ??
       albumName(value.album) ??
       null,
+    albumImageUrl:
+      imageUrl(value.image) ??
+      imageUrl(value.images) ??
+      imageUrl(value.thumbnailUrl) ??
+      imageUrl(nestedRecord(value, "inAlbum")) ??
+      imageUrl(nestedRecord(value, "albumOfTrack")) ??
+      imageUrl(nestedRecord(value, "album")),
     durationMs: durationMs(value.duration_ms) ?? durationMs(value.durationMs) ?? durationMs(value.duration)
   };
 }
@@ -507,6 +555,14 @@ type SpclientTrackMetadata = {
   name?: string;
   album?: {
     name?: string;
+    cover_group?: {
+      image?: Array<{
+        file_id?: string;
+        size?: string;
+        width?: number;
+        height?: number;
+      }>;
+    };
   };
   artist?: Array<{
     name?: string;
@@ -568,6 +624,16 @@ function isrcFromMetadata(metadata: SpclientTrackMetadata): string | null {
   return compactText(isrc);
 }
 
+function albumImageUrlFromMetadata(metadata: SpclientTrackMetadata): string | null {
+  const images = metadata.album?.cover_group?.image ?? [];
+  const preferred =
+    images.find((image) => image.size === "SMALL") ??
+    images.find((image) => image.width === 300) ??
+    images[0];
+
+  return spotifyImageUrlFromFileId(preferred?.file_id);
+}
+
 function metadataToSpotifyTrack(trackId: string, metadata: SpclientTrackMetadata): SpotifyTrack {
   const name = compactText(metadata.name);
   if (!name) {
@@ -583,6 +649,7 @@ function metadataToSpotifyTrack(trackId: string, metadata: SpclientTrackMetadata
         ?.map((artist) => compactText(artist.name))
         .filter((artist): artist is string => Boolean(artist)) ?? [],
     album: compactText(metadata.album?.name),
+    albumImageUrl: albumImageUrlFromMetadata(metadata),
     durationMs: durationMs(metadata.duration)
   };
 }
@@ -753,6 +820,10 @@ async function fetchPublicSpotifyPlaylist(input: string): Promise<PublicSpotifyP
     description: usedSpclient
       ? "Read from Spotify public embed session metadata and public web endpoints without Spotify user OAuth."
       : "Read from Spotify public embed metadata without Spotify user OAuth.",
+    imageUrl:
+      ("thumbnailUrl" in report.oembed ? report.oembed.thumbnailUrl : null) ??
+      tracks.find((track) => track.albumImageUrl)?.albumImageUrl ??
+      null,
     totalItems: tracks.length,
     tracks,
     source: usedSpclient ? "spotify-public-spclient" : "spotify-public-embed",
