@@ -1824,6 +1824,33 @@ function renderStudioMvpPage() {
       padding-top: 2px;
     }
 
+    .review-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .mini-action {
+      min-height: 34px;
+      padding: 0 12px;
+      border-radius: 999px;
+      box-shadow: none;
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .mini-action.approve {
+      background: var(--source);
+      color: #fff;
+    }
+
+    .mini-action.skip {
+      background: var(--bg-inset);
+      border-color: var(--line);
+      color: var(--ink);
+    }
+
     .filter-row {
       display: flex;
       gap: 7px;
@@ -1990,7 +2017,6 @@ function renderStudioMvpPage() {
             <button id="preview-public" class="primary">Preview public link</button>
             <button id="analyze-public" class="primary" disabled>Analyze matches</button>
             <button id="create-public" class="dest" disabled><span class="service-mark apple">A</span>Create Apple Music playlist</button>
-            <button id="demo-report" class="soft" type="button">Try demo match report</button>
           </div>
 
           <div class="controls-row">
@@ -2071,7 +2097,6 @@ function renderStudioMvpPage() {
       previewPublic: document.querySelector("#preview-public"),
       analyzePublic: document.querySelector("#analyze-public"),
       createPublic: document.querySelector("#create-public"),
-      demoReport: document.querySelector("#demo-report"),
       previewApi: document.querySelector("#preview-api"),
       analyzeApi: document.querySelector("#analyze-api")
     };
@@ -2413,11 +2438,14 @@ function renderStudioMvpPage() {
       const source = item.source;
       const candidate = item.appleCandidate;
       const tone = toneForStatus(item.status);
+      const demoActions = isDemoAnalysis && item.status === "needs_review"
+        ? "<div class='review-actions'><button class='mini-action approve' type='button' data-demo-action='approve' data-demo-index='" + item.index + "'>Approve suggested</button><button class='mini-action skip' type='button' data-demo-action='skip' data-demo-index='" + item.index + "'>Skip track</button></div>"
+        : "";
       const candidateHtml = candidate
         ? "<div class='candidate-card " + tone + "'><div class='candidate-label'>Apple Music candidate</div><div class='track-title'>" + esc(candidate.name) + "</div><div class='track-meta'>" + esc(candidate.artistName) + (candidate.albumName ? " - " + esc(candidate.albumName) : "") + "</div><div class='track-meta mono'>" + esc(item.reason || "") + "</div></div>"
         : "<div class='candidate-card missing'><div class='candidate-label'>No confident match</div><div class='track-meta'>" + esc(item.reason || "No candidate selected.") + "</div></div>";
 
-      return "<div class='track-row'><div class='track-index'>" + item.index + "</div>" + artworkHtml(source, "small") + "<div class='track-body'><div class='track-title'>" + esc(source.name) + "</div><div class='track-meta'>" + esc(source.artists.join(", ")) + (source.album ? " - " + esc(source.album) : "") + "</div><div class='status-pill " + esc(item.status) + "'>" + statusLabel(item.status) + "</div>" + candidateHtml + "</div><div class='confidence'>" + pct(item.confidence) + "</div></div>";
+      return "<div class='track-row'><div class='track-index'>" + item.index + "</div>" + artworkHtml(source, "small") + "<div class='track-body'><div class='track-title'>" + esc(source.name) + "</div><div class='track-meta'>" + esc(source.artists.join(", ")) + (source.album ? " - " + esc(source.album) : "") + "</div><div class='status-pill " + esc(item.status) + "'>" + statusLabel(item.status) + "</div>" + candidateHtml + demoActions + "</div><div class='confidence'>" + pct(item.confidence) + "</div></div>";
     }
 
     function renderMatchGroup(label, items, tone, renderLimit) {
@@ -2433,6 +2461,9 @@ function renderStudioMvpPage() {
       const missing = renderedItems.filter((item) => item.status === "unmatched");
       const ready = renderedItems.filter((item) => item.status === "matched");
       const readyRate = data.items.length === 0 ? 0 : data.summary.confidentMatchCount / data.items.length;
+      const transferNote = isDemoAnalysis
+        ? "<div class='trust-note'>Demo actions update this report only. In the real app, Create will transfer confident matches after review.</div>"
+        : "<div class='trust-note'>Tapping Create will transfer " + data.summary.confidentMatchCount + " confident matches to Apple Music. Review and missing tracks stay out.</div>";
 
       result.className = "";
       result.innerHTML =
@@ -2441,7 +2472,7 @@ function renderStudioMvpPage() {
         "<div class='filter-row'><span class='filter-chip active'>All <span class='mono'>" + data.items.length + "</span></span><span class='filter-chip'>Needs review <span class='mono'>" + data.summary.needsReviewCount + "</span></span><span class='filter-chip'>Missing <span class='mono'>" + data.summary.unmatchedCount + "</span></span><span class='filter-chip'>Ready <span class='mono'>" + data.summary.confidentMatchCount + "</span></span></div>" +
         partialNote(data) +
         sourceNote(data) +
-        "<div class='trust-note'>Tapping Create will transfer " + data.summary.confidentMatchCount + " confident matches to Apple Music. Review and missing tracks stay out.</div>" +
+        transferNote +
         renderMatchGroup("Needs review", review, "review", 24) +
         renderMatchGroup("Will not transfer", missing, "missing", 24) +
         renderMatchGroup("Ready to transfer", ready, "ready", 72) +
@@ -2463,18 +2494,64 @@ function renderStudioMvpPage() {
       fallback.hidden = false;
     }
 
+    function cloneAnalysis(analysis) {
+      return JSON.parse(JSON.stringify(analysis));
+    }
+
+    function refreshAnalysisSummary(analysis) {
+      const total = analysis.items.length;
+      const needsReviewCount = analysis.items.filter((item) => item.status === "needs_review").length;
+      const confidentMatchCount = analysis.items.filter((item) => item.status === "matched").length;
+      const unmatchedCount = analysis.items.filter((item) => item.status === "unmatched").length;
+      const matchedCount = total - unmatchedCount;
+
+      analysis.summary = {
+        ...analysis.summary,
+        matchedCount,
+        unmatchedCount,
+        needsReviewCount,
+        confidentMatchCount,
+        matchRate: total === 0 ? 0 : matchedCount / total
+      };
+    }
+
     function loadDemoReport() {
       resetProgress();
       fallback.hidden = true;
       input.value = "demo://chaos-match-report";
       lastPreview = null;
-      lastAnalysis = DEMO_ANALYSIS;
+      lastAnalysis = cloneAnalysis(DEMO_ANALYSIS);
       isDemoAnalysis = true;
-      renderAnalysis(DEMO_ANALYSIS);
+      renderAnalysis(lastAnalysis);
       buttons.analyzePublic.disabled = true;
       buttons.createPublic.disabled = true;
       status.className = "";
-      status.textContent = "Demo mode loaded. Creation is disabled so this cannot write to Apple Music.";
+      status.textContent = "Demo mode loaded. Approve or skip review rows below. Creation is disabled.";
+    }
+
+    function updateDemoReview(index, action) {
+      if (!isDemoAnalysis || !lastAnalysis) return;
+      const item = lastAnalysis.items.find((candidate) => candidate.index === index);
+      if (!item || item.status !== "needs_review") return;
+
+      if (action === "approve") {
+        item.status = "matched";
+        item.confidence = Math.max(item.confidence ?? 0, 0.82);
+        item.reason = "approved-by-user";
+        status.textContent = "Approved suggested match for " + item.source.name + ".";
+      }
+
+      if (action === "skip") {
+        item.status = "unmatched";
+        item.confidence = 0;
+        item.reason = "skipped-by-user";
+        item.appleCandidate = null;
+        status.textContent = "Skipped " + item.source.name + " for this transfer.";
+      }
+
+      refreshAnalysisSummary(lastAnalysis);
+      renderAnalysis(lastAnalysis);
+      buttons.createPublic.disabled = true;
     }
 
     async function run(endpoint, options) {
@@ -2531,9 +2608,14 @@ function renderStudioMvpPage() {
         run("/api/transfers/create-public-job", { kind: "analysis", job: true, includeAnalysis: true, message: "Creating Apple Music playlist from confident matches in " + selectedAnalysisLabel().toLowerCase() + "..." });
       }
     });
-    buttons.demoReport.addEventListener("click", loadDemoReport);
     buttons.previewApi.addEventListener("click", () => run("/api/spotify/playlist-preview", { kind: "preview", message: "Reading through authenticated Spotify API..." }));
     buttons.analyzeApi.addEventListener("click", () => run("/api/transfers/analyze", { kind: "analysis", message: "Analyzing through authenticated API path..." }));
+    result.addEventListener("click", (event) => {
+      const target = event.target instanceof Element ? event.target : event.target?.parentElement;
+      const actionButton = target?.closest("[data-demo-action]");
+      if (!actionButton) return;
+      updateDemoReview(Number(actionButton.dataset.demoIndex), actionButton.dataset.demoAction);
+    });
     input.addEventListener("input", () => {
       lastPreview = null;
       lastAnalysis = null;
