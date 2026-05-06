@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { createServer } from "node:http";
-import { loadAppleMusicConfig, loadSpotifyConfig } from "../dist/config.js";
+import { loadSpotifyConfig } from "../dist/config.js";
 import { HttpError } from "../dist/lib/http.js";
 import { parseSpotifyPlaylistInput } from "../dist/lib/spotify-url.js";
 import { AppleMusicClient } from "../dist/providers/apple.js";
@@ -15,6 +15,8 @@ const DEFAULT_PUBLIC_ANALYSIS_LIMIT = 50;
 const MAX_PUBLIC_ANALYSIS_LIMIT = 500;
 const JOB_RETENTION_MS = 10 * 60 * 1000;
 const jobs = new Map();
+let runtimeAppleMusicUserToken = "";
+let runtimeAppleMusicStorefront = "";
 
 function createSpotifyClient() {
   const config = loadSpotifyConfig();
@@ -25,13 +27,52 @@ function createSpotifyClient() {
   );
 }
 
-function createAppleMusicClient() {
-  const config = loadAppleMusicConfig();
+function createAppleMusicClient(options = {}) {
+  const config = currentAppleMusicConfig(options);
   return new AppleMusicClient(
     config.appleMusicDeveloperToken,
     config.appleMusicUserToken,
     config.appleMusicStorefront
   );
+}
+
+function currentAppleMusicConfig(options = {}) {
+  const requireUserToken = Boolean(options.requireUserToken);
+  const appleMusicDeveloperToken = process.env.APPLE_MUSIC_DEVELOPER_TOKEN?.trim();
+  const appleMusicUserToken =
+    runtimeAppleMusicUserToken || process.env.APPLE_MUSIC_USER_TOKEN?.trim();
+  const appleMusicStorefront =
+    runtimeAppleMusicStorefront || process.env.APPLE_MUSIC_STOREFRONT?.trim() || "us";
+
+  if (!appleMusicDeveloperToken) {
+    throw new Error("Missing APPLE_MUSIC_DEVELOPER_TOKEN. Generate it from your Apple Music private key first.");
+  }
+
+  if (requireUserToken && !appleMusicUserToken) {
+    throw new Error("Apple Music is not connected. Use Connect Apple Music, then try again.");
+  }
+
+  return {
+    appleMusicDeveloperToken,
+    appleMusicUserToken: appleMusicUserToken || null,
+    appleMusicStorefront
+  };
+}
+
+function appleMusicSessionPayload() {
+  const appleMusicDeveloperToken = process.env.APPLE_MUSIC_DEVELOPER_TOKEN?.trim() || "";
+  const envUserToken = process.env.APPLE_MUSIC_USER_TOKEN?.trim() || "";
+  const appleMusicStorefront =
+    runtimeAppleMusicStorefront || process.env.APPLE_MUSIC_STOREFRONT?.trim() || "us";
+  const userTokenSource = runtimeAppleMusicUserToken ? "runtime" : envUserToken ? "env" : "none";
+
+  return {
+    hasDeveloperToken: Boolean(appleMusicDeveloperToken),
+    hasUserToken: Boolean(runtimeAppleMusicUserToken || envUserToken),
+    userTokenSource,
+    storefront: appleMusicStorefront,
+    developerToken: appleMusicDeveloperToken
+  };
 }
 
 function matchStatus(result) {
@@ -294,7 +335,7 @@ async function runPublicTransferCreateJob(job, body) {
     });
 
     const createdApplePlaylistId = await createApplePlaylistFromMatches({
-      apple: createAppleMusicClient(),
+      apple: createAppleMusicClient({ requireUserToken: true }),
       playlistName: report.playlistName,
       results: report.results,
       minConfidence: 0.8
@@ -338,7 +379,11 @@ function errorMessage(error) {
   }
 
   if (error.url.includes("api.music.apple.com") && error.status === 401) {
-    return "Apple Music authentication failed. Refresh the developer token and user token, then try again.";
+    return "Apple Music authentication failed. Reconnect Apple Music, then try again.";
+  }
+
+  if (error.url.includes("api.music.apple.com") && error.status === 403) {
+    return "Apple Music refused this library write. Reconnect Apple Music with an account that can create playlists, then try again.";
   }
 
   if (error.url.includes("api.music.apple.com") && error.status === 429) {
@@ -501,6 +546,31 @@ async function handlePublicTransferCreateJob(request, response) {
   }
 }
 
+async function handleAppleMusicUserToken(request, response) {
+  try {
+    const body = await readJsonBody(request);
+    const userToken = String(body.userToken ?? body.musicUserToken ?? "").trim();
+    const storefront = String(body.storefront ?? "").trim();
+
+    if (!userToken) {
+      sendJson(response, 400, {
+        error: true,
+        message: "Missing Apple Music user token."
+      });
+      return;
+    }
+
+    runtimeAppleMusicUserToken = userToken;
+    runtimeAppleMusicStorefront = storefront || runtimeAppleMusicStorefront;
+    sendJson(response, 200, appleMusicSessionPayload());
+  } catch (error) {
+    sendJson(response, statusForError(error), {
+      error: true,
+      message: errorMessage(error)
+    });
+  }
+}
+
 function handleJobStatus(jobId, response) {
   const job = jobs.get(jobId);
   if (!job) {
@@ -521,7 +591,7 @@ async function handlePublicTransferCreate(request, response) {
     const limit = analysisLimitFromBody(body);
     const playlist = await getPublicSpotifyPlaylist(input);
     const analysisPlaylist = slicePlaylistForAnalysis(playlist, limit);
-    const apple = createAppleMusicClient();
+    const apple = createAppleMusicClient({ requireUserToken: true });
     const analysis = await analyzeSpotifyPlaylist(analysisPlaylist, apple);
     const createdApplePlaylistId = await createApplePlaylistFromMatches({
       apple,
@@ -1100,6 +1170,7 @@ function renderStudioMvpPage() {
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400;1,9..144,500;1,9..144,600;1,9..144,700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" />
+  <script src="https://js-cdn.music.apple.com/musickit/v1/musickit.js"></script>
   <style>
     :root {
       --bg: #fbfbfd;
@@ -1207,6 +1278,7 @@ function renderStudioMvpPage() {
       gap: 7px;
       color: var(--ink-muted);
       white-space: nowrap;
+      cursor: pointer;
     }
 
     .connected::before {
@@ -1216,6 +1288,9 @@ function renderStudioMvpPage() {
       border-radius: 999px;
       background: var(--source);
     }
+
+    .connected.pending::before { background: var(--warn); }
+    .connected.error::before { background: var(--danger); }
 
     h1, h2, h3, p { margin: 0; }
 
@@ -1270,6 +1345,55 @@ function renderStudioMvpPage() {
       color: var(--source);
     }
 
+    .apple-connect-card {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 12px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--bg-elev);
+    }
+
+    .apple-connect-card[hidden] { display: none; }
+
+    .apple-connect-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .apple-connect-title {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 760;
+    }
+
+    .apple-connect-copy {
+      color: var(--ink-muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .apple-connect-card.ready {
+      border-color: rgba(29, 185, 84, 0.18);
+      background: var(--source-soft);
+    }
+
+    .apple-connect-card.blocked {
+      border-color: rgba(184, 106, 31, 0.22);
+      background: var(--warn-soft);
+    }
+
+    .apple-connect-card .soft {
+      min-height: 42px;
+      font-size: 13px;
+    }
+
     .service-mark {
       display: inline-grid;
       place-items: center;
@@ -1289,8 +1413,34 @@ function renderStudioMvpPage() {
     }
 
     .service-mark.apple {
+      position: relative;
       border-radius: 5px;
       background: var(--dest);
+      font-size: 0;
+    }
+
+    .service-mark.apple::before {
+      content: "";
+      position: absolute;
+      left: 6px;
+      top: 4px;
+      width: 6px;
+      height: 9px;
+      border-right: 2px solid #fff;
+      border-top: 2px solid #fff;
+      border-radius: 2px 2px 0 0;
+      transform: rotate(-10deg);
+    }
+
+    .service-mark.apple::after {
+      content: "";
+      position: absolute;
+      left: 4px;
+      bottom: 4px;
+      width: 5px;
+      height: 5px;
+      border-radius: 999px;
+      background: #fff;
     }
 
     input {
@@ -1933,6 +2083,43 @@ function renderStudioMvpPage() {
       font-weight: 650;
     }
 
+    .result-actions {
+      display: grid;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .transfer-breakdown {
+      display: grid;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .transfer-line {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: var(--bg-elev);
+    }
+
+    .transfer-line strong {
+      display: block;
+      color: var(--ink);
+      font-size: 13px;
+      line-height: 1.3;
+    }
+
+    .transfer-line span {
+      display: block;
+      margin-top: 2px;
+      color: var(--ink-muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
     .fallback {
       margin: 16px 20px 24px;
       padding: 18px;
@@ -1998,10 +2185,10 @@ function renderStudioMvpPage() {
       <section class="app-chrome">
         <div class="topbar">
           <div class="brand">
-            <div class="brand-mark">pt</div>
+            <div class="brand-mark" data-asset-slot="brand-mark" aria-label="PlaylistTransfer brand mark">pt</div>
             <div class="eyebrow">Playlist Transfer</div>
           </div>
-          <div class="connected eyebrow">Apple ready</div>
+          <div id="apple-connection" class="connected pending eyebrow">Apple check</div>
         </div>
 
         <h1 class="display hero-title">Drop a link.<br><span class="muted-title">We'll do the digging.</span></h1>
@@ -2012,6 +2199,15 @@ function renderStudioMvpPage() {
             <div class="field-label eyebrow"><span class="service-mark spotify">S</span> Spotify playlist URL</div>
             <input id="playlist-input" autocomplete="off" placeholder="https://open.spotify.com/playlist/..." />
           </div>
+
+          <section id="apple-connect-card" class="apple-connect-card blocked" data-asset-slot="apple-connect-card">
+            <div class="apple-connect-head">
+              <div class="apple-connect-title"><span class="service-mark apple">A</span> Apple Music</div>
+              <div id="apple-connect-state" class="eyebrow">Checking</div>
+            </div>
+            <p id="apple-connect-copy" class="apple-connect-copy">Checking local Apple Music session...</p>
+            <button id="connect-apple" class="soft" type="button">Connect Apple Music</button>
+          </section>
 
           <div class="button-stack">
             <button id="preview-public" class="primary">Preview public link</button>
@@ -2093,6 +2289,11 @@ function renderStudioMvpPage() {
     const progressPercent = document.querySelector("#progress-percent");
     const progressBar = document.querySelector("#progress-bar");
     const progressDetail = document.querySelector("#progress-detail");
+    const appleConnection = document.querySelector("#apple-connection");
+    const appleConnectCard = document.querySelector("#apple-connect-card");
+    const appleConnectState = document.querySelector("#apple-connect-state");
+    const appleConnectCopy = document.querySelector("#apple-connect-copy");
+    const connectAppleButton = document.querySelector("#connect-apple");
     const buttons = {
       previewPublic: document.querySelector("#preview-public"),
       analyzePublic: document.querySelector("#analyze-public"),
@@ -2103,6 +2304,13 @@ function renderStudioMvpPage() {
     let lastPreview = null;
     let lastAnalysis = null;
     let isDemoAnalysis = false;
+    let appleSession = {
+      hasDeveloperToken: false,
+      hasUserToken: false,
+      userTokenSource: "none",
+      storefront: "us",
+      developerToken: ""
+    };
     const DEMO_ANALYSIS = {
       playlist: {
         id: "demo-chaos",
@@ -2328,14 +2536,165 @@ function renderStudioMvpPage() {
       return "<img class='artwork " + esc(size) + "' src='" + esc(url) + "' alt='' loading='lazy' />";
     }
 
+    function hasAppleMusicConnection() {
+      return Boolean(appleSession?.hasDeveloperToken && appleSession?.hasUserToken);
+    }
+
+    function hasAppleDeveloperToken() {
+      return Boolean(appleSession?.hasDeveloperToken);
+    }
+
+    function canCreateFromAnalysis() {
+      return Boolean(lastAnalysis && !isDemoAnalysis && hasAppleDeveloperToken() && (lastAnalysis.summary?.confidentMatchCount ?? 0) > 0);
+    }
+
+    function refreshPrimaryActions() {
+      buttons.analyzePublic.disabled = !lastPreview || !hasAppleDeveloperToken();
+      buttons.createPublic.disabled = !canCreateFromAnalysis();
+    }
+
+    function renderAppleSession() {
+      const hasDeveloperToken = Boolean(appleSession?.hasDeveloperToken);
+      const hasUserToken = Boolean(appleSession?.hasUserToken);
+      const source = appleSession?.userTokenSource === "runtime" ? "this session" : "local .env";
+
+      appleConnectCard.classList.toggle("ready", hasDeveloperToken && hasUserToken);
+      appleConnectCard.classList.toggle("blocked", !hasDeveloperToken || !hasUserToken);
+      appleConnectCard.hidden = hasDeveloperToken;
+      appleConnection.classList.toggle("pending", hasDeveloperToken && !hasUserToken);
+      appleConnection.classList.toggle("error", !hasDeveloperToken);
+
+      if (!hasDeveloperToken) {
+        appleConnection.textContent = "Apple setup";
+        appleConnectState.textContent = "Developer token missing";
+        appleConnectCopy.textContent = "Add APPLE_MUSIC_DEVELOPER_TOKEN to .env before connecting a listener account.";
+        connectAppleButton.disabled = true;
+        connectAppleButton.textContent = "Developer token required";
+        refreshPrimaryActions();
+        return;
+      }
+
+      if (!hasUserToken) {
+        appleConnection.textContent = "Apple login";
+        appleConnectState.textContent = "Not connected";
+        appleConnectCopy.textContent = "Authorize Apple Music before matching or creating a playlist. The token stays in this local server session.";
+        connectAppleButton.disabled = false;
+        connectAppleButton.textContent = "Connect Apple Music";
+        refreshPrimaryActions();
+        return;
+      }
+
+      appleConnection.textContent = "Apple ready";
+      appleConnectState.textContent = "Connected";
+      appleConnectCopy.textContent = "Apple Music is authorized from " + source + " for storefront " + (appleSession.storefront || "us") + ".";
+      connectAppleButton.disabled = false;
+      connectAppleButton.textContent = "Reconnect Apple Music";
+      refreshPrimaryActions();
+    }
+
+    async function loadAppleSession() {
+      try {
+        const response = await fetch("/api/apple-music/session", { cache: "no-store" });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || "Could not read Apple Music session.");
+        appleSession = data;
+      } catch (error) {
+        appleSession = {
+          hasDeveloperToken: false,
+          hasUserToken: false,
+          userTokenSource: "none",
+          storefront: "us",
+          developerToken: ""
+        };
+        appleConnectCopy.textContent = error instanceof Error ? error.message : String(error);
+      } finally {
+        renderAppleSession();
+      }
+    }
+
+    async function saveAppleUserToken(userToken) {
+      const response = await fetch("/api/apple-music/user-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userToken,
+          storefront: appleSession.storefront || "us"
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Could not save Apple Music user token.");
+      appleSession = data;
+      renderAppleSession();
+    }
+
+    async function connectAppleMusic() {
+      if (!appleSession?.developerToken) {
+        status.className = "error";
+        status.textContent = "Missing Apple Music developer token.";
+        return false;
+      }
+
+      connectAppleButton.disabled = true;
+      status.className = "";
+      status.textContent = "Opening Apple Music authorization...";
+
+      try {
+        if (!window.MusicKit) {
+          throw new Error("MusicKit did not load. Try refreshing the page or opening it in Safari/Chrome.");
+        }
+
+        await MusicKit.configure({
+          developerToken: appleSession.developerToken,
+          app: {
+            name: "PlaylistTransfer",
+            build: "local-mvp"
+          },
+          storefrontId: appleSession.storefront || "us",
+          suppressErrorDialog: false
+        });
+
+        const music = MusicKit.getInstance();
+        const authorizedToken = await music.authorize();
+        const resolvedToken =
+          authorizedToken ||
+          music.musicUserToken ||
+          music.api?.musicUserToken ||
+          window.MusicKit?.getInstance?.()?.musicUserToken;
+
+        if (!resolvedToken) {
+          throw new Error("Apple authorization finished, but MusicKit did not return a user token.");
+        }
+
+        await saveAppleUserToken(resolvedToken);
+        status.textContent = "Apple Music connected. You can analyze matches and create playlists now.";
+        return true;
+      } catch (error) {
+        console.error(error);
+        status.className = "error";
+        status.textContent = error instanceof Error ? error.message : String(error);
+        return false;
+      } finally {
+        renderAppleSession();
+      }
+    }
+
+    async function ensureAppleMusicForCreate() {
+      if (hasAppleMusicConnection()) return true;
+      const shouldConnect = window.confirm("Connect Apple Music to create this playlist in your library?");
+      if (!shouldConnect) return false;
+      return connectAppleMusic();
+    }
+
     function setBusy(isBusy, message) {
       Object.values(buttons).forEach((button) => button.disabled = isBusy || button.dataset.locked === "true");
       if (!isBusy) {
-        buttons.analyzePublic.disabled = !lastPreview;
-        buttons.createPublic.disabled = !lastAnalysis;
+        refreshPrimaryActions();
       }
-      status.className = "";
-      status.textContent = message || "";
+
+      if (typeof message === "string") {
+        status.className = "";
+        status.textContent = message;
+      }
     }
 
     function setProgress(job) {
@@ -2438,14 +2797,15 @@ function renderStudioMvpPage() {
       const source = item.source;
       const candidate = item.appleCandidate;
       const tone = toneForStatus(item.status);
-      const demoActions = isDemoAnalysis && item.status === "needs_review"
-        ? "<div class='review-actions'><button class='mini-action approve' type='button' data-demo-action='approve' data-demo-index='" + item.index + "'>Approve suggested</button><button class='mini-action skip' type='button' data-demo-action='skip' data-demo-index='" + item.index + "'>Skip track</button></div>"
+      const approveButton = candidate ? "<button class='mini-action approve' type='button' data-review-action='approve' data-review-index='" + item.index + "'>Approve suggested</button>" : "";
+      const reviewActions = item.status === "needs_review"
+        ? "<div class='review-actions'>" + approveButton + "<button class='mini-action skip' type='button' data-review-action='skip' data-review-index='" + item.index + "'>Skip track</button></div>"
         : "";
       const candidateHtml = candidate
         ? "<div class='candidate-card " + tone + "'><div class='candidate-label'>Apple Music candidate</div><div class='track-title'>" + esc(candidate.name) + "</div><div class='track-meta'>" + esc(candidate.artistName) + (candidate.albumName ? " - " + esc(candidate.albumName) : "") + "</div><div class='track-meta mono'>" + esc(item.reason || "") + "</div></div>"
         : "<div class='candidate-card missing'><div class='candidate-label'>No confident match</div><div class='track-meta'>" + esc(item.reason || "No candidate selected.") + "</div></div>";
 
-      return "<div class='track-row'><div class='track-index'>" + item.index + "</div>" + artworkHtml(source, "small") + "<div class='track-body'><div class='track-title'>" + esc(source.name) + "</div><div class='track-meta'>" + esc(source.artists.join(", ")) + (source.album ? " - " + esc(source.album) : "") + "</div><div class='status-pill " + esc(item.status) + "'>" + statusLabel(item.status) + "</div>" + candidateHtml + demoActions + "</div><div class='confidence'>" + pct(item.confidence) + "</div></div>";
+      return "<div class='track-row'><div class='track-index'>" + item.index + "</div>" + artworkHtml(source, "small") + "<div class='track-body'><div class='track-title'>" + esc(source.name) + "</div><div class='track-meta'>" + esc(source.artists.join(", ")) + (source.album ? " - " + esc(source.album) : "") + "</div><div class='status-pill " + esc(item.status) + "'>" + statusLabel(item.status) + "</div>" + candidateHtml + reviewActions + "</div><div class='confidence'>" + pct(item.confidence) + "</div></div>";
     }
 
     function renderMatchGroup(label, items, tone, renderLimit) {
@@ -2463,7 +2823,9 @@ function renderStudioMvpPage() {
       const readyRate = data.items.length === 0 ? 0 : data.summary.confidentMatchCount / data.items.length;
       const transferNote = isDemoAnalysis
         ? "<div class='trust-note'>Demo actions update this report only. In the real app, Create will transfer confident matches after review.</div>"
-        : "<div class='trust-note'>Tapping Create will transfer " + data.summary.confidentMatchCount + " confident matches to Apple Music. Review and missing tracks stay out.</div>";
+        : data.summary.confidentMatchCount > 0
+          ? "<div class='trust-note'>Tapping Create will transfer " + data.summary.confidentMatchCount + " ready tracks to Apple Music. Review and missing tracks stay out unless you approve them first.</div>"
+          : "<div class='trust-note warn'>No tracks are ready yet. Approve suggested review rows or try a different playlist before creating.</div>";
 
       result.className = "";
       result.innerHTML =
@@ -2480,18 +2842,93 @@ function renderStudioMvpPage() {
     }
 
     function renderSuccess(data, createdApplePlaylistId) {
+      const notTransferred = data.summary.needsReviewCount + data.summary.unmatchedCount;
+      const reviewedCopy = data.summary.needsReviewCount
+        ? data.summary.needsReviewCount + " review item" + (data.summary.needsReviewCount === 1 ? " still needs" : "s still need") + " a decision."
+        : "No review items were left behind.";
+      const missingCopy = data.summary.unmatchedCount
+        ? data.summary.unmatchedCount + " missing or skipped track" + (data.summary.unmatchedCount === 1 ? " was" : "s were") + " not added."
+        : "No missing tracks were left behind.";
       result.className = "";
       result.innerHTML =
         "<div class='success-hero'><div class='success-badge'>Transfer complete</div><h2 class='display success-title'>" + esc(data.playlist.name) + "</h2><div class='success-subtitle'><span class='service-mark apple'>A</span> Now in your Apple Music library</div></div>" +
-        "<div class='stat-grid'><div class='stat-tile ready'><div class='stat-label'>Transferred</div><div class='stat-value'>" + data.summary.confidentMatchCount + "</div></div><div class='stat-tile review'><div class='stat-label'>Review left</div><div class='stat-value'>" + data.summary.needsReviewCount + "</div></div><div class='stat-tile missing'><div class='stat-label'>Skipped</div><div class='stat-value'>" + data.summary.unmatchedCount + "</div></div><div class='stat-tile'><div class='stat-label'>Apple ID</div><div class='stat-value mono'>" + esc(createdApplePlaylistId) + "</div></div></div>" +
-        "<div class='trust-note'>Only confident matches were added. Open Apple Music to see the new playlist in your library.</div>" +
-        "<button class='dest' type='button' disabled><span class='service-mark apple'>A</span>Open in Apple Music coming next</button>";
+        "<div class='stat-grid'><div class='stat-tile ready'><div class='stat-label'>Transferred</div><div class='stat-value'>" + data.summary.confidentMatchCount + "</div></div><div class='stat-tile review'><div class='stat-label'>Needs review</div><div class='stat-value'>" + data.summary.needsReviewCount + "</div></div><div class='stat-tile missing'><div class='stat-label'>Not moved</div><div class='stat-value'>" + notTransferred + "</div></div><div class='stat-tile'><div class='stat-label'>Apple ID</div><div class='stat-value mono'>" + esc(createdApplePlaylistId) + "</div></div></div>" +
+        "<div class='trust-note'>Only ready tracks were added. Open Apple Music to see the new playlist in your library.</div>" +
+        "<div class='transfer-breakdown'><div class='transfer-line'><span class='service-mark apple'>A</span><div><strong>" + data.summary.confidentMatchCount + " tracks transferred</strong><span>These were confident matches or suggestions you approved.</span></div></div><div class='transfer-line'><span class='service-mark spotify'>S</span><div><strong>" + esc(reviewedCopy) + "</strong><span>" + esc(missingCopy) + "</span></div></div></div>" +
+        "<div class='result-actions'><button class='dest' type='button' disabled><span class='service-mark apple'>A</span>Open in Apple Music coming next</button></div>";
     }
 
-    function renderError(error) {
+    function errorCopy(error, options = {}) {
+      const message = error instanceof Error ? error.message : String(error);
+      const lower = message.toLowerCase();
+
+      if (lower.includes("apple music is not connected")) {
+        return {
+          title: "Apple Music needs permission.",
+          body: "Nothing was created yet. Connect Apple Music when you are ready to write this playlist into your library.",
+          next: "Tap Create again and allow Apple Music access.",
+          showFallback: false
+        };
+      }
+
+      if (lower.includes("authorization") || lower.includes("music user token") || lower.includes("musickit")) {
+        return {
+          title: "Apple Music was not connected.",
+          body: message,
+          next: "Try Create again. If the Apple prompt does not open, refresh this page or try Safari/Chrome.",
+          showFallback: false
+        };
+      }
+
+      if (lower.includes("developer token")) {
+        return {
+          title: "Apple Music setup is missing.",
+          body: message,
+          next: "Generate or refresh APPLE_MUSIC_DEVELOPER_TOKEN, then restart the local server.",
+          showFallback: false
+        };
+      }
+
+      if (lower.includes("rate limited")) {
+        return {
+          title: "Apple Music is asking us to slow down.",
+          body: message,
+          next: "Wait a minute, then retry with the same playlist. The local cache should make the next run faster.",
+          showFallback: false
+        };
+      }
+
+      if (lower.includes("no confident apple music matches")) {
+        return {
+          title: "Nothing is ready to transfer yet.",
+          body: message,
+          next: "Approve suggested review rows or try a different playlist before creating.",
+          showFallback: false
+        };
+      }
+
+      if (lower.includes("spotify") || lower.includes("public") || options.kind === "preview") {
+        return {
+          title: "We could not read this Spotify link.",
+          body: message,
+          next: "Use the fallback guide below, then paste the new Spotify link here.",
+          showFallback: true
+        };
+      }
+
+      return {
+        title: "Something interrupted this transfer.",
+        body: message,
+        next: "Nothing was written unless you saw the transfer-complete receipt. You can safely retry.",
+        showFallback: false
+      };
+    }
+
+    function renderError(error, options = {}) {
+      const copy = errorCopy(error, options);
       result.className = "empty";
-      result.innerHTML = "<div><strong>Public import could not read this link.</strong><p>" + esc(error.message || error) + "</p><p>Use the fallback guide below, then paste the new Spotify link here.</p></div>";
-      fallback.hidden = false;
+      result.innerHTML = "<div><strong>" + esc(copy.title) + "</strong><p>" + esc(copy.body) + "</p><p>" + esc(copy.next) + "</p></div>";
+      fallback.hidden = !copy.showFallback;
     }
 
     function cloneAnalysis(analysis) {
@@ -2529,12 +2966,13 @@ function renderStudioMvpPage() {
       status.textContent = "Demo mode loaded. Approve or skip review rows below. Creation is disabled.";
     }
 
-    function updateDemoReview(index, action) {
-      if (!isDemoAnalysis || !lastAnalysis) return;
+    function updateReviewDecision(index, action) {
+      if (!lastAnalysis) return;
       const item = lastAnalysis.items.find((candidate) => candidate.index === index);
       if (!item || item.status !== "needs_review") return;
 
       if (action === "approve") {
+        if (!item.appleCandidate) return;
         item.status = "matched";
         item.confidence = Math.max(item.confidence ?? 0, 0.82);
         item.reason = "approved-by-user";
@@ -2551,12 +2989,16 @@ function renderStudioMvpPage() {
 
       refreshAnalysisSummary(lastAnalysis);
       renderAnalysis(lastAnalysis);
-      buttons.createPublic.disabled = true;
+      refreshPrimaryActions();
     }
 
     async function run(endpoint, options) {
       const value = input.value.trim();
-      if (!value) return;
+      if (!value) {
+        status.className = "error";
+        status.textContent = "Paste a Spotify playlist link first.";
+        return;
+      }
       fallback.hidden = true;
       isDemoAnalysis = false;
       try {
@@ -2590,7 +3032,7 @@ function renderStudioMvpPage() {
       } catch (error) {
         status.className = "error";
         status.textContent = error instanceof Error ? error.message : String(error);
-        renderError(error);
+        renderError(error, options);
       } finally {
         setBusy(false);
       }
@@ -2598,9 +3040,21 @@ function renderStudioMvpPage() {
 
     buttons.previewPublic.addEventListener("click", () => run("/api/spotify/public-playlist-preview", { kind: "preview", message: "Reading public Spotify link..." }));
     buttons.analyzePublic.addEventListener("click", () => run("/api/transfers/analyze-public-job", { kind: "analysis", job: true, message: "Matching " + selectedAnalysisLabel().toLowerCase() + " against Apple Music. First run can take a moment; retries are cached." }));
-    buttons.createPublic.addEventListener("click", () => {
+    connectAppleButton.addEventListener("click", connectAppleMusic);
+    appleConnection.addEventListener("click", async () => {
+      if (!hasAppleDeveloperToken()) return;
+      if (hasAppleMusicConnection() && !window.confirm("Reconnect Apple Music with a different account?")) return;
+      await connectAppleMusic();
+    });
+    buttons.createPublic.addEventListener("click", async () => {
       if (isDemoAnalysis) {
         window.alert("Demo mode cannot create an Apple Music playlist.");
+        return;
+      }
+
+      if (!(await ensureAppleMusicForCreate())) {
+        status.className = "";
+        status.textContent = "Apple Music connection skipped. Nothing was created.";
         return;
       }
 
@@ -2612,17 +3066,17 @@ function renderStudioMvpPage() {
     buttons.analyzeApi.addEventListener("click", () => run("/api/transfers/analyze", { kind: "analysis", message: "Analyzing through authenticated API path..." }));
     result.addEventListener("click", (event) => {
       const target = event.target instanceof Element ? event.target : event.target?.parentElement;
-      const actionButton = target?.closest("[data-demo-action]");
+      const actionButton = target?.closest("[data-review-action]");
       if (!actionButton) return;
-      updateDemoReview(Number(actionButton.dataset.demoIndex), actionButton.dataset.demoAction);
+      updateReviewDecision(Number(actionButton.dataset.reviewIndex), actionButton.dataset.reviewAction);
     });
     input.addEventListener("input", () => {
       lastPreview = null;
       lastAnalysis = null;
       isDemoAnalysis = false;
-      buttons.analyzePublic.disabled = true;
-      buttons.createPublic.disabled = true;
+      refreshPrimaryActions();
     });
+    loadAppleSession();
     if (new URLSearchParams(window.location.search).get("demo") === "chaos") {
       loadDemoReport();
     }
@@ -2637,6 +3091,16 @@ const server = createServer(async (request, response) => {
 
   if (method === "GET" && url.pathname === "/health") {
     sendJson(response, 200, { ok: true });
+    return;
+  }
+
+  if (method === "GET" && url.pathname === "/api/apple-music/session") {
+    sendJson(response, 200, appleMusicSessionPayload());
+    return;
+  }
+
+  if (method === "POST" && url.pathname === "/api/apple-music/user-token") {
+    await handleAppleMusicUserToken(request, response);
     return;
   }
 

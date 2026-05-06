@@ -39,16 +39,21 @@ function searchCacheKey(storefront: string, term: string, limit: number): string
 export class AppleMusicClient {
   constructor(
     private readonly developerToken: string,
-    private readonly userToken: string,
+    private readonly userToken: string | null,
     private readonly storefront: string
   ) {}
 
   private get headers(): Record<string, string> {
-    return {
+    const headers: Record<string, string> = {
       Authorization: `Bearer ${this.developerToken}`,
-      "Music-User-Token": this.userToken,
       "Content-Type": "application/json"
     };
+
+    if (this.userToken) {
+      headers["Music-User-Token"] = this.userToken;
+    }
+
+    return headers;
   }
 
   async searchSongs(term: string, limit = 5): Promise<AppleSongCandidate[]> {

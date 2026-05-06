@@ -36,6 +36,7 @@ What exists today:
 - a local TypeScript spike for `Spotify -> Apple Music`
 - report generation for matched and unmatched tracks
 - an open repository structure meant to be easy to inspect and replicate
+- a local mobile-first MVP preview with public Spotify import, Apple Music matching, review decisions, late Apple Music authorization, and playlist creation
 
 What does not exist yet:
 
@@ -79,7 +80,7 @@ cp .env.example .env
 - `SPOTIFY_CLIENT_SECRET`
 - `SPOTIFY_REFRESH_TOKEN`
 - `APPLE_MUSIC_DEVELOPER_TOKEN`
-- `APPLE_MUSIC_USER_TOKEN`
+- `APPLE_MUSIC_USER_TOKEN` (optional for match analysis; needed for playlist creation unless you connect Apple Music in the local MVP UI)
 - `APPLE_MUSIC_STOREFRONT`
 - `SPOTIFY_PLAYLIST_ID`
 
@@ -158,6 +159,7 @@ If a future mobile app introduces ads, app-store packaging, or paid tiers, this 
 - [docs/e2e-validation.md](./docs/e2e-validation.md): real transfer validation results and follow-up work
 - [docs/product-next-steps.md](./docs/product-next-steps.md): next product and engineering priorities after validation
 - [docs/backend-preview.md](./docs/backend-preview.md): local backend and browser preview for Spotify playlist contents
+- [docs/mvp-test-checklist.md](./docs/mvp-test-checklist.md): repeatable MVP demo and regression checklist
 - [docs/public-link-ingestion.md](./docs/public-link-ingestion.md): investigation into reading public Spotify playlist links without OAuth
 
 ## Product principles

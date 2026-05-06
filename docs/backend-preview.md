@@ -50,6 +50,60 @@ Returns:
 }
 ```
 
+### `GET /api/apple-music/session`
+
+Returns the local Apple Music connection state used by the MVP browser UI.
+
+```json
+{
+  "hasDeveloperToken": true,
+  "hasUserToken": true,
+  "userTokenSource": "env",
+  "storefront": "us",
+  "developerToken": "..."
+}
+```
+
+Notes:
+
+- `hasDeveloperToken` is true when `APPLE_MUSIC_DEVELOPER_TOKEN` exists in `.env`.
+- `hasUserToken` is true when either `APPLE_MUSIC_USER_TOKEN` exists in `.env` or the browser has connected Apple Music during the current local server session.
+- `userTokenSource` is `env`, `runtime`, or `none`.
+- The developer token is returned to the local browser because MusicKit JS needs it to request Apple Music authorization. The private `.p8` key is never returned.
+- Match analysis can run with the Apple Music developer token only. Creating a playlist requires a Music User Token.
+
+### `POST /api/apple-music/user-token`
+
+Stores a MusicKit user token in the local server process so the current MVP session can analyze matches and create playlists without manually editing `.env`.
+
+Request:
+
+```json
+{
+  "userToken": "...",
+  "storefront": "us"
+}
+```
+
+Response:
+
+```json
+{
+  "hasDeveloperToken": true,
+  "hasUserToken": true,
+  "userTokenSource": "runtime",
+  "storefront": "us",
+  "developerToken": "..."
+}
+```
+
+Important behavior:
+
+- The runtime token is not persisted to `.env`.
+- Restarting `npm run dev:api` clears the runtime token unless `APPLE_MUSIC_USER_TOKEN` is also set in `.env`.
+- This is the local prototype version of the future product flow: `Connect Apple Music -> MusicKit authorization -> create playlist with that user's token`.
+- Product implication: ask for Apple Music authorization as late as possible, ideally when the user taps `Create Apple Music playlist`.
+
 ### `POST /api/spotify/playlist-preview`
 
 Authenticated Spotify Web API preview.
@@ -226,6 +280,8 @@ Current note:
 - `Analyze Matches` can be slow on large playlists because it performs multiple Apple Music searches per track.
 - The local MVP UI analyzes the first `50` tracks by default so large-playlist testing stays interactive.
 - The request accepts `limit` or `analysisLimit` when testing larger batches, capped at `500`.
+- The MVP UI now treats the match report as reviewable state: users can approve a suggested `needs_review` candidate or skip that track before creating the Apple Music playlist.
+- Approved suggestions become `matched` rows for that transfer; skipped suggestions become `unmatched` rows and are not sent to Apple Music.
 - Apple Music analysis uses bounded track concurrency, stops searching a track once an ISRC match is found, and caches catalog searches in-process for faster retries.
 - Public Spotify playlist reads are cached in-process by playlist ID, so the normal `Preview -> Analyze` path reuses the full public import result.
 - A production version should use background jobs, progress updates, caching, or a tighter search strategy.
@@ -257,10 +313,12 @@ Important behavior:
 
 - matches with confidence `>= 0.8` are added to Apple Music
 - the local MVP UI creates from the selected analysis size, not always the entire playlist
-- low-confidence `needs_review` matches are shown in the report but not written
+- low-confidence `needs_review` matches are shown in the report and are not written unless the user approves the suggested candidate first
+- skipped review rows are removed from the transfer payload
 - unmatched tracks are shown in the report but not written
 - no Apple Music playlist is created when there are zero confident matches
 - this endpoint writes to the signed-in Apple Music user's library
+- the MVP UI can analyze matches before Apple Music user authorization, then prompts for authorization only when creating the playlist
 
 ### `POST /api/transfers/create-public-job`
 
