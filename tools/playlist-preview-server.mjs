@@ -613,6 +613,8 @@ async function handlePublicTransferCreate(request, response) {
   }
 }
 
+const TAB_ICON_DATA_URI = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230B0B0D'/%3E%3Ccircle cx='25' cy='33' r='16' fill='%23141318' stroke='%231DB954' stroke-width='3'/%3E%3Ccircle cx='39' cy='33' r='16' fill='%23141318' stroke='%23FA243C' stroke-width='3'/%3E%3Ccircle cx='25' cy='33' r='5' fill='%231DB954'/%3E%3Ccircle cx='39' cy='33' r='5' fill='%23FA243C'/%3E%3Cpath d='M18 22a18 18 0 0 1 12-5' fill='none' stroke='white' stroke-opacity='.22' stroke-width='3' stroke-linecap='round'/%3E%3Cpath d='M32 22a18 18 0 0 1 12-5' fill='none' stroke='white' stroke-opacity='.22' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E";
+
 function renderMvpPage() {
   return `<!doctype html>
 <html lang="en">
@@ -620,6 +622,7 @@ function renderMvpPage() {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>PlaylistTransfer MVP</title>
+  <link rel="icon" type="image/svg+xml" href="${TAB_ICON_DATA_URI}" />
   <style>
     :root {
       --ink: #20160f;
@@ -1167,6 +1170,7 @@ function renderStudioMvpPage() {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>PlaylistTransfer MVP</title>
+  <link rel="icon" type="image/svg+xml" href="${TAB_ICON_DATA_URI}" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400;1,9..144,500;1,9..144,600;1,9..144,700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" />
@@ -1248,18 +1252,27 @@ function renderStudioMvpPage() {
     }
 
     .brand-mark {
-      width: 30px;
+      width: 42px;
       height: 30px;
       display: grid;
       place-items: center;
-      border-radius: 7px;
-      background: var(--ink);
-      color: var(--bg);
+      color: var(--ink);
+    }
+
+    .brand-mark svg {
+      display: block;
+      width: 42px;
+      height: 30px;
+    }
+
+    .brand-word {
+      color: var(--ink);
       font-family: var(--font-display);
-      font-size: 17px;
+      font-size: 18px;
       font-style: italic;
       font-weight: 600;
       letter-spacing: -0.04em;
+      line-height: 1;
     }
 
     .eyebrow {
@@ -1408,8 +1421,32 @@ function renderStudioMvpPage() {
     }
 
     .service-mark.spotify {
+      position: relative;
       border-radius: 999px;
       background: var(--source);
+      font-size: 0;
+    }
+
+    .service-mark.spotify::before,
+    .service-mark.spotify::after {
+      content: "";
+      position: absolute;
+      left: 4px;
+      height: 4px;
+      border-top: 2px solid #07170d;
+      border-radius: 50%;
+      transform: rotate(8deg);
+    }
+
+    .service-mark.spotify::before {
+      top: 5px;
+      width: 10px;
+      box-shadow: 0 4px 0 -0.5px #07170d;
+    }
+
+    .service-mark.spotify::after {
+      top: 13px;
+      width: 7px;
     }
 
     .service-mark.apple {
@@ -1462,7 +1499,8 @@ function renderStudioMvpPage() {
       gap: 10px;
     }
 
-    button {
+    button,
+    .button-link {
       min-height: 54px;
       border: 1px solid transparent;
       border-radius: 999px;
@@ -1478,10 +1516,12 @@ function renderStudioMvpPage() {
       font-size: 15px;
       font-weight: 750;
       letter-spacing: -0.01em;
+      text-decoration: none;
       transition: opacity 160ms ease, transform 160ms ease, box-shadow 160ms ease;
     }
 
-    button:hover:not(:disabled) {
+    button:hover:not(:disabled),
+    .button-link:hover {
       transform: translateY(-1px);
       box-shadow: 0 2px 0 rgba(0, 0, 0, 0.08), 0 12px 24px rgba(0, 0, 0, 0.12);
     }
@@ -1494,7 +1534,7 @@ function renderStudioMvpPage() {
     }
 
     .primary { background: var(--ink); }
-    .dest { background: var(--dest); }
+    .dest { background: var(--dest); color: #fff; }
     .soft {
       color: var(--ink);
       background: var(--bg-inset);
@@ -1541,6 +1581,48 @@ function renderStudioMvpPage() {
     }
 
     #status.error { color: var(--danger); }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      z-index: 20;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      max-width: min(420px, calc(100vw - 32px));
+      padding: 12px 15px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--bg-elev);
+      box-shadow: 0 12px 32px rgba(11, 11, 13, 0.16);
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 650;
+      line-height: 1.25;
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-50%, 14px);
+      transition: opacity 180ms ease, transform 180ms ease;
+    }
+
+    .toast::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      flex: 0 0 auto;
+      border-radius: 999px;
+      background: var(--ink-muted);
+    }
+
+    .toast.visible {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+
+    .toast.success::before { background: var(--source); }
+    .toast.warn::before { background: var(--warn); }
+    .toast.error::before { background: var(--danger); }
 
     .progress-shell {
       display: none;
@@ -2095,6 +2177,52 @@ function renderStudioMvpPage() {
       margin-top: 14px;
     }
 
+    .receipt-card {
+      margin-top: 14px;
+      padding: 16px;
+      border: 1px dashed var(--line-strong);
+      border-radius: 16px;
+      background: var(--bg-elev);
+    }
+
+    .receipt-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 9px 0;
+      border-bottom: 1px dashed var(--line);
+      color: var(--ink-soft);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .receipt-line:last-child { border-bottom: 0; }
+
+    .receipt-line strong {
+      color: var(--ink);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 750;
+      text-align: right;
+    }
+
+    .error-state {
+      border-color: rgba(212, 58, 47, 0.18);
+      background: var(--danger-soft);
+      color: var(--ink-soft);
+    }
+
+    .error-state strong { color: var(--ink); }
+
+    .error-next {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px dashed rgba(212, 58, 47, 0.2);
+      color: var(--ink-soft);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
     .transfer-line {
       display: flex;
       align-items: flex-start;
@@ -2185,8 +2313,15 @@ function renderStudioMvpPage() {
       <section class="app-chrome">
         <div class="topbar">
           <div class="brand">
-            <div class="brand-mark" data-asset-slot="brand-mark" aria-label="PlaylistTransfer brand mark">pt</div>
-            <div class="eyebrow">Playlist Transfer</div>
+            <div class="brand-mark" data-asset-slot="brand-mark" aria-label="PlaylistTransfer brand mark">
+              <svg viewBox="0 0 62 40" aria-hidden="true" focusable="false">
+                <circle cx="14" cy="20" r="13" fill="none" stroke="currentColor" stroke-width="2"></circle>
+                <circle cx="28" cy="20" r="3" fill="currentColor"></circle>
+                <circle cx="34" cy="20" r="13" fill="none" stroke="currentColor" stroke-width="2"></circle>
+                <circle cx="48" cy="20" r="3" fill="currentColor"></circle>
+              </svg>
+            </div>
+            <div class="brand-word">playlistxfer</div>
           </div>
           <div id="apple-connection" class="connected pending eyebrow">Apple check</div>
         </div>
@@ -2277,6 +2412,7 @@ function renderStudioMvpPage() {
       </section>
     </section>
   </main>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script>
     const input = document.querySelector("#playlist-input");
@@ -2294,6 +2430,7 @@ function renderStudioMvpPage() {
     const appleConnectState = document.querySelector("#apple-connect-state");
     const appleConnectCopy = document.querySelector("#apple-connect-copy");
     const connectAppleButton = document.querySelector("#connect-apple");
+    const toast = document.querySelector("#toast");
     const buttons = {
       previewPublic: document.querySelector("#preview-public"),
       analyzePublic: document.querySelector("#analyze-public"),
@@ -2304,6 +2441,7 @@ function renderStudioMvpPage() {
     let lastPreview = null;
     let lastAnalysis = null;
     let isDemoAnalysis = false;
+    let toastTimer = null;
     let appleSession = {
       hasDeveloperToken: false,
       hasUserToken: false,
@@ -2527,6 +2665,20 @@ function renderStudioMvpPage() {
       return typeof value === "number" ? Math.round(value * 100) + "%" : "";
     }
 
+    function appleMusicPlaylistUrl(playlistId) {
+      return "https://music.apple.com/library/playlist/" + encodeURIComponent(String(playlistId || ""));
+    }
+
+    function showToast(message, kind = "info") {
+      if (!toast) return;
+      window.clearTimeout(toastTimer);
+      toast.textContent = message;
+      toast.className = "toast visible " + kind;
+      toastTimer = window.setTimeout(() => {
+        toast.className = "toast " + kind;
+      }, 2600);
+    }
+
     function artworkHtml(track, size = "small") {
       const url = track?.albumImageUrl || track?.imageUrl;
       if (!url) {
@@ -2667,11 +2819,13 @@ function renderStudioMvpPage() {
 
         await saveAppleUserToken(resolvedToken);
         status.textContent = "Apple Music connected. You can analyze matches and create playlists now.";
+        showToast("Apple Music connected.", "success");
         return true;
       } catch (error) {
         console.error(error);
         status.className = "error";
         status.textContent = error instanceof Error ? error.message : String(error);
+        showToast("Apple Music was not connected.", "error");
         return false;
       } finally {
         renderAppleSession();
@@ -2842,6 +2996,7 @@ function renderStudioMvpPage() {
     }
 
     function renderSuccess(data, createdApplePlaylistId) {
+      const applePlaylistUrl = appleMusicPlaylistUrl(createdApplePlaylistId);
       const notTransferred = data.summary.needsReviewCount + data.summary.unmatchedCount;
       const reviewedCopy = data.summary.needsReviewCount
         ? data.summary.needsReviewCount + " review item" + (data.summary.needsReviewCount === 1 ? " still needs" : "s still need") + " a decision."
@@ -2853,9 +3008,10 @@ function renderStudioMvpPage() {
       result.innerHTML =
         "<div class='success-hero'><div class='success-badge'>Transfer complete</div><h2 class='display success-title'>" + esc(data.playlist.name) + "</h2><div class='success-subtitle'><span class='service-mark apple'>A</span> Now in your Apple Music library</div></div>" +
         "<div class='stat-grid'><div class='stat-tile ready'><div class='stat-label'>Transferred</div><div class='stat-value'>" + data.summary.confidentMatchCount + "</div></div><div class='stat-tile review'><div class='stat-label'>Needs review</div><div class='stat-value'>" + data.summary.needsReviewCount + "</div></div><div class='stat-tile missing'><div class='stat-label'>Not moved</div><div class='stat-value'>" + notTransferred + "</div></div><div class='stat-tile'><div class='stat-label'>Apple ID</div><div class='stat-value mono'>" + esc(createdApplePlaylistId) + "</div></div></div>" +
+        "<div class='receipt-card'><div class='receipt-line'><span>Tracks transferred</span><strong>" + data.summary.confidentMatchCount + "</strong></div><div class='receipt-line'><span>Still needs review</span><strong>" + data.summary.needsReviewCount + "</strong></div><div class='receipt-line'><span>Missing or skipped</span><strong>" + data.summary.unmatchedCount + "</strong></div><div class='receipt-line'><span>Destination</span><strong>Apple Music</strong></div></div>" +
         "<div class='trust-note'>Only ready tracks were added. Open Apple Music to see the new playlist in your library.</div>" +
         "<div class='transfer-breakdown'><div class='transfer-line'><span class='service-mark apple'>A</span><div><strong>" + data.summary.confidentMatchCount + " tracks transferred</strong><span>These were confident matches or suggestions you approved.</span></div></div><div class='transfer-line'><span class='service-mark spotify'>S</span><div><strong>" + esc(reviewedCopy) + "</strong><span>" + esc(missingCopy) + "</span></div></div></div>" +
-        "<div class='result-actions'><button class='dest' type='button' disabled><span class='service-mark apple'>A</span>Open in Apple Music coming next</button></div>";
+        "<div class='result-actions'><a class='button-link dest' href='" + esc(applePlaylistUrl) + "' target='_blank' rel='noopener noreferrer'><span class='service-mark apple'>A</span>Open in Apple Music</a></div>";
     }
 
     function errorCopy(error, options = {}) {
@@ -2926,8 +3082,8 @@ function renderStudioMvpPage() {
 
     function renderError(error, options = {}) {
       const copy = errorCopy(error, options);
-      result.className = "empty";
-      result.innerHTML = "<div><strong>" + esc(copy.title) + "</strong><p>" + esc(copy.body) + "</p><p>" + esc(copy.next) + "</p></div>";
+      result.className = "empty error-state";
+      result.innerHTML = "<div><strong>" + esc(copy.title) + "</strong><p>" + esc(copy.body) + "</p><p class='error-next'>" + esc(copy.next) + "</p></div>";
       fallback.hidden = !copy.showFallback;
     }
 
@@ -2977,6 +3133,7 @@ function renderStudioMvpPage() {
         item.confidence = Math.max(item.confidence ?? 0, 0.82);
         item.reason = "approved-by-user";
         status.textContent = "Approved suggested match for " + item.source.name + ".";
+        showToast("Track approved.", "success");
       }
 
       if (action === "skip") {
@@ -2985,6 +3142,7 @@ function renderStudioMvpPage() {
         item.reason = "skipped-by-user";
         item.appleCandidate = null;
         status.textContent = "Skipped " + item.source.name + " for this transfer.";
+        showToast("Track skipped.", "warn");
       }
 
       refreshAnalysisSummary(lastAnalysis);
@@ -3023,6 +3181,7 @@ function renderStudioMvpPage() {
           if (data.createdApplePlaylistId) {
             lastAnalysis = null;
             renderSuccess(data, data.createdApplePlaylistId);
+            showToast("Transfer complete.", "success");
           } else {
             lastAnalysis = data;
             renderAnalysis(data);

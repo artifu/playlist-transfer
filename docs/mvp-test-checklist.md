@@ -62,8 +62,9 @@ http://127.0.0.1:8790
 2. Create the Apple Music playlist.
 3. Confirm the success receipt appears.
 4. Confirm the receipt shows transferred, needs-review-left, not-moved, and Apple playlist ID.
-5. Open Apple Music and verify the playlist appears in the user's library.
-6. Confirm skipped and unresolved review tracks were not added.
+5. Click `Open in Apple Music` and confirm it opens the created playlist or Apple Music web for the signed-in user.
+6. Open Apple Music and verify the playlist appears in the user's library.
+7. Confirm skipped and unresolved review tracks were not added.
 
 ## Demo Mode
 
