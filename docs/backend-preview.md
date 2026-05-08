@@ -56,6 +56,18 @@ It defaults to:
 http://127.0.0.1:8791
 ```
 
+The clean web product shell lives in `apps/web` and runs on:
+
+```bash
+npm run dev:web
+```
+
+It defaults to:
+
+```text
+http://127.0.0.1:8792
+```
+
 ## API endpoints
 
 ### `GET /health`

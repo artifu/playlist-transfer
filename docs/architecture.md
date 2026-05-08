@@ -178,6 +178,20 @@ npm run dev:transfer-api
 
 It defaults to `http://127.0.0.1:8791`, while the demo remains on `http://127.0.0.1:8790`.
 
+### Web App Track
+
+The first clean product shell lives in `apps/web`.
+
+It talks to `apps/transfer-api` through a same-origin `/api/*` proxy and keeps demo-only controls out of the product experience. This gives us a practical homesite path before committing to native mobile scaffolding, while preserving the same API contract future iOS and Android clients can use.
+
+Run it locally with:
+
+```bash
+npm run dev:web
+```
+
+It defaults to `http://127.0.0.1:8792`.
+
 ## Primary User Flow
 
 ```mermaid

@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PlaylistTransfer</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="https://js-cdn.music.apple.com/musickit/v3/musickit.js" defer></script>
+</head>
+<body>
+  <main class="app-shell">
+    <section class="control-panel" aria-label="Playlist transfer controls">
+      <div class="brand-lockup">
+        <img src="/favicon.svg" alt="" class="brand-mark" />
+        <div>
+          <p class="eyebrow">Spotify to Apple Music</p>
+          <h1>PlaylistTransfer</h1>
+        </div>
+      </div>
+
+      <p class="hero-copy">
+        Paste a public Spotify playlist. We preview it first, match it against Apple Music, then ask for Apple access only when you are ready to create.
+      </p>
+
+      <form id="transfer-form" class="transfer-form">
+        <label class="input-card" for="playlist-input">
+          <span class="service-pill spotify">S</span>
+          <span class="input-label">Spotify playlist URL</span>
+          <input id="playlist-input" name="playlist" type="url" inputmode="url" placeholder="https://open.spotify.com/playlist/..." autocomplete="off" />
+        </label>
+
+        <label class="select-card" for="analysis-limit">
+          <span class="select-label">Analysis size</span>
+          <select id="analysis-limit">
+            <option value="50">Fast sample: first 50 tracks</option>
+            <option value="150">Medium pass: first 150 tracks</option>
+            <option value="500">Full public playlist, up to 500 tracks</option>
+          </select>
+        </label>
+
+        <div class="action-stack">
+          <button class="primary-action" id="preview-button" type="button">Preview public link</button>
+          <button class="secondary-action" id="analyze-button" type="button" disabled>Analyze matches</button>
+          <button class="create-action" id="create-button" type="button" disabled>Create Apple Music playlist</button>
+        </div>
+      </form>
+
+      <section class="apple-card" id="apple-card" aria-live="polite">
+        <div class="apple-card-head">
+          <span class="service-pill apple">AM</span>
+          <div>
+            <strong>Apple Music</strong>
+            <p id="apple-state">Checking connection...</p>
+          </div>
+        </div>
+        <button id="connect-apple" type="button" class="soft-action">Connect Apple Music</button>
+      </section>
+
+      <section class="progress-card" id="progress-card" hidden>
+        <div class="progress-head">
+          <span id="progress-phase">Preparing</span>
+          <strong id="progress-percent">0%</strong>
+        </div>
+        <div class="progress-track"><div id="progress-bar"></div></div>
+        <p id="progress-detail">Waiting to start.</p>
+      </section>
+
+      <p class="status-line" id="status-line">Paste a playlist link to begin.</p>
+    </section>
+
+    <section class="result-panel" aria-live="polite">
+      <div class="result-empty" id="results">
+        <p class="eyebrow">Trust-first transfer</p>
+        <h2>Nothing moves until you approve the match report.</h2>
+        <p>Preview the Spotify playlist, analyze Apple Music candidates, review anything fuzzy, then create from clean matches only.</p>
+      </div>
+
+      <section class="fallback-guide" id="fallback-guide" hidden>
+        <h3>If Spotify blocks the public link</h3>
+        <ol>
+          <li>Open the playlist in Spotify.</li>
+          <li>Copy the tracks into a normal public playlist you own or can edit.</li>
+          <li>Share that new playlist link and paste it here.</li>
+        </ol>
+      </section>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="/app.js" type="module"></script>
+</body>
+</html>
