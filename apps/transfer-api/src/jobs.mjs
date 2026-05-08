@@ -11,6 +11,12 @@ import {
   slicePlaylistForAnalysis,
   transferReportFromSerializedAnalysis
 } from "./transfer-serialization.mjs";
+import {
+  createTransfer,
+  markTransferCreated,
+  requireTransfer,
+  serializeTransfer
+} from "./transfers.mjs";
 
 const JOB_RETENTION_MS = 10 * 60 * 1000;
 const jobs = new Map();
@@ -111,14 +117,21 @@ export async function runPublicTransferAnalyzeJob(job, body) {
       }
     );
 
+    const serializedAnalysis = serializeAnalysis(
+      analysis,
+      playlistAnalysisMetadata(playlist, analysisPlaylist.tracks.length)
+    );
+    const transfer = createTransfer({
+      input,
+      analysisLimit: limit,
+      analysis: serializedAnalysis
+    });
+
     updateJob(job, {
       status: "complete",
       phase: "Analysis complete",
       progress: 100,
-      result: serializeAnalysis(
-        analysis,
-        playlistAnalysisMetadata(playlist, analysisPlaylist.tracks.length)
-      )
+      result: transfer
     });
   } catch (error) {
     updateJob(job, {
@@ -133,11 +146,31 @@ export async function runPublicTransferAnalyzeJob(job, body) {
 export async function runPublicTransferCreateJob(job, body) {
   const input = body.input ?? body.playlistUrl ?? body.playlistId ?? "";
   const limit = analysisLimitFromBody(body);
+  const transferId = String(body.transferId ?? "").trim();
 
   try {
-    let serializedAnalysis = body.analysis ?? null;
+    let serializedAnalysis = null;
 
-    if (!serializedAnalysis) {
+    if (transferId) {
+      const transfer = requireTransfer(transferId);
+      serializedAnalysis = serializeTransfer(transfer);
+      updateJob(job, {
+        status: "running",
+        phase: "Using saved transfer review",
+        progress: 72,
+        completed: serializedAnalysis.items?.length ?? 0,
+        total: serializedAnalysis.items?.length ?? 0
+      });
+    } else if (body.analysis) {
+      serializedAnalysis = body.analysis;
+      updateJob(job, {
+        status: "running",
+        phase: "Using reviewed analysis",
+        progress: 72,
+        completed: serializedAnalysis.items?.length ?? 0,
+        total: serializedAnalysis.items?.length ?? 0
+      });
+    } else {
       updateJob(job, {
         status: "running",
         phase: "Analyzing before creation",
@@ -175,14 +208,6 @@ export async function runPublicTransferCreateJob(job, body) {
         analysis,
         playlistAnalysisMetadata(playlist, analysisPlaylist.tracks.length)
       );
-    } else {
-      updateJob(job, {
-        status: "running",
-        phase: "Using reviewed analysis",
-        progress: 72,
-        completed: serializedAnalysis.items?.length ?? 0,
-        total: serializedAnalysis.items?.length ?? 0
-      });
     }
 
     const report = transferReportFromSerializedAnalysis(serializedAnalysis);
@@ -208,11 +233,13 @@ export async function runPublicTransferCreateJob(job, body) {
       status: "complete",
       phase: "Apple Music playlist created",
       progress: 100,
-      result: {
-        ...serializedAnalysis,
-        createdApplePlaylistId,
-        createdFromConfidenceThreshold: 0.8
-      }
+      result: transferId
+        ? markTransferCreated(transferId, createdApplePlaylistId, 0.8)
+        : {
+            ...serializedAnalysis,
+            createdApplePlaylistId,
+            createdFromConfidenceThreshold: 0.8
+          }
     });
   } catch (error) {
     updateJob(job, {

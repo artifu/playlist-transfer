@@ -12,10 +12,12 @@ The local web app currently reaches these routes through its same-origin proxy, 
 2. `POST /api/spotify/public-playlist-preview`
 3. `POST /api/transfers/analyze-public-job`
 4. Poll `GET /api/jobs/:id`
-5. Optional review edits happen client-side for now.
-6. `POST /api/apple-music/user-token`
-7. `POST /api/transfers/create-public-job`
-8. Poll `GET /api/jobs/:id`
+5. Persist the returned `transferId` locally.
+6. Restore with `GET /api/transfers/:id` after refresh or tab close.
+7. Save review edits with `PATCH /api/transfers/:id/items/:itemIndex`.
+8. `POST /api/apple-music/user-token`
+9. `POST /api/transfers/:id/create-job`
+10. Poll `GET /api/jobs/:id`
 
 ## Apple Music Session
 
@@ -87,34 +89,82 @@ Initial response:
 
 Poll the job until `status` is `complete` or `error`.
 
+When complete, the job result is a saved transfer report and includes:
+
+```json
+{
+  "transferId": "...",
+  "transfer": {
+    "id": "...",
+    "status": "analyzed",
+    "input": "https://open.spotify.com/playlist/...",
+    "analysisLimit": 50
+  },
+  "playlist": {},
+  "summary": {},
+  "items": []
+}
+```
+
+Clients should store `transferId` locally so refresh/back/tab close can restore the report while the API server still has the in-memory transfer.
+
+## Saved Transfer
+
+### `GET /api/transfers/:id`
+
+Returns the saved transfer report for restoration.
+
+Current persistence is in-memory for the local API process. A production deployment should move this to a database.
+
+### `PATCH /api/transfers/:id/items/:itemIndex`
+
+Saves a review decision server-side and returns the updated transfer report.
+
+Approve the suggested candidate:
+
+```json
+{
+  "action": "approve"
+}
+```
+
+Skip a track:
+
+```json
+{
+  "action": "skip"
+}
+```
+
+Choose another returned candidate:
+
+```json
+{
+  "action": "use-candidate",
+  "candidateIndex": 1
+}
+```
+
 ## Create Job
 
-### `POST /api/transfers/create-public-job`
+### `POST /api/transfers/:id/create-job`
 
 Creates an Apple Music playlist from confident or user-approved matches.
 
 Request:
 
 ```json
-{
-  "input": "https://open.spotify.com/playlist/...",
-  "limit": 50,
-  "analysis": {
-    "playlist": {},
-    "summary": {},
-    "items": []
-  }
-}
+{}
 ```
 
 When complete, the job result includes `createdApplePlaylistId`.
 
 ## Review Semantics
 
-The current review model is client-side:
+The current review model is server-side for saved transfers:
 
 - `matched`: ready to transfer.
 - `needs_review`: not transferred unless the user approves or selects a candidate.
 - `unmatched`: not transferred.
 
-The next backend milestone should persist these decisions server-side with stable transfer IDs.
+The next backend milestone should move saved transfers from memory into durable storage.

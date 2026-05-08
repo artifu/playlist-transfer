@@ -9,6 +9,9 @@ import {
   handlePublicTransferAnalyzeJob,
   handlePublicTransferCreate,
   handlePublicTransferCreateJob,
+  handleGetTransfer,
+  handlePatchTransferItem,
+  handleStoredTransferCreateJob,
   handleTransferAnalyze
 } from "./handlers.mjs";
 import { handleJobStatus } from "./jobs.mjs";
@@ -48,6 +51,9 @@ export function createTransferApiRouter({ host, port, renderHomePage }) {
           "GET /api/apple-music/session",
           "POST /api/apple-music/user-token",
           "GET /api/jobs/:id",
+          "GET /api/transfers/:id",
+          "PATCH /api/transfers/:id/items/:index",
+          "POST /api/transfers/:id/create-job",
           "POST /api/spotify/public-playlist-preview",
           "POST /api/transfers/analyze-public-job",
           "POST /api/transfers/create-public-job"
@@ -93,6 +99,29 @@ export function createTransferApiRouter({ host, port, renderHomePage }) {
 
     if (method === "POST" && url.pathname === "/api/transfers/create-public-job") {
       await handlePublicTransferCreateJob(request, response);
+      return;
+    }
+
+    const transferItemMatch = url.pathname.match(/^\/api\/transfers\/([^/]+)\/items\/(\d+)$/);
+    if (method === "PATCH" && transferItemMatch) {
+      await handlePatchTransferItem(
+        decodeURIComponent(transferItemMatch[1]),
+        Number(transferItemMatch[2]),
+        request,
+        response
+      );
+      return;
+    }
+
+    const transferCreateJobMatch = url.pathname.match(/^\/api\/transfers\/([^/]+)\/create-job$/);
+    if (method === "POST" && transferCreateJobMatch) {
+      await handleStoredTransferCreateJob(decodeURIComponent(transferCreateJobMatch[1]), response);
+      return;
+    }
+
+    const transferMatch = url.pathname.match(/^\/api\/transfers\/([^/]+)$/);
+    if (method === "GET" && transferMatch) {
+      handleGetTransfer(decodeURIComponent(transferMatch[1]), response);
       return;
     }
 

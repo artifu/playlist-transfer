@@ -46,6 +46,8 @@ TRANSFER_API_URL=http://127.0.0.1:8791 npm run dev:web
 6. Create from ready or user-approved tracks only.
 7. Show a receipt with transferred and skipped counts.
 
+The app stores the latest `transferId` in `localStorage`, then restores the match report from the Transfer API after refresh or tab close. Review decisions are saved server-side, not only in browser memory.
+
 ## Notes
 
 - There is no demo fixture button in this app.

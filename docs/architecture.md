@@ -192,6 +192,8 @@ npm run dev:web
 
 It defaults to `http://127.0.0.1:8792`.
 
+The web app persists only the latest `transferId` in browser storage. Match reports and review decisions are restored from the Transfer API, which is currently in-memory and should move to durable storage before production.
+
 ## Primary User Flow
 
 ```mermaid

@@ -30,6 +30,7 @@ If you change TypeScript files in `src/`, run `npm run build` before starting th
 - Public Spotify playlist analysis against Apple Music catalog search.
 - Apple Music MusicKit user-token handoff for playlist creation.
 - Background job polling for long-running analysis and creation.
+- In-memory saved transfers with server-side review decisions.
 - Product-friendly JSON errors.
 
 ## Why This Is Separate From The Demo
@@ -37,3 +38,15 @@ If you change TypeScript files in `src/`, run `npm run build` before starting th
 The demo is intentionally messy in a useful way: it combines HTML, CSS, browser state, fixtures, and API calls so we can move fast on product feel.
 
 The transfer API is intentionally narrower: it exposes app-facing JSON routes and keeps stateful backend concerns away from the UI prototype. That makes it a better foundation for a future homesite, mobile app, ad-supported landing flow, or deployable API.
+
+## Saved Transfers
+
+Analysis jobs now return a `transferId`. The web app stores that id locally and uses it to restore the match report after refresh or tab close.
+
+Review decisions are also saved through API routes:
+
+- `GET /api/transfers/:id`
+- `PATCH /api/transfers/:id/items/:itemIndex`
+- `POST /api/transfers/:id/create-job`
+
+Current storage is in-memory and expires after the local API process restarts or after the retention window. Production should move this to a database.

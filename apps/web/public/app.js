@@ -16,12 +16,14 @@ const statusLine = document.querySelector("#status-line");
 const results = document.querySelector("#results");
 const fallbackGuide = document.querySelector("#fallback-guide");
 const toast = document.querySelector("#toast");
+const STORED_TRANSFER_ID_KEY = "playlist-transfer:last-transfer-id";
 
 const state = {
   appleSession: null,
   busy: false,
   preview: null,
-  analysis: null
+  analysis: null,
+  transferId: null
 };
 
 let toastTimer = null;
@@ -82,7 +84,11 @@ function hasAppleMusicConnection() {
 }
 
 function canCreate() {
-  return Boolean(state.analysis && (state.analysis.summary?.confidentMatchCount ?? 0) > 0);
+  return Boolean(
+    state.analysis &&
+    !state.analysis.createdApplePlaylistId &&
+    (state.analysis.summary?.confidentMatchCount ?? 0) > 0
+  );
 }
 
 function refreshActions() {
@@ -136,6 +142,45 @@ async function postJson(path, body) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body)
   });
+}
+
+function readStoredTransferId() {
+  try {
+    return window.localStorage.getItem(STORED_TRANSFER_ID_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function rememberTransferId(transferId) {
+  state.transferId = transferId || null;
+
+  try {
+    if (state.transferId) {
+      window.localStorage.setItem(STORED_TRANSFER_ID_KEY, state.transferId);
+    } else {
+      window.localStorage.removeItem(STORED_TRANSFER_ID_KEY);
+    }
+  } catch {
+    // localStorage may be blocked; the server-side transfer still works in-session.
+  }
+}
+
+function clearStoredTransfer() {
+  rememberTransferId(null);
+}
+
+function adoptAnalysis(data) {
+  state.analysis = data;
+  rememberTransferId(data.transferId || data.transfer?.id || null);
+
+  if (data.transfer?.input) {
+    input.value = data.transfer.input;
+  }
+
+  if (data.transfer?.analysisLimit) {
+    analysisLimit.value = String(data.transfer.analysisLimit);
+  }
 }
 
 async function loadAppleSession() {
@@ -530,57 +575,39 @@ function renderError(error, kind) {
   fallbackGuide.hidden = !copy.showFallback;
 }
 
-function refreshAnalysisSummary(analysis) {
-  const total = analysis.items.length;
-  const needsReviewCount = analysis.items.filter((item) => item.status === "needs_review").length;
-  const confidentMatchCount = analysis.items.filter((item) => item.status === "matched").length;
-  const unmatchedCount = analysis.items.filter((item) => item.status === "unmatched").length;
-  const matchedCount = total - unmatchedCount;
-
-  analysis.summary = {
-    ...analysis.summary,
-    matchedCount,
-    unmatchedCount,
-    needsReviewCount,
-    confidentMatchCount,
-    matchRate: total === 0 ? 0 : matchedCount / total
-  };
-}
-
-function updateReviewDecision(index, action, candidateIndex = null) {
-  if (!state.analysis) return;
-  const item = state.analysis.items.find((candidate) => candidate.index === index);
-  if (!item) return;
-
-  if (action === "use-candidate") {
-    const candidate = item.candidates?.[candidateIndex];
-    if (!candidate) return;
-    item.appleCandidate = candidate;
-    item.status = "matched";
-    item.confidence = Math.max(item.confidence ?? 0, 0.82);
-    item.reason = "selected-by-user";
-    showToast("Candidate selected.", "success");
+async function updateReviewDecision(index, action, candidateIndex = null) {
+  if (!state.analysis || !state.transferId) {
+    setStatus("Analyze the playlist again before reviewing tracks.", "error");
+    clearStoredTransfer();
+    return;
   }
 
-  if (action === "approve") {
-    if (!item.appleCandidate) return;
-    item.status = "matched";
-    item.confidence = Math.max(item.confidence ?? 0, 0.82);
-    item.reason = "approved-by-user";
-    showToast("Track approved.", "success");
-  }
+  setBusy(true, "Saving review decision...");
 
-  if (action === "skip") {
-    item.status = "unmatched";
-    item.confidence = 0;
-    item.reason = "skipped-by-user";
-    item.appleCandidate = null;
-    showToast("Track skipped.", "info");
-  }
+  try {
+    const data = await apiFetch(
+      `/api/transfers/${encodeURIComponent(state.transferId)}/items/${encodeURIComponent(index)}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, candidateIndex })
+      }
+    );
 
-  refreshAnalysisSummary(state.analysis);
-  renderAnalysis(state.analysis);
-  refreshActions();
+    adoptAnalysis(data);
+    renderAnalysis(data);
+    refreshActions();
+
+    if (action === "use-candidate") showToast("Candidate selected.", "success");
+    if (action === "approve") showToast("Track approved.", "success");
+    if (action === "skip") showToast("Track skipped.", "info");
+    setStatus("Review saved. Refreshing now will keep this transfer.");
+  } catch (error) {
+    setStatus(error instanceof Error ? error.message : String(error), "error");
+    showToast("Review was not saved.", "error");
+  } finally {
+    setBusy(false);
+  }
 }
 
 async function previewPlaylist() {
@@ -595,6 +622,7 @@ async function previewPlaylist() {
     const data = await postJson("/api/spotify/public-playlist-preview", { input: value });
     state.preview = data;
     state.analysis = null;
+    clearStoredTransfer();
     renderPreview(data);
     setStatus("Playlist loaded. Next: analyze Apple Music matches.");
   } catch (error) {
@@ -617,9 +645,9 @@ async function analyzeMatches() {
       input: value,
       limit: analysisLimit.value
     });
-    state.analysis = data;
+    adoptAnalysis(data);
     renderAnalysis(data);
-    setStatus("Analysis complete. Review anything fuzzy before creating.");
+    setStatus("Analysis complete and saved. Refreshing now will keep this transfer.");
   } catch (error) {
     setStatus(error instanceof Error ? error.message : String(error), "error");
     renderError(error, "analysis");
@@ -641,12 +669,15 @@ async function createPlaylist() {
   setBusy(true, "Creating Apple Music playlist from ready tracks...");
 
   try {
-    const data = await startJob("/api/transfers/create-public-job", {
-      input: value,
-      limit: analysisLimit.value,
-      analysis: state.analysis
-    });
-    state.analysis = null;
+    const data = state.transferId
+      ? await startJob(`/api/transfers/${encodeURIComponent(state.transferId)}/create-job`, {})
+      : await startJob("/api/transfers/create-public-job", {
+          input: value,
+          limit: analysisLimit.value,
+          analysis: state.analysis
+        });
+
+    adoptAnalysis(data);
     renderSuccess(data, data.createdApplePlaylistId);
     setStatus("Transfer complete.");
     showToast("Playlist created.", "success");
@@ -658,6 +689,35 @@ async function createPlaylist() {
   }
 }
 
+async function restoreStoredTransfer() {
+  const transferId = readStoredTransferId();
+  if (!transferId) return;
+
+  try {
+    const data = await apiFetch(`/api/transfers/${encodeURIComponent(transferId)}`);
+    adoptAnalysis(data);
+
+    if (data.createdApplePlaylistId) {
+      renderSuccess(data, data.createdApplePlaylistId);
+      setStatus("Restored your completed transfer receipt.");
+    } else {
+      renderAnalysis(data);
+      setStatus("Restored your last transfer. Review decisions are saved on the server.");
+    }
+  } catch (error) {
+    clearStoredTransfer();
+    setStatus("Previous transfer could not be restored. Start a new analysis when ready.");
+  } finally {
+    refreshActions();
+  }
+}
+
+async function initialize() {
+  await loadAppleSession();
+  await restoreStoredTransfer();
+  refreshActions();
+}
+
 form.addEventListener("submit", (event) => {
   event.preventDefault();
   previewPlaylist();
@@ -666,6 +726,7 @@ form.addEventListener("submit", (event) => {
 input.addEventListener("input", () => {
   state.preview = null;
   state.analysis = null;
+  clearStoredTransfer();
   fallbackGuide.hidden = true;
   refreshActions();
 });
@@ -675,16 +736,15 @@ analyzeButton.addEventListener("click", analyzeMatches);
 createButton.addEventListener("click", createPlaylist);
 connectAppleButton.addEventListener("click", connectAppleMusic);
 
-results.addEventListener("click", (event) => {
+results.addEventListener("click", async (event) => {
   const target = event.target instanceof Element ? event.target.closest("[data-review-action]") : null;
   if (!target) return;
 
-  updateReviewDecision(
+  await updateReviewDecision(
     Number(target.dataset.reviewIndex),
     target.dataset.reviewAction,
     target.dataset.candidateIndex == null ? null : Number(target.dataset.candidateIndex)
   );
 });
 
-loadAppleSession();
-refreshActions();
+initialize();

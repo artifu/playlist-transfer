@@ -18,6 +18,10 @@ import {
   runPublicTransferCreateJob,
   serializeJob
 } from "./jobs.mjs";
+import {
+  applyTransferItemDecision,
+  getTransfer
+} from "./transfers.mjs";
 
 function createSpotifyClient() {
   const config = loadSpotifyConfig();
@@ -170,6 +174,47 @@ export async function handlePublicTransferCreate(request, response) {
       createdApplePlaylistId,
       createdFromConfidenceThreshold: 0.8
     });
+  } catch (error) {
+    sendJson(response, statusForError(error), {
+      error: true,
+      message: errorMessage(error)
+    });
+  }
+}
+
+export function handleGetTransfer(transferId, response) {
+  const transfer = getTransfer(transferId);
+
+  if (!transfer) {
+    sendJson(response, 404, {
+      error: true,
+      message: "Transfer not found. It may have expired or the API server may have restarted."
+    });
+    return;
+  }
+
+  sendJson(response, 200, transfer);
+}
+
+export async function handlePatchTransferItem(transferId, itemIndex, request, response) {
+  try {
+    const body = await readJsonBody(request);
+    const transfer = applyTransferItemDecision(transferId, itemIndex, body);
+    sendJson(response, 200, transfer);
+  } catch (error) {
+    sendJson(response, statusForError(error), {
+      error: true,
+      message: errorMessage(error)
+    });
+  }
+}
+
+export async function handleStoredTransferCreateJob(transferId, response) {
+  try {
+    const job = createJob("stored-create");
+
+    runPublicTransferCreateJob(job, { transferId });
+    sendJson(response, 202, serializeJob(job));
   } catch (error) {
     sendJson(response, statusForError(error), {
       error: true,
