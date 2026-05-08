@@ -162,7 +162,21 @@ It currently combines:
 - HTML/CSS/JS UI rendering
 - demo fixture behavior
 
-The next engineering step should split these concerns while keeping behavior identical.
+It should stay intact as the visual product lab.
+
+### Transfer API Subproject
+
+The app-ready backend track now lives in `apps/transfer-api`.
+
+This subproject is intentionally separate from the local demo. It owns JSON routes, Apple Music session handoff, transfer job orchestration, and product-friendly API errors. It can evolve toward a deployable homesite/mobile backend without destabilizing the working demo UI.
+
+Run it locally with:
+
+```bash
+npm run dev:transfer-api
+```
+
+It defaults to `http://127.0.0.1:8791`, while the demo remains on `http://127.0.0.1:8790`.
 
 ## Primary User Flow
 

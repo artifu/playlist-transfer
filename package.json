@@ -7,6 +7,7 @@
     "build": "tsc -p tsconfig.build.json",
     "check": "tsc --noEmit -p tsconfig.json",
     "dev:api": "npm run build && node tools/playlist-preview-server.mjs",
+    "dev:transfer-api": "node apps/transfer-api/server.mjs",
     "spotify:auth": "node tools/spotify-auth-helper.mjs",
     "spotify:public-probe": "npm run build && node dist/cli/spotify-public-probe.js",
     "apple:developer-token": "npm run build && node dist/cli/generate-apple-developer-token.js",

@@ -38,6 +38,24 @@ The public actions are the most interesting product path because they do not req
 
 The API actions still matter as a documented fallback when Spotify's public web surface changes or blocks a playlist.
 
+## Transfer API Subproject
+
+The visual demo remains in `tools/playlist-preview-server.mjs`.
+
+Reusable backend routes now also live in `apps/transfer-api`. This keeps the demo intact while giving us a cleaner foundation for a future homesite, mobile app backend, or ad-supported web flow.
+
+Run the API-only server with:
+
+```bash
+npm run dev:transfer-api
+```
+
+It defaults to:
+
+```text
+http://127.0.0.1:8791
+```
+
 ## API endpoints
 
 ### `GET /health`
