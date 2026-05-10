@@ -106,7 +106,7 @@ When complete, the job result is a saved transfer report and includes:
 }
 ```
 
-Clients should store `transferId` locally so refresh/back/tab close can restore the report while the API server still has the in-memory transfer.
+Clients should store `transferId` locally so refresh/back/tab close can restore the report from the Transfer API.
 
 ## Saved Transfer
 
@@ -114,7 +114,7 @@ Clients should store `transferId` locally so refresh/back/tab close can restore 
 
 Returns the saved transfer report for restoration.
 
-Current persistence is in-memory for the local API process. A production deployment should move this to a database.
+Current local persistence uses SQLite at `data/playlist-transfer.sqlite` by default. A production deployment should move the same model to managed durable storage with user/session ownership.
 
 ### `PATCH /api/transfers/:id/items/:itemIndex`
 
@@ -167,4 +167,4 @@ The current review model is server-side for saved transfers:
 - `needs_review`: not transferred unless the user approves or selects a candidate.
 - `unmatched`: not transferred.
 
-The next backend milestone should move saved transfers from memory into durable storage.
+The next backend milestone should add user/session ownership, cleanup policy, and a deployable managed database.

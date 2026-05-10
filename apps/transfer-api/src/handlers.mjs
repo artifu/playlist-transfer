@@ -188,7 +188,7 @@ export function handleGetTransfer(transferId, response) {
   if (!transfer) {
     sendJson(response, 404, {
       error: true,
-      message: "Transfer not found. It may have expired or the API server may have restarted."
+      message: "Transfer not found. It may have been deleted or the local database path may have changed."
     });
     return;
   }

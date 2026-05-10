@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
-
-const TRANSFER_RETENTION_MS = 24 * 60 * 60 * 1000;
-const transfers = new Map();
+import {
+  findTransferRecord,
+  saveTransferRecord
+} from "./storage.mjs";
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -60,23 +61,20 @@ export function createTransfer({ input, analysisLimit, analysis }) {
     updatedAt: nowIso()
   };
 
-  transfers.set(transfer.id, transfer);
-  setTimeout(() => {
-    transfers.delete(transfer.id);
-  }, TRANSFER_RETENTION_MS).unref();
+  saveTransferRecord(transfer);
 
   return serializeTransfer(transfer);
 }
 
 export function getTransfer(transferId) {
-  const transfer = transfers.get(transferId);
+  const transfer = findTransferRecord(transferId);
   return transfer ? serializeTransfer(transfer) : null;
 }
 
 export function requireTransfer(transferId) {
-  const transfer = transfers.get(transferId);
+  const transfer = findTransferRecord(transferId);
   if (!transfer) {
-    throw new Error("Transfer not found. It may have expired or the API server may have restarted.");
+    throw new Error("Transfer not found. It may have been deleted or the local database path may have changed.");
   }
 
   return transfer;
@@ -128,6 +126,7 @@ export function applyTransferItemDecision(transferId, index, decision) {
   transfer.status = transfer.createdApplePlaylistId ? "created" : "reviewed";
   transfer.updatedAt = nowIso();
   refreshAnalysisSummary(transfer.analysis);
+  saveTransferRecord(transfer);
 
   return serializeTransfer(transfer);
 }
@@ -138,5 +137,6 @@ export function markTransferCreated(transferId, createdApplePlaylistId, threshol
   transfer.createdApplePlaylistId = createdApplePlaylistId;
   transfer.createdFromConfidenceThreshold = threshold;
   transfer.updatedAt = nowIso();
+  saveTransferRecord(transfer);
   return serializeTransfer(transfer);
 }

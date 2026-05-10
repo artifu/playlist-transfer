@@ -19,7 +19,7 @@ http://127.0.0.1:8791
 You can override the host or port:
 
 ```bash
-TRANSFER_API_PORT=8792 node apps/transfer-api/server.mjs
+TRANSFER_API_PORT=8792 npm run dev:transfer-api
 ```
 
 If you change TypeScript files in `src/`, run `npm run build` before starting this API so `dist/` is current.
@@ -30,7 +30,7 @@ If you change TypeScript files in `src/`, run `npm run build` before starting th
 - Public Spotify playlist analysis against Apple Music catalog search.
 - Apple Music MusicKit user-token handoff for playlist creation.
 - Background job polling for long-running analysis and creation.
-- In-memory saved transfers with server-side review decisions.
+- SQLite-backed saved transfers with server-side review decisions.
 - Product-friendly JSON errors.
 
 ## Why This Is Separate From The Demo
@@ -49,4 +49,6 @@ Review decisions are also saved through API routes:
 - `PATCH /api/transfers/:id/items/:itemIndex`
 - `POST /api/transfers/:id/create-job`
 
-Current storage is in-memory and expires after the local API process restarts or after the retention window. Production should move this to a database.
+Current storage uses local SQLite at `data/playlist-transfer.sqlite` by default. Override it with `TRANSFER_API_DB_PATH`.
+
+This is still local prototype storage. Production should move the same transfer model to a managed database with user/session ownership.
