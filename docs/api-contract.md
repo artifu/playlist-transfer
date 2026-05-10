@@ -201,3 +201,19 @@ The current review model is server-side for saved transfers:
 - `unmatched`: not transferred.
 
 The next backend milestone should add cleanup policy, rate limits, and a deployable managed database.
+
+## Operational Controls
+
+The Transfer API is designed to run locally with lightweight SQLite and move to hosted storage later without changing client behavior.
+
+Current environment knobs:
+
+- `TRANSFER_API_STORAGE_DRIVER`: storage driver name. Defaults to `sqlite`.
+- `TRANSFER_API_DB_PATH`: local SQLite path. Defaults to `data/playlist-transfer.sqlite`.
+- `TRANSFER_API_TRANSFER_RETENTION_DAYS`: anonymous transfer retention window. Defaults to `7`.
+- `TRANSFER_API_CLEANUP_INTERVAL_MS`: cleanup loop interval. Defaults to one hour.
+- `TRANSFER_API_RATE_LIMIT_WINDOW_MS`: in-memory rate-limit window. Defaults to one minute.
+- `TRANSFER_API_RATE_LIMIT_MAX`: maximum API requests per session/IP per window. Defaults to `240`.
+- `TRANSFER_API_RATE_LIMIT_DISABLED`: set to `1` to disable local rate limiting.
+
+The rate limiter is intentionally in-memory for the MVP. A multi-instance deployment should replace it with provider-level controls, Redis, Durable Objects, or an equivalent shared limiter.

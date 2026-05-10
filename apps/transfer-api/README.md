@@ -32,6 +32,9 @@ If you change TypeScript files in `src/`, run `npm run build` before starting th
 - Background job polling for long-running analysis and creation.
 - SQLite-backed saved transfers with server-side review decisions.
 - Anonymous session ownership for jobs, saved transfers, and runtime Apple Music user tokens.
+- Storage adapter boundary for future hosted database providers.
+- Retention cleanup for anonymous transfer records.
+- Basic in-memory rate limiting by session or IP.
 - Product-friendly JSON errors.
 
 ## Why This Is Separate From The Demo
@@ -58,4 +61,21 @@ Review decisions are also saved through API routes:
 
 Current storage uses local SQLite at `data/playlist-transfer.sqlite` by default. Override it with `TRANSFER_API_DB_PATH`.
 
-This is still local prototype storage. Production should move the same transfer model to a managed database, keep the session ownership boundary, and add retention cleanup.
+This is still local prototype storage. Production should move the same transfer model to a managed database and keep the session ownership boundary.
+
+## Operational Settings
+
+Local development stays intentionally lightweight. Do not install a heavy database locally just to run the app.
+
+```bash
+TRANSFER_API_STORAGE_DRIVER=sqlite
+TRANSFER_API_DB_PATH=data/playlist-transfer.sqlite
+TRANSFER_API_TRANSFER_RETENTION_DAYS=7
+TRANSFER_API_CLEANUP_INTERVAL_MS=3600000
+TRANSFER_API_RATE_LIMIT_WINDOW_MS=60000
+TRANSFER_API_RATE_LIMIT_MAX=240
+```
+
+Set `TRANSFER_API_RATE_LIMIT_DISABLED=1` only for local debugging.
+
+The current rate limiter is in-memory and suitable for local MVP testing. A multi-instance deployment should use provider-level rate limiting or a shared store.

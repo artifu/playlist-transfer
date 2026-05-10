@@ -16,12 +16,17 @@ import {
 } from "./handlers.mjs";
 import { handleJobStatus } from "./jobs.mjs";
 import { sendHtml, sendJson } from "./http.mjs";
+import { enforceApiRateLimit } from "./rate-limit.mjs";
 import { requireSessionId, sessionIdFromRequest } from "./sessions.mjs";
 
 export function createTransferApiRouter({ host, port, renderHomePage }) {
   return async function routeRequest(request, response) {
     const method = request.method ?? "GET";
     const url = new URL(request.url ?? "/", `http://${host}:${port}`);
+
+    if (url.pathname.startsWith("/api/") && !enforceApiRateLimit(request, response)) {
+      return;
+    }
 
     if (method === "GET" && url.pathname === "/health") {
       sendJson(response, 200, { ok: true });

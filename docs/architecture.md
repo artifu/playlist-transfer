@@ -1,6 +1,6 @@
 # Product Architecture
 
-Last reviewed: 2026-05-08
+Last reviewed: 2026-05-10
 
 ## Purpose
 
@@ -195,6 +195,21 @@ It defaults to `http://127.0.0.1:8792`.
 The web app persists an anonymous session id plus the latest `transferId` in browser storage. Match reports and review decisions are restored from the Transfer API, which currently uses local SQLite scoped by `session_id` and should move to managed durable storage before production.
 
 This anonymous session is not a user account. It is the MVP ownership boundary for jobs, saved transfers, review decisions, and runtime Apple Music user tokens. A future account system can sit above the same transfer model without changing the mobile app contract.
+
+### Deploy-Ready Backend Track
+
+The backend should become deployable before we invest heavily in native mobile UI. The local machine should not need a heavy database install.
+
+Current direction:
+
+- Keep local development on the built-in SQLite driver.
+- Hide persistence behind a storage adapter so a managed online database can be tested later.
+- Scope anonymous transfer data by session id.
+- Expire anonymous transfer records automatically.
+- Rate-limit API traffic by anonymous session id when present, and by client IP otherwise.
+- Treat in-memory jobs and user tokens as MVP scaffolding that can move to a queue/token store when hosted traffic justifies it.
+
+This lets the web shell, future iOS app, and future Android app keep the same API contract while the backend storage provider changes underneath.
 
 ## Primary User Flow
 

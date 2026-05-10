@@ -124,7 +124,23 @@ Status:
 - persist transfer state
 - make long-running transfers resumable
 
-### Milestone 4: Mobile app shell
+Status:
+
+- provider orchestration lives in `apps/transfer-api`
+- the web app talks to the API through `/api/*`
+- transfer state is persisted locally
+- anonymous session ownership protects saved transfers and jobs
+
+### Milestone 4: Deploy-ready backend
+
+- keep local storage lightweight
+- add a storage adapter boundary for hosted providers
+- add transfer retention cleanup
+- add basic session/IP rate limiting
+- document operational environment variables
+- test the first hosted database provider online, not through a heavy local install
+
+### Milestone 5: Mobile app shell
 
 - build the connect/import/analyze/confirm/report flow
 - keep ads and monetization out of the critical path until the transfer experience feels trustworthy
