@@ -1,6 +1,6 @@
 # App API Contract
 
-Last reviewed: 2026-05-08
+Last reviewed: 2026-05-10
 
 This is the first app-facing contract between `apps/web`, the future mobile app, and `apps/transfer-api`.
 
@@ -8,16 +8,49 @@ The local web app currently reaches these routes through its same-origin proxy, 
 
 ## Base Flow
 
-1. `GET /api/apple-music/session`
-2. `POST /api/spotify/public-playlist-preview`
-3. `POST /api/transfers/analyze-public-job`
-4. Poll `GET /api/jobs/:id`
-5. Persist the returned `transferId` locally.
-6. Restore with `GET /api/transfers/:id` after refresh or tab close.
-7. Save review edits with `PATCH /api/transfers/:id/items/:itemIndex`.
-8. `POST /api/apple-music/user-token`
-9. `POST /api/transfers/:id/create-job`
-10. Poll `GET /api/jobs/:id`
+1. Generate or restore an anonymous client session id.
+2. Send `X-PlaylistTransfer-Session: <session-id>` with saved-transfer, job, and Apple user-token requests.
+3. `GET /api/apple-music/session`
+4. `POST /api/spotify/public-playlist-preview`
+5. `POST /api/transfers/analyze-public-job`
+6. Poll `GET /api/jobs/:id`
+7. Persist the returned `transferId` locally.
+8. Restore with `GET /api/transfers/:id` after refresh or tab close.
+9. Save review edits with `PATCH /api/transfers/:id/items/:itemIndex`.
+10. `POST /api/apple-music/user-token`
+11. `POST /api/transfers/:id/create-job`
+12. Poll `GET /api/jobs/:id`
+
+## Anonymous Session
+
+The app does not need accounts for the MVP, but saved transfers need ownership. Clients should generate a stable random id and store it locally.
+
+Recommended browser storage:
+
+```text
+playlist-transfer:anonymous-session-id
+```
+
+Required header:
+
+```http
+X-PlaylistTransfer-Session: 7b0e5d64-8d4e-4f2a-bf48-7fb9a7d59d4b
+```
+
+This id is not an account, password, or durable identity. It is a lightweight ownership boundary so one anonymous browser or app install cannot read or mutate another anonymous session's transfers or jobs.
+
+Routes that require it:
+
+- `POST /api/apple-music/user-token`
+- `GET /api/jobs/:id`
+- `POST /api/transfers/analyze-public-job`
+- `POST /api/transfers/create-public`
+- `POST /api/transfers/create-public-job`
+- `GET /api/transfers/:id`
+- `PATCH /api/transfers/:id/items/:itemIndex`
+- `POST /api/transfers/:id/create-job`
+
+The public preview route intentionally does not require a session because it does not persist user-owned state.
 
 ## Apple Music Session
 
@@ -33,7 +66,7 @@ Important product behavior:
 
 ### `POST /api/apple-music/user-token`
 
-Stores a MusicKit user token in the current Transfer API process.
+Stores a MusicKit user token in the current Transfer API process for the current anonymous session. This is intentionally in-memory in the prototype; production should store encrypted tokens or avoid long-lived token storage until the product needs it.
 
 Request:
 
@@ -106,7 +139,7 @@ When complete, the job result is a saved transfer report and includes:
 }
 ```
 
-Clients should store `transferId` locally so refresh/back/tab close can restore the report from the Transfer API.
+Clients should store `transferId` locally alongside the anonymous session id so refresh/back/tab close can restore the report from the Transfer API.
 
 ## Saved Transfer
 
@@ -114,7 +147,7 @@ Clients should store `transferId` locally so refresh/back/tab close can restore 
 
 Returns the saved transfer report for restoration.
 
-Current local persistence uses SQLite at `data/playlist-transfer.sqlite` by default. A production deployment should move the same model to managed durable storage with user/session ownership.
+Current local persistence uses SQLite at `data/playlist-transfer.sqlite` by default. Transfers are scoped by anonymous `session_id`. A production deployment should move the same model to managed durable storage, keep this ownership check, and add retention cleanup.
 
 ### `PATCH /api/transfers/:id/items/:itemIndex`
 
@@ -167,4 +200,4 @@ The current review model is server-side for saved transfers:
 - `needs_review`: not transferred unless the user approves or selects a candidate.
 - `unmatched`: not transferred.
 
-The next backend milestone should add user/session ownership, cleanup policy, and a deployable managed database.
+The next backend milestone should add cleanup policy, rate limits, and a deployable managed database.

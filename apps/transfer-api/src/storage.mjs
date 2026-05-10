@@ -23,6 +23,7 @@ function getDatabase() {
 
     CREATE TABLE IF NOT EXISTS transfers (
       id TEXT PRIMARY KEY,
+      session_id TEXT NOT NULL DEFAULT 'legacy-local-session',
       status TEXT NOT NULL,
       input TEXT NOT NULL,
       analysis_limit INTEGER NOT NULL,
@@ -37,7 +38,20 @@ function getDatabase() {
       ON transfers(updated_at);
   `);
 
+  ensureTransferSessionColumn(database);
+
   return database;
+}
+
+function ensureTransferSessionColumn(db) {
+  const columns = db.prepare("PRAGMA table_info(transfers)").all();
+  const hasSessionId = columns.some((column) => column.name === "session_id");
+
+  if (!hasSessionId) {
+    db.exec("ALTER TABLE transfers ADD COLUMN session_id TEXT NOT NULL DEFAULT 'legacy-local-session'");
+  }
+
+  db.exec("CREATE INDEX IF NOT EXISTS idx_transfers_session_updated_at ON transfers(session_id, updated_at)");
 }
 
 function transferFromRow(row) {
@@ -45,6 +59,7 @@ function transferFromRow(row) {
 
   return {
     id: row.id,
+    sessionId: row.session_id,
     status: row.status,
     input: row.input,
     analysisLimit: row.analysis_limit,
@@ -61,6 +76,7 @@ export function saveTransferRecord(transfer) {
     .prepare(`
       INSERT INTO transfers (
         id,
+        session_id,
         status,
         input,
         analysis_limit,
@@ -70,8 +86,9 @@ export function saveTransferRecord(transfer) {
         created_at,
         updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
+        session_id = excluded.session_id,
         status = excluded.status,
         input = excluded.input,
         analysis_limit = excluded.analysis_limit,
@@ -82,6 +99,7 @@ export function saveTransferRecord(transfer) {
     `)
     .run(
       transfer.id,
+      transfer.sessionId,
       transfer.status,
       transfer.input,
       transfer.analysisLimit,
@@ -93,11 +111,12 @@ export function saveTransferRecord(transfer) {
     );
 }
 
-export function findTransferRecord(transferId) {
+export function findTransferRecord(transferId, sessionId) {
   const row = getDatabase()
     .prepare(`
       SELECT
         id,
+        session_id,
         status,
         input,
         analysis_limit,
@@ -108,8 +127,9 @@ export function findTransferRecord(transferId) {
         updated_at
       FROM transfers
       WHERE id = ?
+        AND session_id = ?
     `)
-    .get(transferId);
+    .get(transferId, sessionId);
 
   return transferFromRow(row);
 }

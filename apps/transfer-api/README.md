@@ -31,6 +31,7 @@ If you change TypeScript files in `src/`, run `npm run build` before starting th
 - Apple Music MusicKit user-token handoff for playlist creation.
 - Background job polling for long-running analysis and creation.
 - SQLite-backed saved transfers with server-side review decisions.
+- Anonymous session ownership for jobs, saved transfers, and runtime Apple Music user tokens.
 - Product-friendly JSON errors.
 
 ## Why This Is Separate From The Demo
@@ -41,7 +42,13 @@ The transfer API is intentionally narrower: it exposes app-facing JSON routes an
 
 ## Saved Transfers
 
-Analysis jobs now return a `transferId`. The web app stores that id locally and uses it to restore the match report after refresh or tab close.
+Analysis jobs now return a `transferId`. The web app stores that id locally alongside an anonymous session id and uses both to restore the match report after refresh or tab close.
+
+Saved-transfer, job, and Apple user-token requests must include:
+
+```http
+X-PlaylistTransfer-Session: <stable-random-client-session-id>
+```
 
 Review decisions are also saved through API routes:
 
@@ -51,4 +58,4 @@ Review decisions are also saved through API routes:
 
 Current storage uses local SQLite at `data/playlist-transfer.sqlite` by default. Override it with `TRANSFER_API_DB_PATH`.
 
-This is still local prototype storage. Production should move the same transfer model to a managed database with user/session ownership.
+This is still local prototype storage. Production should move the same transfer model to a managed database, keep the session ownership boundary, and add retention cleanup.

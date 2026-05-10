@@ -21,9 +21,10 @@ import {
 const JOB_RETENTION_MS = 10 * 60 * 1000;
 const jobs = new Map();
 
-export function createJob(kind) {
+export function createJob(kind, sessionId = "") {
   const job = {
     id: randomUUID(),
+    sessionId,
     kind,
     status: "queued",
     phase: "Queued",
@@ -66,9 +67,9 @@ export function serializeJob(job) {
   };
 }
 
-export function handleJobStatus(jobId, response) {
+export function handleJobStatus(jobId, sessionId, response) {
   const job = jobs.get(jobId);
-  if (!job) {
+  if (!job || job.sessionId !== sessionId) {
     sendJson(response, 404, {
       error: true,
       message: "Job not found."
@@ -122,6 +123,7 @@ export async function runPublicTransferAnalyzeJob(job, body) {
       playlistAnalysisMetadata(playlist, analysisPlaylist.tracks.length)
     );
     const transfer = createTransfer({
+      sessionId: job.sessionId,
       input,
       analysisLimit: limit,
       analysis: serializedAnalysis
@@ -152,7 +154,7 @@ export async function runPublicTransferCreateJob(job, body) {
     let serializedAnalysis = null;
 
     if (transferId) {
-      const transfer = requireTransfer(transferId);
+      const transfer = requireTransfer(transferId, job.sessionId);
       serializedAnalysis = serializeTransfer(transfer);
       updateJob(job, {
         status: "running",
@@ -223,7 +225,7 @@ export async function runPublicTransferCreateJob(job, body) {
     });
 
     const createdApplePlaylistId = await createApplePlaylistFromMatches({
-      apple: createAppleMusicClient({ requireUserToken: true }),
+      apple: createAppleMusicClient({ requireUserToken: true, sessionId: job.sessionId }),
       playlistName: report.playlistName,
       results: report.results,
       minConfidence: 0.8
@@ -234,7 +236,7 @@ export async function runPublicTransferCreateJob(job, body) {
       phase: "Apple Music playlist created",
       progress: 100,
       result: transferId
-        ? markTransferCreated(transferId, createdApplePlaylistId, 0.8)
+        ? markTransferCreated(transferId, job.sessionId, createdApplePlaylistId, 0.8)
         : {
             ...serializedAnalysis,
             createdApplePlaylistId,

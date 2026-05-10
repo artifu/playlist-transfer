@@ -48,9 +48,10 @@ function analysisWithTransfer(transfer) {
   };
 }
 
-export function createTransfer({ input, analysisLimit, analysis }) {
+export function createTransfer({ sessionId, input, analysisLimit, analysis }) {
   const transfer = {
     id: randomUUID(),
+    sessionId,
     status: "analyzed",
     input,
     analysisLimit,
@@ -66,15 +67,15 @@ export function createTransfer({ input, analysisLimit, analysis }) {
   return serializeTransfer(transfer);
 }
 
-export function getTransfer(transferId) {
-  const transfer = findTransferRecord(transferId);
+export function getTransfer(transferId, sessionId) {
+  const transfer = findTransferRecord(transferId, sessionId);
   return transfer ? serializeTransfer(transfer) : null;
 }
 
-export function requireTransfer(transferId) {
-  const transfer = findTransferRecord(transferId);
+export function requireTransfer(transferId, sessionId) {
+  const transfer = findTransferRecord(transferId, sessionId);
   if (!transfer) {
-    throw new Error("Transfer not found. It may have been deleted or the local database path may have changed.");
+    throw new Error("Transfer not found for this session. It may have been deleted, created in another browser session, or the local database path may have changed.");
   }
 
   return transfer;
@@ -84,8 +85,8 @@ export function serializeTransfer(transfer) {
   return analysisWithTransfer(transfer);
 }
 
-export function applyTransferItemDecision(transferId, index, decision) {
-  const transfer = requireTransfer(transferId);
+export function applyTransferItemDecision(transferId, sessionId, index, decision) {
+  const transfer = requireTransfer(transferId, sessionId);
   const item = transfer.analysis.items.find((candidate) => candidate.index === index);
 
   if (!item) {
@@ -131,8 +132,8 @@ export function applyTransferItemDecision(transferId, index, decision) {
   return serializeTransfer(transfer);
 }
 
-export function markTransferCreated(transferId, createdApplePlaylistId, threshold) {
-  const transfer = requireTransfer(transferId);
+export function markTransferCreated(transferId, sessionId, createdApplePlaylistId, threshold) {
+  const transfer = requireTransfer(transferId, sessionId);
   transfer.status = "created";
   transfer.createdApplePlaylistId = createdApplePlaylistId;
   transfer.createdFromConfidenceThreshold = threshold;

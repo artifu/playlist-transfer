@@ -17,13 +17,16 @@ const results = document.querySelector("#results");
 const fallbackGuide = document.querySelector("#fallback-guide");
 const toast = document.querySelector("#toast");
 const STORED_TRANSFER_ID_KEY = "playlist-transfer:last-transfer-id";
+const STORED_SESSION_ID_KEY = "playlist-transfer:anonymous-session-id";
+const SESSION_HEADER = "X-PlaylistTransfer-Session";
 
 const state = {
   appleSession: null,
   busy: false,
   preview: null,
   analysis: null,
-  transferId: null
+  transferId: null,
+  anonymousSessionId: null
 };
 
 let toastTimer = null;
@@ -126,10 +129,36 @@ function renderAppleSession() {
   refreshActions();
 }
 
+function createSessionId() {
+  if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+  return `web-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 14)}`;
+}
+
+function anonymousSessionId() {
+  try {
+    const stored = window.localStorage.getItem(STORED_SESSION_ID_KEY);
+    if (stored) return stored;
+
+    const sessionId = createSessionId();
+    window.localStorage.setItem(STORED_SESSION_ID_KEY, sessionId);
+    return sessionId;
+  } catch {
+    if (!state.anonymousSessionId) state.anonymousSessionId = createSessionId();
+    return state.anonymousSessionId;
+  }
+}
+
+function sessionHeaders(headers = {}) {
+  const nextHeaders = new Headers(headers);
+  nextHeaders.set(SESSION_HEADER, anonymousSessionId());
+  return nextHeaders;
+}
+
 async function apiFetch(path, options = {}) {
   const response = await fetch(path, {
     cache: "no-store",
-    ...options
+    ...options,
+    headers: sessionHeaders(options.headers)
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.message || "Request failed.");

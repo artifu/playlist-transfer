@@ -16,6 +16,7 @@ import {
 } from "./handlers.mjs";
 import { handleJobStatus } from "./jobs.mjs";
 import { sendHtml, sendJson } from "./http.mjs";
+import { requireSessionId, sessionIdFromRequest } from "./sessions.mjs";
 
 export function createTransferApiRouter({ host, port, renderHomePage }) {
   return async function routeRequest(request, response) {
@@ -28,12 +29,15 @@ export function createTransferApiRouter({ host, port, renderHomePage }) {
     }
 
     if (method === "GET" && url.pathname === "/api/apple-music/session") {
-      sendJson(response, 200, appleMusicSessionPayload());
+      sendJson(response, 200, appleMusicSessionPayload(sessionIdFromRequest(request)));
       return;
     }
 
     if (method === "POST" && url.pathname === "/api/apple-music/user-token") {
-      await handleAppleMusicUserToken(request, response);
+      const sessionId = requireSessionId(request, response);
+      if (!sessionId) return;
+
+      await handleAppleMusicUserToken(sessionId, request, response);
       return;
     }
 
@@ -63,7 +67,10 @@ export function createTransferApiRouter({ host, port, renderHomePage }) {
     }
 
     if (method === "GET" && url.pathname.startsWith("/api/jobs/")) {
-      handleJobStatus(url.pathname.slice("/api/jobs/".length), response);
+      const sessionId = requireSessionId(request, response);
+      if (!sessionId) return;
+
+      handleJobStatus(url.pathname.slice("/api/jobs/".length), sessionId, response);
       return;
     }
 
@@ -88,24 +95,37 @@ export function createTransferApiRouter({ host, port, renderHomePage }) {
     }
 
     if (method === "POST" && url.pathname === "/api/transfers/analyze-public-job") {
-      await handlePublicTransferAnalyzeJob(request, response);
+      const sessionId = requireSessionId(request, response);
+      if (!sessionId) return;
+
+      await handlePublicTransferAnalyzeJob(sessionId, request, response);
       return;
     }
 
     if (method === "POST" && url.pathname === "/api/transfers/create-public") {
-      await handlePublicTransferCreate(request, response);
+      const sessionId = requireSessionId(request, response);
+      if (!sessionId) return;
+
+      await handlePublicTransferCreate(sessionId, request, response);
       return;
     }
 
     if (method === "POST" && url.pathname === "/api/transfers/create-public-job") {
-      await handlePublicTransferCreateJob(request, response);
+      const sessionId = requireSessionId(request, response);
+      if (!sessionId) return;
+
+      await handlePublicTransferCreateJob(sessionId, request, response);
       return;
     }
 
     const transferItemMatch = url.pathname.match(/^\/api\/transfers\/([^/]+)\/items\/(\d+)$/);
     if (method === "PATCH" && transferItemMatch) {
+      const sessionId = requireSessionId(request, response);
+      if (!sessionId) return;
+
       await handlePatchTransferItem(
         decodeURIComponent(transferItemMatch[1]),
+        sessionId,
         Number(transferItemMatch[2]),
         request,
         response
@@ -115,13 +135,19 @@ export function createTransferApiRouter({ host, port, renderHomePage }) {
 
     const transferCreateJobMatch = url.pathname.match(/^\/api\/transfers\/([^/]+)\/create-job$/);
     if (method === "POST" && transferCreateJobMatch) {
-      await handleStoredTransferCreateJob(decodeURIComponent(transferCreateJobMatch[1]), response);
+      const sessionId = requireSessionId(request, response);
+      if (!sessionId) return;
+
+      await handleStoredTransferCreateJob(decodeURIComponent(transferCreateJobMatch[1]), sessionId, response);
       return;
     }
 
     const transferMatch = url.pathname.match(/^\/api\/transfers\/([^/]+)$/);
     if (method === "GET" && transferMatch) {
-      handleGetTransfer(decodeURIComponent(transferMatch[1]), response);
+      const sessionId = requireSessionId(request, response);
+      if (!sessionId) return;
+
+      handleGetTransfer(decodeURIComponent(transferMatch[1]), sessionId, response);
       return;
     }
 

@@ -123,10 +123,10 @@ export async function handlePublicTransferAnalyze(request, response) {
   }
 }
 
-export async function handlePublicTransferAnalyzeJob(request, response) {
+export async function handlePublicTransferAnalyzeJob(sessionId, request, response) {
   try {
     const body = await readJsonBody(request);
-    const job = createJob("public-analysis");
+    const job = createJob("public-analysis", sessionId);
 
     runPublicTransferAnalyzeJob(job, body);
     sendJson(response, 202, serializeJob(job));
@@ -138,10 +138,10 @@ export async function handlePublicTransferAnalyzeJob(request, response) {
   }
 }
 
-export async function handlePublicTransferCreateJob(request, response) {
+export async function handlePublicTransferCreateJob(sessionId, request, response) {
   try {
     const body = await readJsonBody(request);
-    const job = createJob("public-create");
+    const job = createJob("public-create", sessionId);
 
     runPublicTransferCreateJob(job, body);
     sendJson(response, 202, serializeJob(job));
@@ -153,14 +153,14 @@ export async function handlePublicTransferCreateJob(request, response) {
   }
 }
 
-export async function handlePublicTransferCreate(request, response) {
+export async function handlePublicTransferCreate(sessionId, request, response) {
   try {
     const body = await readJsonBody(request);
     const input = body.input ?? body.playlistUrl ?? body.playlistId ?? "";
     const limit = analysisLimitFromBody(body);
     const playlist = await getPublicSpotifyPlaylist(input);
     const analysisPlaylist = slicePlaylistForAnalysis(playlist, limit);
-    const apple = createAppleMusicClient({ requireUserToken: true });
+    const apple = createAppleMusicClient({ requireUserToken: true, sessionId });
     const analysis = await analyzeSpotifyPlaylist(analysisPlaylist, apple);
     const createdApplePlaylistId = await createApplePlaylistFromMatches({
       apple,
@@ -182,13 +182,13 @@ export async function handlePublicTransferCreate(request, response) {
   }
 }
 
-export function handleGetTransfer(transferId, response) {
-  const transfer = getTransfer(transferId);
+export function handleGetTransfer(transferId, sessionId, response) {
+  const transfer = getTransfer(transferId, sessionId);
 
   if (!transfer) {
     sendJson(response, 404, {
       error: true,
-      message: "Transfer not found. It may have been deleted or the local database path may have changed."
+      message: "Transfer not found for this session. It may have been deleted, created in another browser session, or the local database path may have changed."
     });
     return;
   }
@@ -196,10 +196,10 @@ export function handleGetTransfer(transferId, response) {
   sendJson(response, 200, transfer);
 }
 
-export async function handlePatchTransferItem(transferId, itemIndex, request, response) {
+export async function handlePatchTransferItem(transferId, sessionId, itemIndex, request, response) {
   try {
     const body = await readJsonBody(request);
-    const transfer = applyTransferItemDecision(transferId, itemIndex, body);
+    const transfer = applyTransferItemDecision(transferId, sessionId, itemIndex, body);
     sendJson(response, 200, transfer);
   } catch (error) {
     sendJson(response, statusForError(error), {
@@ -209,9 +209,9 @@ export async function handlePatchTransferItem(transferId, itemIndex, request, re
   }
 }
 
-export async function handleStoredTransferCreateJob(transferId, response) {
+export async function handleStoredTransferCreateJob(transferId, sessionId, response) {
   try {
-    const job = createJob("stored-create");
+    const job = createJob("stored-create", sessionId);
 
     runPublicTransferCreateJob(job, { transferId });
     sendJson(response, 202, serializeJob(job));

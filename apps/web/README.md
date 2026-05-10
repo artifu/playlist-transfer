@@ -46,7 +46,12 @@ TRANSFER_API_URL=http://127.0.0.1:8791 npm run dev:web
 6. Create from ready or user-approved tracks only.
 7. Show a receipt with transferred and skipped counts.
 
-The app stores the latest `transferId` in `localStorage`, then restores the match report from the Transfer API after refresh, tab close, or API restart. Review decisions are saved server-side in local SQLite, not only in browser memory.
+The app stores an anonymous session id and the latest `transferId` in `localStorage`, then restores the match report from the Transfer API after refresh, tab close, or API restart. Review decisions are saved server-side in local SQLite and scoped to that anonymous session, not only in browser memory.
+
+Current local storage keys:
+
+- `playlist-transfer:anonymous-session-id`
+- `playlist-transfer:last-transfer-id`
 
 ## Notes
 
