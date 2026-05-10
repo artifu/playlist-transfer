@@ -48,7 +48,7 @@ function analysisWithTransfer(transfer) {
   };
 }
 
-export function createTransfer({ sessionId, input, analysisLimit, analysis }) {
+export async function createTransfer({ sessionId, input, analysisLimit, analysis }) {
   const transfer = {
     id: randomUUID(),
     sessionId,
@@ -62,18 +62,18 @@ export function createTransfer({ sessionId, input, analysisLimit, analysis }) {
     updatedAt: nowIso()
   };
 
-  saveTransferRecord(transfer);
+  await saveTransferRecord(transfer);
 
   return serializeTransfer(transfer);
 }
 
-export function getTransfer(transferId, sessionId) {
-  const transfer = findTransferRecord(transferId, sessionId);
+export async function getTransfer(transferId, sessionId) {
+  const transfer = await findTransferRecord(transferId, sessionId);
   return transfer ? serializeTransfer(transfer) : null;
 }
 
-export function requireTransfer(transferId, sessionId) {
-  const transfer = findTransferRecord(transferId, sessionId);
+export async function requireTransfer(transferId, sessionId) {
+  const transfer = await findTransferRecord(transferId, sessionId);
   if (!transfer) {
     throw new Error("Transfer not found for this session. It may have been deleted, created in another browser session, or the local database path may have changed.");
   }
@@ -85,8 +85,8 @@ export function serializeTransfer(transfer) {
   return analysisWithTransfer(transfer);
 }
 
-export function applyTransferItemDecision(transferId, sessionId, index, decision) {
-  const transfer = requireTransfer(transferId, sessionId);
+export async function applyTransferItemDecision(transferId, sessionId, index, decision) {
+  const transfer = await requireTransfer(transferId, sessionId);
   const item = transfer.analysis.items.find((candidate) => candidate.index === index);
 
   if (!item) {
@@ -127,17 +127,17 @@ export function applyTransferItemDecision(transferId, sessionId, index, decision
   transfer.status = transfer.createdApplePlaylistId ? "created" : "reviewed";
   transfer.updatedAt = nowIso();
   refreshAnalysisSummary(transfer.analysis);
-  saveTransferRecord(transfer);
+  await saveTransferRecord(transfer);
 
   return serializeTransfer(transfer);
 }
 
-export function markTransferCreated(transferId, sessionId, createdApplePlaylistId, threshold) {
-  const transfer = requireTransfer(transferId, sessionId);
+export async function markTransferCreated(transferId, sessionId, createdApplePlaylistId, threshold) {
+  const transfer = await requireTransfer(transferId, sessionId);
   transfer.status = "created";
   transfer.createdApplePlaylistId = createdApplePlaylistId;
   transfer.createdFromConfidenceThreshold = threshold;
   transfer.updatedAt = nowIso();
-  saveTransferRecord(transfer);
+  await saveTransferRecord(transfer);
   return serializeTransfer(transfer);
 }

@@ -3,7 +3,7 @@ import { startTransferCleanupLoop } from "./src/cleanup.mjs";
 import { createTransferApiRouter } from "./src/routes.mjs";
 
 const host = process.env.TRANSFER_API_HOST ?? "127.0.0.1";
-const port = Number(process.env.TRANSFER_API_PORT ?? "8791");
+const port = Number(process.env.TRANSFER_API_PORT ?? process.env.PORT ?? "8791");
 
 startTransferCleanupLoop();
 

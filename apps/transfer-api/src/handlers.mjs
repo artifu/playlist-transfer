@@ -182,24 +182,31 @@ export async function handlePublicTransferCreate(sessionId, request, response) {
   }
 }
 
-export function handleGetTransfer(transferId, sessionId, response) {
-  const transfer = getTransfer(transferId, sessionId);
+export async function handleGetTransfer(transferId, sessionId, response) {
+  try {
+    const transfer = await getTransfer(transferId, sessionId);
 
-  if (!transfer) {
-    sendJson(response, 404, {
+    if (!transfer) {
+      sendJson(response, 404, {
+        error: true,
+        message: "Transfer not found for this session. It may have been deleted, created in another browser session, or the local database path may have changed."
+      });
+      return;
+    }
+
+    sendJson(response, 200, transfer);
+  } catch (error) {
+    sendJson(response, statusForError(error), {
       error: true,
-      message: "Transfer not found for this session. It may have been deleted, created in another browser session, or the local database path may have changed."
+      message: errorMessage(error)
     });
-    return;
   }
-
-  sendJson(response, 200, transfer);
 }
 
 export async function handlePatchTransferItem(transferId, sessionId, itemIndex, request, response) {
   try {
     const body = await readJsonBody(request);
-    const transfer = applyTransferItemDecision(transferId, sessionId, itemIndex, body);
+    const transfer = await applyTransferItemDecision(transferId, sessionId, itemIndex, body);
     sendJson(response, 200, transfer);
   } catch (error) {
     sendJson(response, statusForError(error), {

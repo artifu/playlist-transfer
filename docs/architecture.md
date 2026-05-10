@@ -203,7 +203,8 @@ The backend should become deployable before we invest heavily in native mobile U
 Current direction:
 
 - Keep local development on the built-in SQLite driver.
-- Hide persistence behind a storage adapter so a managed online database can be tested later.
+- Hide persistence behind a storage adapter so a managed online database can be tested without changing the app contract.
+- Use `supabase-rest` as the first hosted storage adapter because it requires no local Postgres install or extra Node database dependency.
 - Scope anonymous transfer data by session id.
 - Expire anonymous transfer records automatically.
 - Rate-limit API traffic by anonymous session id when present, and by client IP otherwise.

@@ -17,7 +17,7 @@ export function cleanupIntervalMs() {
   return numberFromEnv("TRANSFER_API_CLEANUP_INTERVAL_MS", DEFAULT_CLEANUP_INTERVAL_MS);
 }
 
-export function cleanupExpiredTransfers(now = new Date()) {
+export async function cleanupExpiredTransfers(now = new Date()) {
   const retentionDays = transferRetentionDays();
 
   if (retentionDays <= 0) {
@@ -32,16 +32,16 @@ export function cleanupExpiredTransfers(now = new Date()) {
 
   return {
     enabled: true,
-    deletedCount: deleteExpiredTransferRecords(cutoffIso),
+    deletedCount: await deleteExpiredTransferRecords(cutoffIso),
     cutoffIso,
     retentionDays
   };
 }
 
 export function startTransferCleanupLoop(logger = console) {
-  const runCleanup = () => {
+  const runCleanup = async () => {
     try {
-      const result = cleanupExpiredTransfers();
+      const result = await cleanupExpiredTransfers();
       if (result.enabled && result.deletedCount > 0) {
         logger.log(`Deleted ${result.deletedCount} expired transfer records older than ${result.cutoffIso}`);
       }

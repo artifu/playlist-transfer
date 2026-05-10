@@ -208,8 +208,11 @@ The Transfer API is designed to run locally with lightweight SQLite and move to 
 
 Current environment knobs:
 
-- `TRANSFER_API_STORAGE_DRIVER`: storage driver name. Defaults to `sqlite`.
+- `TRANSFER_API_STORAGE_DRIVER`: storage driver name. Defaults to `sqlite`. Supported values: `sqlite`, `supabase-rest`.
 - `TRANSFER_API_DB_PATH`: local SQLite path. Defaults to `data/playlist-transfer.sqlite`.
+- `SUPABASE_URL`: Supabase project URL when using `supabase-rest`.
+- `SUPABASE_SERVICE_ROLE_KEY`: backend-only Supabase service role key when using `supabase-rest`.
+- `SUPABASE_TRANSFERS_TABLE`: Supabase transfers table name. Defaults to `transfers`.
 - `TRANSFER_API_TRANSFER_RETENTION_DAYS`: anonymous transfer retention window. Defaults to `7`.
 - `TRANSFER_API_CLEANUP_INTERVAL_MS`: cleanup loop interval. Defaults to one hour.
 - `TRANSFER_API_RATE_LIMIT_WINDOW_MS`: in-memory rate-limit window. Defaults to one minute.

@@ -152,7 +152,7 @@ export function createTransferApiRouter({ host, port, renderHomePage }) {
       const sessionId = requireSessionId(request, response);
       if (!sessionId) return;
 
-      handleGetTransfer(decodeURIComponent(transferMatch[1]), sessionId, response);
+      await handleGetTransfer(decodeURIComponent(transferMatch[1]), sessionId, response);
       return;
     }
 

@@ -61,6 +61,17 @@ Review decisions are also saved through API routes:
 
 Current storage uses local SQLite at `data/playlist-transfer.sqlite` by default. Override it with `TRANSFER_API_DB_PATH`.
 
+For hosted testing, use the Supabase REST driver:
+
+```bash
+TRANSFER_API_STORAGE_DRIVER=supabase-rest
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+SUPABASE_TRANSFERS_TABLE=transfers
+```
+
+Create the table with [supabase-schema.sql](/Users/arthur_t_m/Documents/PlaylistTransfer/apps/transfer-api/sql/supabase-schema.sql).
+
 This is still local prototype storage. Production should move the same transfer model to a managed database and keep the session ownership boundary.
 
 ## Operational Settings
@@ -70,6 +81,9 @@ Local development stays intentionally lightweight. Do not install a heavy databa
 ```bash
 TRANSFER_API_STORAGE_DRIVER=sqlite
 TRANSFER_API_DB_PATH=data/playlist-transfer.sqlite
+SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+SUPABASE_TRANSFERS_TABLE=transfers
 TRANSFER_API_TRANSFER_RETENTION_DAYS=7
 TRANSFER_API_CLEANUP_INTERVAL_MS=3600000
 TRANSFER_API_RATE_LIMIT_WINDOW_MS=60000

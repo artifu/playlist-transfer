@@ -122,7 +122,7 @@ export async function runPublicTransferAnalyzeJob(job, body) {
       analysis,
       playlistAnalysisMetadata(playlist, analysisPlaylist.tracks.length)
     );
-    const transfer = createTransfer({
+    const transfer = await createTransfer({
       sessionId: job.sessionId,
       input,
       analysisLimit: limit,
@@ -154,7 +154,7 @@ export async function runPublicTransferCreateJob(job, body) {
     let serializedAnalysis = null;
 
     if (transferId) {
-      const transfer = requireTransfer(transferId, job.sessionId);
+      const transfer = await requireTransfer(transferId, job.sessionId);
       serializedAnalysis = serializeTransfer(transfer);
       updateJob(job, {
         status: "running",
@@ -236,7 +236,7 @@ export async function runPublicTransferCreateJob(job, body) {
       phase: "Apple Music playlist created",
       progress: 100,
       result: transferId
-        ? markTransferCreated(transferId, job.sessionId, createdApplePlaylistId, 0.8)
+        ? await markTransferCreated(transferId, job.sessionId, createdApplePlaylistId, 0.8)
         : {
             ...serializedAnalysis,
             createdApplePlaylistId,
