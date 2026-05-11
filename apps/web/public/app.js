@@ -24,7 +24,9 @@ const state = {
   appleSession: null,
   busy: false,
   preview: null,
+  previewInput: null,
   analysis: null,
+  analysisInput: null,
   transferId: null,
   anonymousSessionId: null
 };
@@ -68,6 +70,21 @@ function appleMusicPlaylistUrl(playlistId) {
   return `https://music.apple.com/library/playlist/${encodeURIComponent(String(playlistId || ""))}`;
 }
 
+function renderStartState({ hasInput = false } = {}) {
+  results.className = "result-empty";
+  results.innerHTML = hasInput
+    ? `
+      <p class="eyebrow">New link ready</p>
+      <h2>Preview this Spotify playlist before matching.</h2>
+      <p>Tap the arrow in the URL box to load the public playlist details, then we will search Apple Music.</p>
+    `
+    : `
+      <p class="eyebrow">Trust-first transfer</p>
+      <h2>Nothing moves until you approve the match report.</h2>
+      <p>Preview the Spotify playlist, analyze Apple Music candidates, review anything fuzzy, then create from clean matches only.</p>
+    `;
+}
+
 function showToast(message, kind = "info") {
   window.clearTimeout(toastTimer);
   toast.textContent = message;
@@ -91,17 +108,24 @@ function hasAppleMusicConnection() {
 }
 
 function canCreate() {
+  const inputValue = input.value.trim();
   return Boolean(
     state.analysis &&
+    state.analysisInput === inputValue &&
     !state.analysis.createdApplePlaylistId &&
     (state.analysis.summary?.confidentMatchCount ?? 0) > 0
   );
 }
 
 function refreshActions() {
-  const hasInput = Boolean(input.value.trim());
+  const inputValue = input.value.trim();
+  const hasInput = Boolean(inputValue);
+  const hasPreviewForInput = Boolean(
+    (state.preview && state.previewInput === inputValue) ||
+    (state.analysis && state.analysisInput === inputValue)
+  );
   previewButton.disabled = state.busy || !hasInput;
-  analyzeButton.disabled = state.busy || !hasInput || !hasDeveloperToken();
+  analyzeButton.disabled = state.busy || !hasPreviewForInput || !hasDeveloperToken();
   analyzeButton.classList.toggle("ready", !analyzeButton.disabled);
   createButton.disabled = state.busy || !canCreate();
   connectAppleButton.disabled = state.busy || !hasDeveloperToken();
@@ -205,6 +229,7 @@ function clearStoredTransfer() {
 
 function adoptAnalysis(data) {
   state.analysis = data;
+  state.analysisInput = data.transfer?.input || input.value.trim() || null;
   rememberTransferId(data.transferId || data.transfer?.id || null);
 
   if (data.transfer?.input) {
@@ -653,11 +678,18 @@ async function previewPlaylist() {
   try {
     const data = await postJson("/api/spotify/public-playlist-preview", { input: value });
     state.preview = data;
+    state.previewInput = value;
     state.analysis = null;
+    state.analysisInput = null;
     clearStoredTransfer();
     renderPreview(data);
     setStatus("Playlist loaded. Next: analyze Apple Music matches.");
   } catch (error) {
+    state.preview = null;
+    state.previewInput = null;
+    state.analysis = null;
+    state.analysisInput = null;
+    clearStoredTransfer();
     setStatus(error instanceof Error ? error.message : String(error), "error");
     renderError(error, "preview");
   } finally {
@@ -756,10 +788,16 @@ form.addEventListener("submit", (event) => {
 });
 
 input.addEventListener("input", () => {
+  const hasInput = Boolean(input.value.trim());
   state.preview = null;
+  state.previewInput = null;
   state.analysis = null;
+  state.analysisInput = null;
   clearStoredTransfer();
   fallbackGuide.hidden = true;
+  resetProgress();
+  renderStartState({ hasInput });
+  setStatus(hasInput ? "New link ready. Tap the arrow to preview it." : "Paste a playlist link to begin.");
   refreshActions();
 });
 
