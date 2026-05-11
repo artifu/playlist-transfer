@@ -46,11 +46,12 @@ What does not exist yet:
 
 ## Deployable API
 
-The app-ready API lives in `apps/transfer-api` and includes a Render Blueprint at `render.yaml`.
+The app-ready API lives in `apps/transfer-api`, and the product web shell lives in `apps/web`. The repo includes a Render Blueprint at `render.yaml` for both services.
 
 For the first hosted MVP, use:
 
 - Render Web Service for the Node API.
+- Render Web Service for the product web shell.
 - Supabase Postgres through the `supabase-rest` storage adapter.
 
 See [docs/deployment.md](./docs/deployment.md) for setup steps, Supabase schema, Render settings, and required environment variables.

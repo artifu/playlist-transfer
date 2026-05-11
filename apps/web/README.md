@@ -36,6 +36,33 @@ Override the API target when needed:
 TRANSFER_API_URL=http://127.0.0.1:8791 npm run dev:web
 ```
 
+## Deploy
+
+The web app can be deployed as a small Node service because [server.mjs](/Users/arthur_t_m/Documents/PlaylistTransfer/apps/web/server.mjs) serves static files and proxies API requests.
+
+On Render, use:
+
+```bash
+npm install
+```
+
+as the build command, and:
+
+```bash
+node apps/web/server.mjs
+```
+
+as the start command.
+
+Set these environment variables:
+
+```bash
+WEB_HOST=0.0.0.0
+TRANSFER_API_URL=https://playlist-transfer-api.onrender.com
+```
+
+The server reads Render's `PORT` automatically.
+
 ## Product Flow
 
 1. Paste a public Spotify playlist link.

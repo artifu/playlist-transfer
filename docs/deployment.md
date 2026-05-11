@@ -1,12 +1,13 @@
 # Deployment Notes
 
-Last reviewed: 2026-05-10
+Last reviewed: 2026-05-11
 
 This project should not require a heavy local database install. Local development can keep using SQLite, while the first hosted MVP can use Supabase REST storage from the Node API.
 
 ## Recommended First Hosted Stack
 
 - Render Web Service for `apps/transfer-api`.
+- Render Web Service for `apps/web`.
 - Supabase Postgres for transfer persistence.
 - Local web shell can keep proxying to the hosted API while we test.
 
@@ -22,29 +23,34 @@ This keeps the mobile/web clients thin and avoids running Postgres on the develo
 
 Important: the service role key is a backend secret. Never ship it in the web app, mobile app, screenshots, or public docs.
 
-## Render API Setup
+## Render Blueprint Setup
 
-The repo includes [render.yaml](/Users/arthur_t_m/Documents/PlaylistTransfer/render.yaml), so the preferred path is a Render Blueprint.
+The repo includes [render.yaml](/Users/arthur_t_m/Documents/PlaylistTransfer/render.yaml), so the preferred path is a Render Blueprint with two services:
+
+- `playlist-transfer-api`: Node API, Apple Music session handoff, Spotify public import, transfer jobs, and Supabase persistence.
+- `playlist-transfer-web`: product web shell that proxies `/api/*` to the hosted API.
 
 1. In Render, create a new Blueprint from the GitHub repository.
 2. Render should detect `render.yaml` at the repo root.
-3. Fill the secret env vars that are marked `sync: false`.
-4. Deploy the `playlist-transfer-api` service.
+3. Fill the API secret env vars that are marked `sync: false`.
+4. Deploy the API and web services.
 
-The Blueprint uses:
+The API service uses:
 
 ```yaml
-buildCommand: npm install
+buildCommand: npm install && npm run build
 startCommand: node --disable-warning=ExperimentalWarning apps/transfer-api/server.mjs
 healthCheckPath: /health
 ```
 
-If creating the service manually instead of using the Blueprint, use these values.
+The hosted API must run the TypeScript build because `dist/` is generated from `src/` during each clean deploy.
+
+If creating the API service manually instead of using the Blueprint, use these values.
 
 Build command:
 
 ```bash
-npm install
+npm install && npm run build
 ```
 
 Start command:
@@ -52,8 +58,6 @@ Start command:
 ```bash
 node --disable-warning=ExperimentalWarning apps/transfer-api/server.mjs
 ```
-
-The current API imports the checked-in `dist/` provider code. Run `npm run build` only when TypeScript files under `src/` change and the local TypeScript build is healthy.
 
 Environment variables:
 
@@ -73,6 +77,27 @@ TRANSFER_API_RATE_LIMIT_MAX=240
 
 The API reads Render's `PORT` automatically. Set `TRANSFER_API_PORT` only if a host requires a custom port override.
 
+## Render Web Setup
+
+The web service is intentionally small: it serves `apps/web/public` and proxies `/api/*` requests to `TRANSFER_API_URL`.
+
+The Blueprint uses:
+
+```yaml
+buildCommand: npm install
+startCommand: node apps/web/server.mjs
+healthCheckPath: /health
+```
+
+Environment variables:
+
+```bash
+WEB_HOST=0.0.0.0
+TRANSFER_API_URL=https://playlist-transfer-api.onrender.com
+```
+
+The web service reads Render's `PORT` automatically. Set `WEB_PORT` only for a custom local or non-Render host.
+
 ## Render Smoke Test
 
 After deploy:
@@ -85,6 +110,18 @@ Expected response:
 
 ```json
 {"ok":true}
+```
+
+For the web service:
+
+```bash
+curl https://your-web-service.onrender.com/health
+```
+
+Expected response:
+
+```json
+{"ok":true,"transferApiUrl":"https://playlist-transfer-api.onrender.com/"}
 ```
 
 ## Local Hosted-Storage Smoke Test

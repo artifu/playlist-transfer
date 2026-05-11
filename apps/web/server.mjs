@@ -5,7 +5,7 @@ import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const host = process.env.WEB_HOST ?? "127.0.0.1";
-const port = Number(process.env.WEB_PORT ?? "8792");
+const port = Number(process.env.WEB_PORT ?? process.env.PORT ?? "8792");
 const transferApiUrl = new URL(process.env.TRANSFER_API_URL ?? "http://127.0.0.1:8791");
 const publicDir = fileURLToPath(new URL("./public/", import.meta.url));
 
@@ -87,7 +87,7 @@ async function proxyApi(request, response) {
   } catch (error) {
     sendJson(response, 502, {
       error: true,
-      message: "Transfer API did not respond. Start it with npm run dev:transfer-api, then refresh this page.",
+      message: "Transfer API did not respond. Check TRANSFER_API_URL, then refresh this page.",
       detail: error instanceof Error ? error.message : String(error)
     });
   }
