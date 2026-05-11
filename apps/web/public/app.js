@@ -60,6 +60,10 @@ function artworkHtml(source, size = "small") {
   return `<img class="artwork ${esc(size)}" src="${esc(url)}" alt="" loading="lazy" />`;
 }
 
+function applePillHtml() {
+  return `<span class="service-pill apple" aria-label="Apple Music"><span aria-hidden="true">♪</span></span>`;
+}
+
 function appleMusicPlaylistUrl(playlistId) {
   return `https://music.apple.com/library/playlist/${encodeURIComponent(String(playlistId || ""))}`;
 }
@@ -399,7 +403,7 @@ function renderPreview(data) {
     <div class="route-card">
       <span class="service-pill spotify">S</span>
       <span class="eyebrow">to</span>
-      <span class="service-pill apple">AM</span>
+      ${applePillHtml()}
       <div class="route-copy">Will create a new Apple Music playlist after review.</div>
     </div>
     ${sourceNote(data)}
@@ -532,7 +536,7 @@ function renderSuccess(data, createdApplePlaylistId) {
     <div class="success-hero">
       <div class="success-badge">Transfer complete</div>
       <h2 class="success-title">${esc(data.playlist.name)}</h2>
-      <div class="success-subtitle"><span class="service-pill apple">AM</span> Now in your Apple Music library</div>
+      <div class="success-subtitle">${applePillHtml()} Now in your Apple Music library</div>
     </div>
     <div class="metric-grid">
       <div class="metric-card ready"><div class="metric-label">Transferred</div><div class="metric-value">${data.summary.confidentMatchCount}</div></div>
@@ -548,7 +552,7 @@ function renderSuccess(data, createdApplePlaylistId) {
     </div>
     <div class="trust-note">Only ready tracks were added. Open Apple Music to see the new playlist in your library.</div>
     <a class="button-link" href="${esc(appleMusicPlaylistUrl(createdApplePlaylistId))}" target="_blank" rel="noopener noreferrer">
-      <span class="service-pill apple">AM</span> Open in Apple Music
+      ${applePillHtml()} Open in Apple Music
     </a>
   `;
 }

@@ -4,7 +4,12 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>PlaylistTransfer</title>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <meta name="application-name" content="PlaylistTransfer" />
+  <meta name="apple-mobile-web-app-title" content="PlaylistTransfer" />
+  <meta name="theme-color" content="#fffaf0" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" sizes="any" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+  <link rel="manifest" href="/site.webmanifest" />
   <link rel="stylesheet" href="/styles.css" />
   <script src="https://js-cdn.music.apple.com/musickit/v3/musickit.js" defer></script>
 </head>
@@ -15,7 +20,7 @@
         <img src="/favicon.svg" alt="" class="brand-mark" />
         <div>
           <p class="eyebrow">Spotify to Apple Music</p>
-          <h1>PlaylistTransfer</h1>
+          <h1 class="brand-title"><span>Playlist</span><span>Transfer</span></h1>
         </div>
       </div>
 
@@ -48,7 +53,7 @@
 
       <section class="apple-card" id="apple-card" aria-live="polite">
         <div class="apple-card-head">
-          <span class="service-pill apple">AM</span>
+          <span class="service-pill apple" aria-label="Apple Music"><span aria-hidden="true">♪</span></span>
           <div>
             <strong>Apple Music</strong>
             <p id="apple-state">Checking connection...</p>

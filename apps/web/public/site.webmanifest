@@ -1,0 +1,16 @@
+{
+  "name": "PlaylistTransfer",
+  "short_name": "PlaylistTransfer",
+  "description": "Move public Spotify playlists into Apple Music after reviewing matches.",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "64x64",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "display": "standalone",
+  "background_color": "#fffaf0",
+  "theme_color": "#fffaf0"
+}

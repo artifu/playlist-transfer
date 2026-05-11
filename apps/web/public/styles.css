@@ -68,8 +68,12 @@ button:disabled {
 
 .brand-lockup {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 14px;
+}
+
+.brand-lockup > div {
+  min-width: 0;
 }
 
 .brand-mark {
@@ -101,13 +105,17 @@ p {
   margin-top: 0;
 }
 
-h1 {
+.brand-title {
   margin-bottom: 0;
   font-family: var(--display);
-  font-size: clamp(2.2rem, 5vw, 4.9rem);
+  font-size: clamp(2.9rem, 4.3vw, 4.2rem);
   font-style: italic;
-  line-height: 0.88;
+  line-height: 0.82;
   letter-spacing: -0.055em;
+}
+
+.brand-title span {
+  display: block;
 }
 
 .hero-copy {
@@ -183,6 +191,10 @@ h1 {
 
 .service-pill.apple {
   background: linear-gradient(145deg, #ff2d55, #ff9eb0);
+  font-family: var(--display);
+  font-size: 1.05rem;
+  font-style: italic;
+  letter-spacing: 0;
 }
 
 .select-card select {
