@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: playlist-transfer-api
+    runtime: node
+    plan: free
+    branch: main
+    autoDeploy: true
+    buildCommand: npm install
+    startCommand: node --disable-warning=ExperimentalWarning apps/transfer-api/server.mjs
+    healthCheckPath: /health
+    envVars:
+      - key: TRANSFER_API_HOST
+        value: 0.0.0.0
+      - key: TRANSFER_API_STORAGE_DRIVER
+        value: supabase-rest
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_TRANSFERS_TABLE
+        value: transfers
+      - key: APPLE_MUSIC_DEVELOPER_TOKEN
+        sync: false
+      - key: APPLE_MUSIC_STOREFRONT
+        value: us
+      - key: TRANSFER_API_TRANSFER_RETENTION_DAYS
+        value: 7
+      - key: TRANSFER_API_CLEANUP_INTERVAL_MS
+        value: 3600000
+      - key: TRANSFER_API_RATE_LIMIT_WINDOW_MS
+        value: 60000
+      - key: TRANSFER_API_RATE_LIMIT_MAX
+        value: 240

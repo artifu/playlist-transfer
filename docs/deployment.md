@@ -24,7 +24,22 @@ Important: the service role key is a backend secret. Never ship it in the web ap
 
 ## Render API Setup
 
-Create a Render Web Service connected to the GitHub repo.
+The repo includes [render.yaml](/Users/arthur_t_m/Documents/PlaylistTransfer/render.yaml), so the preferred path is a Render Blueprint.
+
+1. In Render, create a new Blueprint from the GitHub repository.
+2. Render should detect `render.yaml` at the repo root.
+3. Fill the secret env vars that are marked `sync: false`.
+4. Deploy the `playlist-transfer-api` service.
+
+The Blueprint uses:
+
+```yaml
+buildCommand: npm install
+startCommand: node --disable-warning=ExperimentalWarning apps/transfer-api/server.mjs
+healthCheckPath: /health
+```
+
+If creating the service manually instead of using the Blueprint, use these values.
 
 Build command:
 
@@ -57,6 +72,20 @@ TRANSFER_API_RATE_LIMIT_MAX=240
 ```
 
 The API reads Render's `PORT` automatically. Set `TRANSFER_API_PORT` only if a host requires a custom port override.
+
+## Render Smoke Test
+
+After deploy:
+
+```bash
+curl https://your-render-service.onrender.com/health
+```
+
+Expected response:
+
+```json
+{"ok":true}
+```
 
 ## Local Hosted-Storage Smoke Test
 

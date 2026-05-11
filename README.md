@@ -40,10 +40,20 @@ What exists today:
 
 What does not exist yet:
 
-- production backend
 - React Native mobile app
 - billing, ads, or polished UI
 - full retry and manual-correction flows
+
+## Deployable API
+
+The app-ready API lives in `apps/transfer-api` and includes a Render Blueprint at `render.yaml`.
+
+For the first hosted MVP, use:
+
+- Render Web Service for the Node API.
+- Supabase Postgres through the `supabase-rest` storage adapter.
+
+See [docs/deployment.md](./docs/deployment.md) for setup steps, Supabase schema, Render settings, and required environment variables.
 
 ## Technical spike
 
@@ -161,6 +171,7 @@ If a future mobile app introduces ads, app-store packaging, or paid tiers, this 
 - [docs/backend-preview.md](./docs/backend-preview.md): local backend and browser preview for Spotify playlist contents
 - [docs/mvp-test-checklist.md](./docs/mvp-test-checklist.md): repeatable MVP demo and regression checklist
 - [docs/public-link-ingestion.md](./docs/public-link-ingestion.md): investigation into reading public Spotify playlist links without OAuth
+- [docs/deployment.md](./docs/deployment.md): hosted API setup with Render and Supabase
 
 ## Product principles
 
@@ -184,8 +195,8 @@ Key validation areas:
 
 1. Prove the end-to-end transfer on real playlists.
 2. Improve match confidence and reporting quality.
-3. Promote the spike modules into a lightweight backend.
-4. Build the mobile app on top of the validated flow.
+3. Deploy the lightweight backend.
+4. Build the mobile app on top of the hosted API.
 
 ## Contributing
 
