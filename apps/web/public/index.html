@@ -29,23 +29,16 @@
       </p>
 
       <form id="transfer-form" class="transfer-form">
-        <label class="input-card" for="playlist-input">
+        <div class="input-card">
           <span class="service-pill spotify">S</span>
-          <span class="input-label">Spotify playlist URL</span>
-          <input id="playlist-input" name="playlist" type="url" inputmode="url" placeholder="https://open.spotify.com/playlist/..." autocomplete="off" />
-        </label>
-
-        <label class="select-card" for="analysis-limit">
-          <span class="select-label">Analysis size</span>
-          <select id="analysis-limit">
-            <option value="50">Fast sample: first 50 tracks</option>
-            <option value="150">Medium pass: first 150 tracks</option>
-            <option value="500">Full public playlist, up to 500 tracks</option>
-          </select>
-        </label>
+          <label class="input-label" for="playlist-input">Spotify playlist URL</label>
+          <div class="input-row">
+            <input id="playlist-input" name="playlist" type="url" inputmode="url" placeholder="https://open.spotify.com/playlist/..." autocomplete="off" />
+            <button class="inline-preview-action" id="preview-button" type="button" aria-label="Preview public playlist">→</button>
+          </div>
+        </div>
 
         <div class="action-stack">
-          <button class="primary-action" id="preview-button" type="button">Preview public link</button>
           <button class="secondary-action" id="analyze-button" type="button" disabled>Analyze matches</button>
           <button class="create-action" id="create-button" type="button" disabled>Create Apple Music playlist</button>
         </div>
@@ -61,6 +54,16 @@
         </div>
         <button id="connect-apple" type="button" class="soft-action">Connect Apple Music</button>
       </section>
+
+      <label class="select-card analysis-scope-card" for="analysis-limit">
+        <span class="select-label">Transfer scope</span>
+        <select id="analysis-limit">
+          <option value="500">Full playlist (up to 500 tracks)</option>
+          <option value="150">Faster review: first 150 tracks</option>
+          <option value="50">Quick test: first 50 tracks</option>
+        </select>
+        <span class="select-hint">Create transfers ready tracks from this analyzed scope only.</span>
+      </label>
 
       <section class="progress-card" id="progress-card" hidden>
         <div class="progress-head">

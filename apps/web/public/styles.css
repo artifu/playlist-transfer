@@ -155,8 +155,15 @@ p {
   align-items: center;
 }
 
-.input-card input {
+.input-row {
   grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 48px;
+  gap: 10px;
+  align-items: center;
+}
+
+.input-row input {
   width: 100%;
   border: 0;
   outline: 0;
@@ -166,7 +173,7 @@ p {
   font-size: 0.95rem;
 }
 
-.input-card input::placeholder {
+.input-row input::placeholder {
   color: #a29ca0;
 }
 
@@ -207,6 +214,17 @@ p {
   font-weight: 800;
 }
 
+.select-hint {
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+
+.analysis-scope-card {
+  margin-top: 18px;
+  background: rgba(255, 253, 247, 0.84);
+}
+
 .action-stack {
   display: grid;
   gap: 12px;
@@ -215,6 +233,7 @@ p {
 .primary-action,
 .secondary-action,
 .create-action,
+.inline-preview-action,
 .soft-action,
 .mini-action,
 .button-link {
@@ -229,6 +248,16 @@ p {
 .primary-action {
   color: #fff;
   background: #090909;
+}
+
+.inline-preview-action {
+  min-height: 48px;
+  width: 48px;
+  padding: 0;
+  color: #fff;
+  background: #090909;
+  font-size: 1.45rem;
+  line-height: 1;
 }
 
 .secondary-action {
@@ -470,6 +499,10 @@ p {
   gap: 12px;
   padding: 12px;
   margin: 24px 0;
+}
+
+.metric-grid.success-metrics {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .metric-card {

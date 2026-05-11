@@ -345,7 +345,7 @@ function sourceNote(data) {
 
 function partialNote(data) {
   if (!data.playlist?.partialAnalysis) return "";
-  return `<div class="trust-note warn">Fast sample mode analyzed ${esc(data.playlist.analyzedTrackCount)} of ${esc(data.playlist.originalTotalItems)} readable tracks.</div>`;
+  return `<div class="trust-note warn">This report analyzed ${esc(data.playlist.analyzedTrackCount)} of ${esc(data.playlist.originalTotalItems)} readable tracks. Create will only transfer ready tracks from this analyzed scope.</div>`;
 }
 
 function rowsNote(total, rendered) {
@@ -508,7 +508,7 @@ function renderAnalysis(data) {
   const ready = renderedItems.filter((item) => item.status === "matched");
   const readyRate = data.items.length === 0 ? 0 : data.summary.confidentMatchCount / data.items.length;
   const transferNote = data.summary.confidentMatchCount > 0
-    ? `<div class="trust-note">Create will transfer ${data.summary.confidentMatchCount} ready tracks. Review and missing tracks stay out unless you approve them first.</div>`
+    ? `<div class="trust-note">Create will transfer ${data.summary.confidentMatchCount} ready tracks from this report. Review and missing tracks stay out unless you approve them first.</div>`
     : `<div class="trust-note warn">No tracks are ready yet. Approve suggested review rows or try another playlist before creating.</div>`;
 
   results.className = "screen";
@@ -538,11 +538,10 @@ function renderSuccess(data, createdApplePlaylistId) {
       <h2 class="success-title">${esc(data.playlist.name)}</h2>
       <div class="success-subtitle">${applePillHtml()} Now in your Apple Music library</div>
     </div>
-    <div class="metric-grid">
+    <div class="metric-grid success-metrics">
       <div class="metric-card ready"><div class="metric-label">Transferred</div><div class="metric-value">${data.summary.confidentMatchCount}</div></div>
       <div class="metric-card review"><div class="metric-label">Review left</div><div class="metric-value">${data.summary.needsReviewCount}</div></div>
       <div class="metric-card missing"><div class="metric-label">Not moved</div><div class="metric-value">${notTransferred}</div></div>
-      <div class="metric-card"><div class="metric-label">Apple ID</div><div class="metric-value mono">${esc(createdApplePlaylistId)}</div></div>
     </div>
     <div class="receipt-card">
       <div class="receipt-line"><span>Tracks transferred</span><strong>${data.summary.confidentMatchCount}</strong></div>
@@ -550,7 +549,7 @@ function renderSuccess(data, createdApplePlaylistId) {
       <div class="receipt-line"><span>Missing or skipped</span><strong>${data.summary.unmatchedCount}</strong></div>
       <div class="receipt-line"><span>Destination</span><strong>Apple Music</strong></div>
     </div>
-    <div class="trust-note">Only ready tracks were added. Open Apple Music to see the new playlist in your library.</div>
+    <div class="trust-note">Only ready tracks from the analyzed report were added. Open Apple Music to see the new playlist in your library.</div>
     <a class="button-link" href="${esc(appleMusicPlaylistUrl(createdApplePlaylistId))}" target="_blank" rel="noopener noreferrer">
       ${applePillHtml()} Open in Apple Music
     </a>
