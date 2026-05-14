@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Privacy - PlaylistTransfer</title>
+  <meta name="theme-color" content="#fffaf0" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" sizes="any" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <main class="legal-page">
+    <a class="legal-back" href="/">&larr; Back to PlaylistTransfer</a>
+    <article class="legal-document">
+      <p class="eyebrow">Privacy Policy</p>
+      <h1>PlaylistTransfer Privacy Policy</h1>
+      <p class="legal-updated">Last updated: May 14, 2026</p>
+
+      <h2>What this app does</h2>
+      <p>PlaylistTransfer reads a public Spotify playlist link, previews the tracks, searches Apple Music for matches, and creates an Apple Music playlist only after you authorize Apple Music access.</p>
+
+      <h2>Information we process</h2>
+      <p>We process the Spotify playlist URL you submit, public playlist metadata, track metadata, match results, review decisions, an anonymous browser session id, and Apple Music authorization needed to create the destination playlist.</p>
+
+      <h2>Apple Music access</h2>
+      <p>Apple Music access is requested only when you create a playlist. The current MVP sends the Music User Token to the backend for the create flow and keeps it in runtime session memory rather than storing it in the database.</p>
+
+      <h2>Storage and retention</h2>
+      <p>Transfer reports may be stored temporarily so you can refresh and continue a review. The hosted MVP is configured for short-lived anonymous transfer storage, currently intended for about seven days.</p>
+
+      <h2>Third-party services</h2>
+      <p>The app depends on Spotify public playlist surfaces, Apple Music/MusicKit, Render hosting, and Supabase storage. Those services may process requests according to their own policies.</p>
+
+      <h2>What we do not do</h2>
+      <p>We do not sell personal data. We do not ask for Spotify login in the current MVP. We do not intentionally store your Apple Music user token long term.</p>
+
+      <h2>Contact</h2>
+      <p>For questions, open an issue or contact the project owner through the <a href="https://github.com/artifu/playlist-transfer">PlaylistTransfer GitHub repository</a>.</p>
+    </article>
+  </main>
+</body>
+</html>

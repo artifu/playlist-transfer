@@ -26,7 +26,13 @@ function sendJson(response, statusCode, payload) {
 }
 
 function safePublicPath(pathname) {
-  const requestedPath = decodeURIComponent(pathname === "/" ? "/index.html" : pathname);
+  const cleanPathname = pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
+  const routedPathname = new Map([
+    ["/", "/index.html"],
+    ["/privacy", "/privacy.html"],
+    ["/terms", "/terms.html"]
+  ]).get(cleanPathname) ?? cleanPathname;
+  const requestedPath = decodeURIComponent(routedPathname);
   const normalizedPath = normalize(requestedPath).replace(/^(\.\.[/\\])+/, "");
   return join(publicDir, normalizedPath);
 }

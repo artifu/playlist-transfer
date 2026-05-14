@@ -70,6 +70,21 @@ function appleMusicPlaylistUrl(playlistId) {
   return `https://music.apple.com/library/playlist/${encodeURIComponent(String(playlistId || ""))}`;
 }
 
+function destinationPlaylistName(data) {
+  return `${data.playlist?.name || "Playlist"} (Transferred from Spotify)`;
+}
+
+function analyzedScopeText(data) {
+  const analyzed = data.playlist?.analyzedTrackCount || data.items?.length || data.summary?.matchedCount || 0;
+  const original = data.playlist?.originalTotalItems;
+
+  if (data.playlist?.partialAnalysis && original) {
+    return `${analyzed} of ${original} readable tracks`;
+  }
+
+  return `${analyzed} readable tracks`;
+}
+
 function renderStartState({ hasInput = false } = {}) {
   results.className = "result-empty";
   results.innerHTML = hasInput
@@ -556,6 +571,8 @@ function renderAnalysis(data) {
 
 function renderSuccess(data, createdApplePlaylistId) {
   const notTransferred = data.summary.needsReviewCount + data.summary.unmatchedCount;
+  const destinationName = destinationPlaylistName(data);
+  const scope = analyzedScopeText(data);
   results.className = "screen";
   results.innerHTML = `
     <div class="success-hero">
@@ -569,15 +586,20 @@ function renderSuccess(data, createdApplePlaylistId) {
       <div class="metric-card missing"><div class="metric-label">Not moved</div><div class="metric-value">${notTransferred}</div></div>
     </div>
     <div class="receipt-card">
+      <div class="receipt-line"><span>Playlist created</span><strong>${esc(destinationName)}</strong></div>
+      <div class="receipt-line"><span>Analyzed scope</span><strong>${esc(scope)}</strong></div>
       <div class="receipt-line"><span>Tracks transferred</span><strong>${data.summary.confidentMatchCount}</strong></div>
       <div class="receipt-line"><span>Still needs review</span><strong>${data.summary.needsReviewCount}</strong></div>
       <div class="receipt-line"><span>Missing or skipped</span><strong>${data.summary.unmatchedCount}</strong></div>
       <div class="receipt-line"><span>Destination</span><strong>Apple Music</strong></div>
     </div>
     <div class="trust-note">Only ready tracks from the analyzed report were added. Open Apple Music to see the new playlist in your library.</div>
-    <a class="button-link" href="${esc(appleMusicPlaylistUrl(createdApplePlaylistId))}" target="_blank" rel="noopener noreferrer">
-      ${applePillHtml()} Open in Apple Music
-    </a>
+    <div class="button-row">
+      <a class="button-link" href="${esc(appleMusicPlaylistUrl(createdApplePlaylistId))}" target="_blank" rel="noopener noreferrer">
+        ${applePillHtml()} Open in Apple Music
+      </a>
+      <button class="soft-action" type="button" data-start-over="true">Transfer another playlist</button>
+    </div>
   `;
 }
 
@@ -776,6 +798,21 @@ async function restoreStoredTransfer() {
   }
 }
 
+function startAnotherTransfer() {
+  input.value = "";
+  state.preview = null;
+  state.previewInput = null;
+  state.analysis = null;
+  state.analysisInput = null;
+  clearStoredTransfer();
+  fallbackGuide.hidden = true;
+  resetProgress();
+  renderStartState();
+  setStatus("Paste a playlist link to begin.");
+  refreshActions();
+  input.focus();
+}
+
 async function initialize() {
   await loadAppleSession();
   await restoreStoredTransfer();
@@ -807,6 +844,12 @@ createButton.addEventListener("click", createPlaylist);
 connectAppleButton.addEventListener("click", connectAppleMusic);
 
 results.addEventListener("click", async (event) => {
+  const startOver = event.target instanceof Element ? event.target.closest("[data-start-over]") : null;
+  if (startOver) {
+    startAnotherTransfer();
+    return;
+  }
+
   const target = event.target instanceof Element ? event.target.closest("[data-review-action]") : null;
   if (!target) return;
 

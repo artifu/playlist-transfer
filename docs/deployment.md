@@ -1,6 +1,6 @@
 # Deployment Notes
 
-Last reviewed: 2026-05-11
+Last reviewed: 2026-05-14
 
 This project should not require a heavy local database install. Local development can keep using SQLite, while the first hosted MVP can use Supabase REST storage from the Node API.
 
@@ -97,6 +97,32 @@ TRANSFER_API_URL=https://playlist-transfer-api.onrender.com
 ```
 
 The web service reads Render's `PORT` automatically. Set `WEB_PORT` only for a custom local or non-Render host.
+
+## Custom Domain Setup
+
+For testing with Arthur's existing domain, prefer a subdomain such as:
+
+```text
+playlist.arthurmendes.com
+```
+
+This keeps `arthurmendes.com` available for the personal site while giving PlaylistTransfer a real HTTPS origin for Apple Music authorization and tester links.
+
+Recommended setup:
+
+1. In Render, open the `playlist-transfer-web` service.
+2. Go to Settings > Custom Domains.
+3. Add `playlist.arthurmendes.com`.
+4. In the DNS provider for `arthurmendes.com`, add a `CNAME` record:
+
+```text
+Name: playlist
+Value: playlist-transfer-web-esj4.onrender.com
+```
+
+5. Return to Render and verify the domain.
+
+Render automatically provisions TLS certificates for verified custom domains. Remove conflicting `AAAA` records for the same hostname if verification or routing behaves unexpectedly.
 
 ## Render Smoke Test
 

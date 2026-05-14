@@ -53,6 +53,7 @@ For the first hosted MVP, use:
 - Render Web Service for the Node API.
 - Render Web Service for the product web shell.
 - Supabase Postgres through the `supabase-rest` storage adapter.
+- Optional custom domain such as `playlist.arthurmendes.com` for a real public testing origin.
 
 See [docs/deployment.md](./docs/deployment.md) for setup steps, Supabase schema, Render settings, and required environment variables.
 
