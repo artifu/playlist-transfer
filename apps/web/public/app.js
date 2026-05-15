@@ -19,6 +19,7 @@ const toast = document.querySelector("#toast");
 const STORED_TRANSFER_ID_KEY = "playlist-transfer:last-transfer-id";
 const STORED_SESSION_ID_KEY = "playlist-transfer:anonymous-session-id";
 const SESSION_HEADER = "X-PlaylistTransfer-Session";
+const PAGE_STARTED_AT = performance.now();
 
 const state = {
   appleSession: null,
@@ -48,6 +49,10 @@ function duration(ms) {
   return Math.floor(seconds / 60) + ":" + String(seconds % 60).padStart(2, "0");
 }
 
+function elapsedMs(startedAt) {
+  return Math.max(0, Math.round(performance.now() - startedAt));
+}
+
 function percent(value) {
   return typeof value === "number" ? Math.round(value * 100) + "%" : "";
 }
@@ -68,6 +73,24 @@ function applePillHtml() {
 
 function appleMusicPlaylistUrl(playlistId) {
   return `https://music.apple.com/library/playlist/${encodeURIComponent(String(playlistId || ""))}`;
+}
+
+function spotifyPlaylistIdFromValue(value) {
+  const trimmed = String(value || "").trim();
+  const uriMatch = trimmed.match(/^spotify:playlist:([A-Za-z0-9]+)$/);
+  if (uriMatch) return uriMatch[1];
+
+  try {
+    const url = new URL(trimmed);
+    const parts = url.pathname.split("/").filter(Boolean);
+    const playlistIndex = parts.indexOf("playlist");
+    if (playlistIndex >= 0 && parts[playlistIndex + 1]) return parts[playlistIndex + 1];
+  } catch {
+    const looseMatch = trimmed.match(/playlist\/([A-Za-z0-9]+)/);
+    if (looseMatch) return looseMatch[1];
+  }
+
+  return "";
 }
 
 function destinationPlaylistName(data) {
@@ -107,6 +130,56 @@ function showToast(message, kind = "info") {
   toastTimer = window.setTimeout(() => {
     toast.className = `toast ${kind}`;
   }, 2600);
+}
+
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function summaryProperties(data = {}) {
+  return {
+    transferId: data.transferId || data.transfer?.id || state.transferId || "",
+    totalTracks: data.playlist?.originalTotalItems || data.playlist?.totalItems || data.items?.length || data.tracks?.length || 0,
+    readableTracks: data.playlist?.analyzedTrackCount || data.items?.length || data.tracks?.length || 0,
+    withIsrcCount: Array.isArray(data.tracks)
+      ? data.tracks.filter((track) => track.isrc).length
+      : undefined,
+    readyCount: data.summary?.confidentMatchCount,
+    reviewCount: data.summary?.needsReviewCount,
+    missingCount: data.summary?.unmatchedCount,
+    matchRate: data.summary?.matchRate,
+    playlistSource: data.playlist?.source
+  };
+}
+
+function analyticsContext(properties = {}) {
+  return {
+    path: window.location.pathname,
+    host: window.location.host,
+    playlistId: spotifyPlaylistIdFromValue(input.value),
+    analysisLimit: analysisLimit.value,
+    transferId: state.transferId || "",
+    ...properties
+  };
+}
+
+function trackEvent(event, properties = {}) {
+  try {
+    void fetch("/api/events", {
+      method: "POST",
+      cache: "no-store",
+      keepalive: true,
+      headers: sessionHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({
+        event,
+        properties: analyticsContext(properties)
+      })
+    }).catch(() => {
+      // Analytics should never interrupt the transfer flow.
+    });
+  } catch {
+    // Ignore analytics failures; the transfer experience is more important.
+  }
 }
 
 function setStatus(message, kind = "info") {
@@ -287,6 +360,11 @@ async function connectAppleMusic() {
     return false;
   }
 
+  const startedAt = performance.now();
+  trackEvent("apple_connect_started", {
+    hasDeveloperToken: true,
+    appleConnected: hasAppleMusicConnection()
+  });
   setBusy(true, "Opening Apple Music authorization...");
 
   try {
@@ -319,11 +397,23 @@ async function connectAppleMusic() {
     await saveAppleUserToken(resolvedToken);
     setStatus("Apple Music connected. Create can now write the playlist.", "success");
     showToast("Apple Music connected.", "success");
+    trackEvent("apple_connect_succeeded", {
+      durationMs: elapsedMs(startedAt),
+      hasDeveloperToken: true,
+      appleConnected: true
+    });
     return true;
   } catch (error) {
     console.error(error);
-    setStatus(error instanceof Error ? error.message : String(error), "error");
+    setStatus(errorMessage(error), "error");
     showToast("Apple Music was not connected.", "error");
+    trackEvent("apple_connect_failed", {
+      durationMs: elapsedMs(startedAt),
+      errorCategory: "apple_authorization",
+      errorMessage: errorMessage(error),
+      hasDeveloperToken: true,
+      appleConnected: false
+    });
     return false;
   } finally {
     setBusy(false);
@@ -662,6 +752,7 @@ async function updateReviewDecision(index, action, candidateIndex = null) {
   }
 
   setBusy(true, "Saving review decision...");
+  const startedAt = performance.now();
 
   try {
     const data = await apiFetch(
@@ -681,9 +772,24 @@ async function updateReviewDecision(index, action, candidateIndex = null) {
     if (action === "approve") showToast("Track approved.", "success");
     if (action === "skip") showToast("Track skipped.", "info");
     setStatus("Review saved. Refreshing now will keep this transfer.");
+    trackEvent("review_decision_succeeded", {
+      ...summaryProperties(data),
+      durationMs: elapsedMs(startedAt),
+      reviewAction: action,
+      itemIndex: index,
+      candidateIndex
+    });
   } catch (error) {
-    setStatus(error instanceof Error ? error.message : String(error), "error");
+    setStatus(errorMessage(error), "error");
     showToast("Review was not saved.", "error");
+    trackEvent("review_decision_failed", {
+      durationMs: elapsedMs(startedAt),
+      errorCategory: "review_decision",
+      errorMessage: errorMessage(error),
+      reviewAction: action,
+      itemIndex: index,
+      candidateIndex
+    });
   } finally {
     setBusy(false);
   }
@@ -696,6 +802,8 @@ async function previewPlaylist() {
   fallbackGuide.hidden = true;
   resetProgress();
   setBusy(true, "Reading public Spotify link...");
+  const startedAt = performance.now();
+  trackEvent("preview_started");
 
   try {
     const data = await postJson("/api/spotify/public-playlist-preview", { input: value });
@@ -706,14 +814,23 @@ async function previewPlaylist() {
     clearStoredTransfer();
     renderPreview(data);
     setStatus("Playlist loaded. Next: analyze Apple Music matches.");
+    trackEvent("preview_succeeded", {
+      ...summaryProperties(data),
+      durationMs: elapsedMs(startedAt)
+    });
   } catch (error) {
     state.preview = null;
     state.previewInput = null;
     state.analysis = null;
     state.analysisInput = null;
     clearStoredTransfer();
-    setStatus(error instanceof Error ? error.message : String(error), "error");
+    setStatus(errorMessage(error), "error");
     renderError(error, "preview");
+    trackEvent("preview_failed", {
+      durationMs: elapsedMs(startedAt),
+      errorCategory: "spotify_public_preview",
+      errorMessage: errorMessage(error)
+    });
   } finally {
     setBusy(false);
   }
@@ -725,6 +842,8 @@ async function analyzeMatches() {
 
   fallbackGuide.hidden = true;
   setBusy(true, "Matching against Apple Music. Large playlists can take a minute.");
+  const startedAt = performance.now();
+  trackEvent("analysis_started");
 
   try {
     const data = await startJob("/api/transfers/analyze-public-job", {
@@ -734,9 +853,18 @@ async function analyzeMatches() {
     adoptAnalysis(data);
     renderAnalysis(data);
     setStatus("Analysis complete and saved. Refreshing now will keep this transfer.");
+    trackEvent("analysis_succeeded", {
+      ...summaryProperties(data),
+      durationMs: elapsedMs(startedAt)
+    });
   } catch (error) {
-    setStatus(error instanceof Error ? error.message : String(error), "error");
+    setStatus(errorMessage(error), "error");
     renderError(error, "analysis");
+    trackEvent("analysis_failed", {
+      durationMs: elapsedMs(startedAt),
+      errorCategory: "apple_music_match",
+      errorMessage: errorMessage(error)
+    });
   } finally {
     setBusy(false);
   }
@@ -745,9 +873,21 @@ async function analyzeMatches() {
 async function createPlaylist() {
   const value = input.value.trim();
   if (!value || !state.analysis) return;
+  const startedAt = performance.now();
+  trackEvent("transfer_create_started", {
+    ...summaryProperties(state.analysis),
+    appleConnected: hasAppleMusicConnection()
+  });
 
   if (!(await ensureAppleMusicForCreate())) {
     setStatus("Apple Music connection skipped. Nothing was created.");
+    trackEvent("transfer_create_failed", {
+      ...summaryProperties(state.analysis),
+      durationMs: elapsedMs(startedAt),
+      errorCategory: "apple_music_not_connected",
+      errorMessage: "Apple Music connection skipped.",
+      appleConnected: false
+    });
     return;
   }
 
@@ -767,9 +907,21 @@ async function createPlaylist() {
     renderSuccess(data, data.createdApplePlaylistId);
     setStatus("Transfer complete.");
     showToast("Playlist created.", "success");
+    trackEvent("transfer_create_succeeded", {
+      ...summaryProperties(data),
+      durationMs: elapsedMs(startedAt),
+      appleConnected: true
+    });
   } catch (error) {
-    setStatus(error instanceof Error ? error.message : String(error), "error");
+    setStatus(errorMessage(error), "error");
     renderError(error, "create");
+    trackEvent("transfer_create_failed", {
+      ...summaryProperties(state.analysis),
+      durationMs: elapsedMs(startedAt),
+      errorCategory: "apple_music_create",
+      errorMessage: errorMessage(error),
+      appleConnected: hasAppleMusicConnection()
+    });
   } finally {
     setBusy(false);
   }
@@ -816,6 +968,11 @@ function startAnotherTransfer() {
 async function initialize() {
   await loadAppleSession();
   await restoreStoredTransfer();
+  trackEvent("page_view", {
+    durationMs: elapsedMs(PAGE_STARTED_AT),
+    hasDeveloperToken: hasDeveloperToken(),
+    appleConnected: hasAppleMusicConnection()
+  });
   refreshActions();
 }
 

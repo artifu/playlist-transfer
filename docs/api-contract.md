@@ -1,6 +1,6 @@
 # App API Contract
 
-Last reviewed: 2026-05-10
+Last reviewed: 2026-05-15
 
 This is the first app-facing contract between `apps/web`, the future mobile app, and `apps/transfer-api`.
 
@@ -20,6 +20,7 @@ The local web app currently reaches these routes through its same-origin proxy, 
 10. `POST /api/apple-music/user-token`
 11. `POST /api/transfers/:id/create-job`
 12. Poll `GET /api/jobs/:id`
+13. Send safe operational events to `POST /api/events`
 
 ## Anonymous Session
 
@@ -51,6 +52,58 @@ Routes that require it:
 - `POST /api/transfers/:id/create-job`
 
 The public preview route intentionally does not require a session because it does not persist user-owned state.
+
+## Usage Events
+
+### `POST /api/events`
+
+Records safe first-party MVP telemetry in the API logs. This route is used for operational testing and early conversion debugging, not third-party ad tracking.
+
+Request:
+
+```json
+{
+  "event": "preview_succeeded",
+  "properties": {
+    "playlistId": "37i9dQZF1...",
+    "durationMs": 1200,
+    "readableTracks": 50,
+    "withIsrcCount": 50
+  }
+}
+```
+
+The API allowlists event names and property keys, hashes the anonymous session id, redacts long strings and URLs, then emits one JSON log line:
+
+```json
+{
+  "logType": "playlist_transfer_event",
+  "event": "preview_succeeded",
+  "anonymousSession": "f3a1...",
+  "observedAt": "2026-05-15T00:00:00.000Z",
+  "properties": {}
+}
+```
+
+Current event names:
+
+- `page_view`
+- `apple_connect_started`
+- `apple_connect_succeeded`
+- `apple_connect_failed`
+- `preview_started`
+- `preview_succeeded`
+- `preview_failed`
+- `analysis_started`
+- `analysis_succeeded`
+- `analysis_failed`
+- `review_decision_succeeded`
+- `review_decision_failed`
+- `transfer_create_started`
+- `transfer_create_succeeded`
+- `transfer_create_failed`
+
+The client must not send Apple Music user tokens, emails, full Spotify URLs, or authorization payloads.
 
 ## Apple Music Session
 

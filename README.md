@@ -172,6 +172,7 @@ If a future mobile app introduces ads, app-store packaging, or paid tiers, this 
 - [docs/product-next-steps.md](./docs/product-next-steps.md): next product and engineering priorities after validation
 - [docs/backend-preview.md](./docs/backend-preview.md): local backend and browser preview for Spotify playlist contents
 - [docs/mvp-test-checklist.md](./docs/mvp-test-checklist.md): repeatable MVP demo and regression checklist
+- [docs/release-checklist.md](./docs/release-checklist.md): hosted MVP release, smoke-test, and analytics checklist
 - [docs/public-link-ingestion.md](./docs/public-link-ingestion.md): investigation into reading public Spotify playlist links without OAuth
 - [docs/deployment.md](./docs/deployment.md): hosted API setup with Render and Supabase
 

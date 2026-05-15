@@ -2,6 +2,7 @@ import {
   appleMusicSessionPayload,
   handleAppleMusicUserToken
 } from "./apple-session.mjs";
+import { handleUsageEvent } from "./analytics.mjs";
 import {
   handlePlaylistPreview,
   handlePublicPlaylistPreview,
@@ -38,6 +39,11 @@ export function createTransferApiRouter({ host, port, renderHomePage }) {
       return;
     }
 
+    if (method === "POST" && url.pathname === "/api/events") {
+      await handleUsageEvent(sessionIdFromRequest(request), request, response);
+      return;
+    }
+
     if (method === "POST" && url.pathname === "/api/apple-music/user-token") {
       const sessionId = requireSessionId(request, response);
       if (!sessionId) return;
@@ -58,6 +64,7 @@ export function createTransferApiRouter({ host, port, renderHomePage }) {
         endpoints: [
           "GET /health",
           "GET /api/apple-music/session",
+          "POST /api/events",
           "POST /api/apple-music/user-token",
           "GET /api/jobs/:id",
           "GET /api/transfers/:id",

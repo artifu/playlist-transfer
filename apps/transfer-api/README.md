@@ -35,6 +35,7 @@ If you change TypeScript files in `src/`, run `npm run build` before starting th
 - Storage adapter boundary for future hosted database providers.
 - Retention cleanup for anonymous transfer records.
 - Basic in-memory rate limiting by session or IP.
+- Structured first-party MVP analytics logs through `POST /api/events`.
 - Product-friendly JSON errors.
 
 ## Why This Is Separate From The Demo
@@ -73,6 +74,24 @@ SUPABASE_TRANSFERS_TABLE=transfers
 Create the table with [supabase-schema.sql](/Users/arthur_t_m/Documents/PlaylistTransfer/apps/transfer-api/sql/supabase-schema.sql).
 
 This is still local prototype storage. Production should move the same transfer model to a managed database and keep the session ownership boundary.
+
+## Usage Events
+
+The API accepts safe operational events at:
+
+```http
+POST /api/events
+```
+
+Events are written as structured JSON to stdout with `logType: "playlist_transfer_event"` so they are searchable in Render logs. The endpoint hashes the anonymous session id and allowlists event/property names to avoid accidentally logging tokens or full playlist URLs.
+
+Use these logs to validate early funnel health:
+
+- page views
+- Spotify preview success/failure
+- Apple Music analysis success/failure
+- Apple Music authorization success/failure
+- playlist creation success/failure
 
 ## Operational Settings
 

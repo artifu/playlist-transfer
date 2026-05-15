@@ -80,6 +80,21 @@ Current local storage keys:
 - `playlist-transfer:anonymous-session-id`
 - `playlist-transfer:last-transfer-id`
 
+## MVP Analytics
+
+The web app sends first-party operational events to `POST /api/events`.
+
+These events are intentionally small and safe:
+
+- page load
+- Apple Music connect success/failure
+- Spotify preview success/failure
+- Apple Music analysis success/failure
+- review decision success/failure
+- playlist creation success/failure
+
+The API writes them as structured JSON lines in the API logs with `logType: "playlist_transfer_event"`. The session id is hashed server-side, and the client sends playlist ids plus aggregate counts instead of full Spotify URLs or Apple Music tokens.
+
 ## Notes
 
 - There is no demo fixture button in this app.
