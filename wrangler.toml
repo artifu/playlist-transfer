@@ -1,0 +1,6 @@
+name = "playlist-transfer-web"
+compatibility_date = "2026-05-15"
+pages_build_output_dir = "apps/web/public"
+
+[vars]
+TRANSFER_API_URL = "https://playlist-transfer-api.onrender.com"

@@ -38,7 +38,22 @@ TRANSFER_API_URL=http://127.0.0.1:8791 npm run dev:web
 
 ## Deploy
 
-The web app can be deployed as a small Node service because [server.mjs](/Users/arthur_t_m/Documents/PlaylistTransfer/apps/web/server.mjs) serves static files and proxies API requests.
+Preferred production deploy is Cloudflare Pages:
+
+```text
+Build command: none
+Build output directory: apps/web/public
+```
+
+Set:
+
+```bash
+TRANSFER_API_URL=https://playlist-transfer-api.onrender.com
+```
+
+The repo-level `functions/api/[[path]].js` file proxies same-origin `/api/*` requests to the Transfer API, and `apps/web/public/_routes.json` keeps Cloudflare Functions limited to `/api/*` and `/health` so ordinary page views stay fully static.
+
+Render can still run the web app as a Node fallback because [server.mjs](/Users/arthur_t_m/Documents/PlaylistTransfer/apps/web/server.mjs) serves static files and proxies API requests.
 
 On Render, use:
 
@@ -95,6 +110,10 @@ These events are intentionally small and safe:
 The API writes them as structured JSON lines in the API logs with `logType: "playlist_transfer_event"`. The session id is hashed server-side, and the client sends playlist ids plus aggregate counts instead of full Spotify URLs or Apple Music tokens.
 
 The public page intentionally does not call the API on initial load. This keeps casual visits, SEO crawls, and social-preview traffic from waking the hosted API. The API wakes only after a user starts a transfer action or restores an existing transfer.
+
+## Sponsor Slot
+
+The page includes a lightweight sponsor placeholder. It is intentionally static for now: no third-party ad script loads before we have privacy copy, approval, and performance guardrails in place.
 
 ## Notes
 

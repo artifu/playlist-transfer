@@ -35,6 +35,8 @@ A better blend is:
 
 ## Ads strategy
 
+The MVP web page currently ships with a static sponsor placeholder rather than a third-party ad network script. This keeps the first public tests fast and privacy-light while preserving the layout space for future revenue.
+
 Good places for ads:
 
 - after successful transfer

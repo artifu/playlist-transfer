@@ -7,7 +7,7 @@ This project should not require a heavy local database install. Local developmen
 ## Recommended First Hosted Stack
 
 - Render Web Service for `apps/transfer-api`.
-- Render Web Service for `apps/web`.
+- Cloudflare Pages for the static web shell in `apps/web/public`.
 - Supabase Postgres for transfer persistence.
 - Local web shell can keep proxying to the hosted API while we test.
 
@@ -77,7 +77,50 @@ TRANSFER_API_RATE_LIMIT_MAX=240
 
 The API reads Render's `PORT` automatically. Set `TRANSFER_API_PORT` only if a host requires a custom port override.
 
+## Cloudflare Pages Web Setup
+
+Cloudflare Pages is the preferred host for the public web shell because it serves static files from the edge without waking a Node web service for every page hit.
+
+The repo includes:
+
+- [wrangler.toml](/Users/arthur_t_m/Documents/PlaylistTransfer/wrangler.toml) with the Pages output directory.
+- [functions/api/[[path]].js](/Users/arthur_t_m/Documents/PlaylistTransfer/functions/api/[[path]].js), a same-origin `/api/*` proxy to the Render API.
+- [functions/health.js](/Users/arthur_t_m/Documents/PlaylistTransfer/functions/health.js), a Pages health endpoint.
+- [apps/web/public/_routes.json](/Users/arthur_t_m/Documents/PlaylistTransfer/apps/web/public/_routes.json), which ensures only `/api/*` and `/health` invoke Functions.
+- [apps/web/public/_redirects](/Users/arthur_t_m/Documents/PlaylistTransfer/apps/web/public/_redirects), which maps `/privacy` and `/terms` to static HTML files.
+- [apps/web/public/_headers](/Users/arthur_t_m/Documents/PlaylistTransfer/apps/web/public/_headers), which adds lightweight security and cache headers.
+
+Create the Cloudflare Pages project from GitHub with these settings:
+
+```text
+Project name: playlist-transfer-web
+Production branch: main
+Build command: none
+Build output directory: apps/web/public
+Root directory: /
+```
+
+Set this Pages environment variable:
+
+```bash
+TRANSFER_API_URL=https://playlist-transfer-api.onrender.com
+```
+
+Then configure `playlist.arthurmendes.com` as the Pages custom domain. Because `arthurmendes.com` already uses Cloudflare DNS, Cloudflare can manage this hostname directly. Remove or replace the old Render `CNAME` for `playlist` when switching traffic.
+
+After deploy, smoke test:
+
+```bash
+curl https://playlist.arthurmendes.com/health
+curl https://playlist.arthurmendes.com/privacy
+curl https://playlist.arthurmendes.com/api/events
+```
+
+The `/api/events` request should return a method or payload error from the Render API, proving that the Pages proxy is reaching the backend without exposing backend secrets to the browser.
+
 ## Render Web Setup
+
+Render can still host `apps/web` as a fallback or staging service.
 
 The web service is intentionally small: it serves `apps/web/public` and proxies `/api/*` requests to `TRANSFER_API_URL`.
 
@@ -108,7 +151,7 @@ playlist.arthurmendes.com
 
 This keeps `arthurmendes.com` available for the personal site while giving PlaylistTransfer a real HTTPS origin for Apple Music authorization and tester links.
 
-Recommended setup:
+Render setup:
 
 1. In Render, open the `playlist-transfer-web` service.
 2. Go to Settings > Custom Domains.
@@ -124,6 +167,8 @@ Value: playlist-transfer-web-esj4.onrender.com
 
 Render automatically provisions TLS certificates for verified custom domains. Remove conflicting `AAAA` records for the same hostname if verification or routing behaves unexpectedly.
 
+When Cloudflare Pages becomes the production web host, move `playlist.arthurmendes.com` from the Render web service to the Pages project instead. Keep the Render API service and `playlist-transfer-api.onrender.com` unchanged.
+
 ## Traffic And Cold-Start Strategy
 
 The web app should stay cheap to load even if a social post, crawler, or SEO experiment sends traffic to the landing page.
@@ -136,11 +181,11 @@ Current mitigation:
 - Product analytics events are emitted only after transfer-flow actions.
 - A lightweight sponsor slot exists in the UI, but no third-party ad script is loaded yet.
 
-Recommended next hosting step:
+Current hosting direction:
 
 - Move `apps/web/public` to Cloudflare Pages for static hosting.
 - Keep `apps/transfer-api` on Render for the transfer engine until traffic justifies either a paid no-spin-down API host or a Cloudflare-native rewrite.
-- If the web moves to Cloudflare Pages, add either a tiny Cloudflare Worker/Pages Function proxy for `/api/*` or add CORS support to the Transfer API.
+- Use the included Cloudflare Pages Function proxy for `/api/*` so the browser can keep using same-origin API calls.
 
 This split lets casual page traffic hit Cloudflare's static edge instead of waking the Render API. The API still wakes when a user actually previews, analyzes, or creates a transfer.
 

@@ -7,11 +7,12 @@ Use this checklist before sharing a public PlaylistTransfer link with testers, r
 ## Hosted Services
 
 - Render API service is live at `https://playlist-transfer-api.onrender.com`.
-- Render web service is live at `https://playlist-transfer-web-esj4.onrender.com`.
-- Custom domain is live at `https://playlist.arthurmendes.com`.
+- Cloudflare Pages web service is live for `https://playlist.arthurmendes.com`.
+- Render web service at `https://playlist-transfer-web-esj4.onrender.com` remains available as fallback until we remove it.
 - `/health` returns `{"ok":true}` for the API.
-- `/health` on the web service returns the expected `transferApiUrl`.
+- `/health` on the Cloudflare Pages site returns `host: "cloudflare-pages"` and the expected `transferApiUrl`.
 - `/privacy` and `/terms` load from the custom domain.
+- `/api/*` calls on the Cloudflare Pages site proxy to the Render API.
 
 ## Backend Environment
 
@@ -27,10 +28,11 @@ Use this checklist before sharing a public PlaylistTransfer link with testers, r
 
 ## Web Environment
 
-- `WEB_HOST=0.0.0.0`
-- `TRANSFER_API_URL=https://playlist-transfer-api.onrender.com`
-- Render custom domain points to the web service.
-- Cloudflare DNS record for `playlist` is `DNS only` while Render manages TLS.
+- Cloudflare Pages has `TRANSFER_API_URL=https://playlist-transfer-api.onrender.com`.
+- Cloudflare Pages build output directory is `apps/web/public`.
+- Cloudflare Pages Functions are active only for `/api/*` and `/health`.
+- `playlist.arthurmendes.com` points to the Cloudflare Pages project.
+- Render web env remains optional fallback only: `WEB_HOST=0.0.0.0` and `TRANSFER_API_URL=https://playlist-transfer-api.onrender.com`.
 
 ## Apple Music
 
@@ -89,4 +91,5 @@ The web page should not wake the API on initial load. Open the page in a fresh b
 - Apple Music matching is best-effort and storefront-sensitive.
 - Anonymous sessions are not user accounts.
 - Render free instances can spin down and make the first request slow.
+- Cloudflare Pages avoids web-page cold starts, but the Render API can still cold start on the first real transfer action.
 - The current analytics layer is operational telemetry for MVP testing, not a full product analytics warehouse.
