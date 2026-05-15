@@ -124,6 +124,28 @@ Value: playlist-transfer-web-esj4.onrender.com
 
 Render automatically provisions TLS certificates for verified custom domains. Remove conflicting `AAAA` records for the same hostname if verification or routing behaves unexpectedly.
 
+## Traffic And Cold-Start Strategy
+
+The web app should stay cheap to load even if a social post, crawler, or SEO experiment sends traffic to the landing page.
+
+Current mitigation:
+
+- The public page does not call the Transfer API on initial load.
+- The public page does not load MusicKit until Apple Music authorization is needed.
+- Apple Music session checks are deferred until the user analyzes, connects, creates, or restores an existing transfer.
+- Product analytics events are emitted only after transfer-flow actions.
+- A lightweight sponsor slot exists in the UI, but no third-party ad script is loaded yet.
+
+Recommended next hosting step:
+
+- Move `apps/web/public` to Cloudflare Pages for static hosting.
+- Keep `apps/transfer-api` on Render for the transfer engine until traffic justifies either a paid no-spin-down API host or a Cloudflare-native rewrite.
+- If the web moves to Cloudflare Pages, add either a tiny Cloudflare Worker/Pages Function proxy for `/api/*` or add CORS support to the Transfer API.
+
+This split lets casual page traffic hit Cloudflare's static edge instead of waking the Render API. The API still wakes when a user actually previews, analyzes, or creates a transfer.
+
+Do not move the full API to Cloudflare Workers without a separate migration pass. The current API relies on Node runtime behavior, in-memory jobs, and long-running Apple Music matching work that are not a drop-in fit for Workers.
+
 ## Render Smoke Test
 
 After deploy:

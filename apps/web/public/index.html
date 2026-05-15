@@ -11,7 +11,6 @@
   <link rel="apple-touch-icon" href="/favicon.svg" />
   <link rel="manifest" href="/site.webmanifest" />
   <link rel="stylesheet" href="/styles.css" />
-  <script src="https://js-cdn.music.apple.com/musickit/v3/musickit.js" defer></script>
 </head>
 <body>
   <main class="app-shell">
@@ -49,11 +48,17 @@
           <span class="service-pill apple" aria-label="Apple Music"><span aria-hidden="true">♪</span></span>
           <div>
             <strong>Apple Music</strong>
-            <p id="apple-state">Checking connection...</p>
+            <p id="apple-state">Not connected yet. We will ask only when you create the playlist.</p>
           </div>
         </div>
         <button id="connect-apple" type="button" class="soft-action">Connect Apple Music</button>
       </section>
+
+      <aside class="sponsor-card" aria-label="Sponsor message">
+        <p class="eyebrow">Sponsor spot</p>
+        <strong>Help people switch playlists cleanly.</strong>
+        <p>Reserved for a future ad, affiliate, or direct sponsor placement.</p>
+      </aside>
 
       <label class="select-card analysis-scope-card" for="analysis-limit">
         <span class="select-label">Transfer scope</span>

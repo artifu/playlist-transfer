@@ -87,11 +87,12 @@ Events are written as structured JSON to stdout with `logType: "playlist_transfe
 
 Use these logs to validate early funnel health:
 
-- page views
 - Spotify preview success/failure
 - Apple Music analysis success/failure
 - Apple Music authorization success/failure
 - playlist creation success/failure
+
+The web app intentionally does not emit page-load events by default, so casual visits do not wake the hosted API. Use Cloudflare or hosting-provider analytics for raw page traffic.
 
 ## Operational Settings
 

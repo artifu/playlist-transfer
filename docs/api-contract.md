@@ -20,7 +20,7 @@ The local web app currently reaches these routes through its same-origin proxy, 
 10. `POST /api/apple-music/user-token`
 11. `POST /api/transfers/:id/create-job`
 12. Poll `GET /api/jobs/:id`
-13. Send safe operational events to `POST /api/events`
+13. Send safe operational events to `POST /api/events` after user actions
 
 ## Anonymous Session
 
@@ -59,6 +59,8 @@ The public preview route intentionally does not require a session because it doe
 
 Records safe first-party MVP telemetry in the API logs. This route is used for operational testing and early conversion debugging, not third-party ad tracking.
 
+The web app should avoid calling this route on page load. Casual visits, SEO crawlers, and social previews should not wake the hosted API.
+
 Request:
 
 ```json
@@ -87,7 +89,6 @@ The API allowlists event names and property keys, hashes the anonymous session i
 
 Current event names:
 
-- `page_view`
 - `apple_connect_started`
 - `apple_connect_succeeded`
 - `apple_connect_failed`

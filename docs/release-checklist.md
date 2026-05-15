@@ -67,7 +67,6 @@ playlist_transfer_event
 
 Expected events:
 
-- `page_view`
 - `preview_succeeded` or `preview_failed`
 - `analysis_succeeded` or `analysis_failed`
 - `apple_connect_succeeded` or `apple_connect_failed`
@@ -81,6 +80,8 @@ Each log line is JSON and includes:
 - safe counts such as `readyCount`, `reviewCount`, `missingCount`, and `durationMs`
 
 Do not log Apple Music user tokens, Spotify full URLs, emails, or raw authorization payloads.
+
+The web page should not wake the API on initial load. Open the page in a fresh browser session and confirm no new `playlist_transfer_event` line appears until you click preview, analyze, connect, or create.
 
 ## Known MVP Caveats
 

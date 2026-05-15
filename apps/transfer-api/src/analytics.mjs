@@ -2,7 +2,6 @@ import { createHash } from "node:crypto";
 import { readJsonBody, sendJson } from "./http.mjs";
 
 const ALLOWED_EVENTS = new Set([
-  "page_view",
   "apple_connect_started",
   "apple_connect_succeeded",
   "apple_connect_failed",

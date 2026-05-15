@@ -19,7 +19,6 @@ const toast = document.querySelector("#toast");
 const STORED_TRANSFER_ID_KEY = "playlist-transfer:last-transfer-id";
 const STORED_SESSION_ID_KEY = "playlist-transfer:anonymous-session-id";
 const SESSION_HEADER = "X-PlaylistTransfer-Session";
-const PAGE_STARTED_AT = performance.now();
 
 const state = {
   appleSession: null,
@@ -33,6 +32,7 @@ const state = {
 };
 
 let toastTimer = null;
+let musicKitLoadPromise = null;
 
 function esc(value) {
   return String(value ?? "")
@@ -182,6 +182,22 @@ function trackEvent(event, properties = {}) {
   }
 }
 
+async function loadMusicKitScript() {
+  if (window.MusicKit) return;
+  if (musicKitLoadPromise) return musicKitLoadPromise;
+
+  musicKitLoadPromise = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://js-cdn.music.apple.com/musickit/v3/musickit.js";
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("MusicKit did not load. Refresh the page or try Safari/Chrome."));
+    document.head.append(script);
+  });
+
+  return musicKitLoadPromise;
+}
+
 function setStatus(message, kind = "info") {
   statusLine.textContent = message;
   statusLine.className = kind === "error" ? "status-line error" : "status-line";
@@ -189,6 +205,10 @@ function setStatus(message, kind = "info") {
 
 function hasDeveloperToken() {
   return Boolean(state.appleSession?.hasDeveloperToken);
+}
+
+function appleSessionIsKnown() {
+  return state.appleSession !== null;
 }
 
 function hasAppleMusicConnection() {
@@ -213,14 +233,22 @@ function refreshActions() {
     (state.analysis && state.analysisInput === inputValue)
   );
   previewButton.disabled = state.busy || !hasInput;
-  analyzeButton.disabled = state.busy || !hasPreviewForInput || !hasDeveloperToken();
+  analyzeButton.disabled = state.busy || !hasPreviewForInput || (appleSessionIsKnown() && !hasDeveloperToken());
   analyzeButton.classList.toggle("ready", !analyzeButton.disabled);
   createButton.disabled = state.busy || !canCreate();
-  connectAppleButton.disabled = state.busy || !hasDeveloperToken();
+  connectAppleButton.disabled = state.busy || (appleSessionIsKnown() && !hasDeveloperToken());
 }
 
 function renderAppleSession() {
   const session = state.appleSession;
+
+  if (!session) {
+    appleCard.className = "apple-card";
+    appleState.textContent = "Not connected yet. We will ask only when you create the playlist.";
+    connectAppleButton.textContent = "Connect Apple Music";
+    refreshActions();
+    return;
+  }
 
   if (!session?.hasDeveloperToken) {
     appleCard.className = "apple-card blocked";
@@ -346,6 +374,25 @@ async function loadAppleSession() {
   }
 }
 
+async function ensureAppleSession() {
+  if (!state.appleSession) {
+    await loadAppleSession();
+  }
+
+  return state.appleSession;
+}
+
+async function ensureDeveloperTokenForAnalysis() {
+  await ensureAppleSession();
+
+  if (!hasDeveloperToken()) {
+    setStatus("Apple Music developer token is missing. The API needs Apple credentials before matching.", "error");
+    return false;
+  }
+
+  return true;
+}
+
 async function saveAppleUserToken(userToken) {
   state.appleSession = await postJson("/api/apple-music/user-token", {
     userToken,
@@ -355,6 +402,8 @@ async function saveAppleUserToken(userToken) {
 }
 
 async function connectAppleMusic() {
+  await ensureAppleSession();
+
   if (!state.appleSession?.developerToken) {
     setStatus("Apple Music developer token is missing.", "error");
     return false;
@@ -368,9 +417,7 @@ async function connectAppleMusic() {
   setBusy(true, "Opening Apple Music authorization...");
 
   try {
-    if (!window.MusicKit) {
-      throw new Error("MusicKit did not load. Refresh the page or try Safari/Chrome.");
-    }
+    await loadMusicKitScript();
 
     await MusicKit.configure({
       developerToken: state.appleSession.developerToken,
@@ -421,6 +468,7 @@ async function connectAppleMusic() {
 }
 
 async function ensureAppleMusicForCreate() {
+  await ensureAppleSession();
   if (hasAppleMusicConnection()) return true;
   setStatus("Connect Apple Music to create this playlist in your library.");
   return connectAppleMusic();
@@ -839,6 +887,7 @@ async function previewPlaylist() {
 async function analyzeMatches() {
   const value = input.value.trim();
   if (!value) return;
+  if (!(await ensureDeveloperTokenForAnalysis())) return;
 
   fallbackGuide.hidden = true;
   setBusy(true, "Matching against Apple Music. Large playlists can take a minute.");
@@ -966,13 +1015,8 @@ function startAnotherTransfer() {
 }
 
 async function initialize() {
-  await loadAppleSession();
-  await restoreStoredTransfer();
-  trackEvent("page_view", {
-    durationMs: elapsedMs(PAGE_STARTED_AT),
-    hasDeveloperToken: hasDeveloperToken(),
-    appleConnected: hasAppleMusicConnection()
-  });
+  renderAppleSession();
+  if (readStoredTransferId()) await restoreStoredTransfer();
   refreshActions();
 }
 

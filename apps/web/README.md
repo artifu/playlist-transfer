@@ -86,7 +86,6 @@ The web app sends first-party operational events to `POST /api/events`.
 
 These events are intentionally small and safe:
 
-- page load
 - Apple Music connect success/failure
 - Spotify preview success/failure
 - Apple Music analysis success/failure
@@ -94,6 +93,8 @@ These events are intentionally small and safe:
 - playlist creation success/failure
 
 The API writes them as structured JSON lines in the API logs with `logType: "playlist_transfer_event"`. The session id is hashed server-side, and the client sends playlist ids plus aggregate counts instead of full Spotify URLs or Apple Music tokens.
+
+The public page intentionally does not call the API on initial load. This keeps casual visits, SEO crawls, and social-preview traffic from waking the hosted API. The API wakes only after a user starts a transfer action or restores an existing transfer.
 
 ## Notes
 
