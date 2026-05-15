@@ -4,10 +4,14 @@ Last reviewed: 2026-05-15
 
 Use this checklist before sharing a public PlaylistTransfer link with testers, recruiters, or app-store reviewers.
 
+For the production domain launch sequence, use [playlistxfer-launch-roadmap.md](/Users/arthur_t_m/Documents/PlaylistTransfer/docs/playlistxfer-launch-roadmap.md).
+
 ## Hosted Services
 
 - Render API service is live at `https://playlist-transfer-api.onrender.com`.
-- Cloudflare Pages web service is live for `https://playlist.arthurmendes.com`.
+- Cloudflare Pages web service is live for `https://playlistxfer.com`.
+- `https://www.playlistxfer.com` redirects to `https://playlistxfer.com`.
+- `https://playlist.arthurmendes.com` remains available as staging or fallback.
 - Render web service at `https://playlist-transfer-web-esj4.onrender.com` remains available as fallback until we remove it.
 - `/health` returns `{"ok":true}` for the API.
 - `/health` on the Cloudflare Pages site returns `host: "cloudflare-pages"` and the expected `transferApiUrl`.
@@ -31,7 +35,9 @@ Use this checklist before sharing a public PlaylistTransfer link with testers, r
 - Cloudflare Pages has `TRANSFER_API_URL=https://playlist-transfer-api.onrender.com`.
 - Cloudflare Pages build output directory is `apps/web/public`.
 - Cloudflare Pages Functions are active only for `/api/*` and `/health`.
-- `playlist.arthurmendes.com` points to the Cloudflare Pages project.
+- `playlistxfer.com` points to the Cloudflare Pages project.
+- `www.playlistxfer.com` redirects to the apex domain.
+- `playlist.arthurmendes.com` is staging or fallback, not the production domain.
 - Render web env remains optional fallback only: `WEB_HOST=0.0.0.0` and `TRANSFER_API_URL=https://playlist-transfer-api.onrender.com`.
 
 ## Apple Music
@@ -44,7 +50,7 @@ Use this checklist before sharing a public PlaylistTransfer link with testers, r
 
 ## Product Smoke Test
 
-Run this on `https://playlist.arthurmendes.com`:
+Run this on `https://playlistxfer.com`:
 
 1. Paste a public Spotify playlist URL.
 2. Preview the public playlist.

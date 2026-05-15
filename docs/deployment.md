@@ -81,6 +81,8 @@ The API reads Render's `PORT` automatically. Set `TRANSFER_API_PORT` only if a h
 
 Cloudflare Pages is the preferred host for the public web shell because it serves static files from the edge without waking a Node web service for every page hit.
 
+The production domain plan lives in [playlistxfer-launch-roadmap.md](/Users/arthur_t_m/Documents/PlaylistTransfer/docs/playlistxfer-launch-roadmap.md).
+
 The repo includes:
 
 - [wrangler.toml](/Users/arthur_t_m/Documents/PlaylistTransfer/wrangler.toml) with the Pages output directory.
@@ -106,14 +108,21 @@ Set this Pages environment variable:
 TRANSFER_API_URL=https://playlist-transfer-api.onrender.com
 ```
 
-Then configure `playlist.arthurmendes.com` as the Pages custom domain. Because `arthurmendes.com` already uses Cloudflare DNS, Cloudflare can manage this hostname directly. Remove or replace the old Render `CNAME` for `playlist` when switching traffic.
+Then configure these Pages custom domains:
+
+```text
+playlistxfer.com
+www.playlistxfer.com
+```
+
+Use `playlist.arthurmendes.com` as staging or fallback until production smoke tests pass.
 
 After deploy, smoke test:
 
 ```bash
-curl https://playlist.arthurmendes.com/health
-curl https://playlist.arthurmendes.com/privacy
-curl https://playlist.arthurmendes.com/api/events
+curl https://playlistxfer.com/health
+curl https://playlistxfer.com/privacy
+curl https://playlistxfer.com/api/events
 ```
 
 The `/api/events` request should return a method or payload error from the Render API, proving that the Pages proxy is reaching the backend without exposing backend secrets to the browser.
