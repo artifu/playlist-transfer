@@ -89,7 +89,6 @@ The repo includes:
 - [functions/api/[[path]].js](/Users/arthur_t_m/Documents/PlaylistTransfer/functions/api/[[path]].js), a same-origin `/api/*` proxy to the Render API.
 - [functions/health.js](/Users/arthur_t_m/Documents/PlaylistTransfer/functions/health.js), a Pages health endpoint.
 - [apps/web/public/_routes.json](/Users/arthur_t_m/Documents/PlaylistTransfer/apps/web/public/_routes.json), which ensures only `/api/*` and `/health` invoke Functions.
-- [apps/web/public/_redirects](/Users/arthur_t_m/Documents/PlaylistTransfer/apps/web/public/_redirects), which redirects `www.playlistxfer.com` to the apex domain.
 - [apps/web/public/_headers](/Users/arthur_t_m/Documents/PlaylistTransfer/apps/web/public/_headers), which adds lightweight security and cache headers.
 
 Create the Cloudflare Pages project from GitHub with these settings:
@@ -117,12 +116,23 @@ www.playlistxfer.com
 
 Use `playlist.arthurmendes.com` as staging or fallback until production smoke tests pass.
 
+To redirect `www.playlistxfer.com` to `playlistxfer.com`, use a Cloudflare Redirect Rule at the domain level:
+
+```text
+If incoming requests match: Hostname equals www.playlistxfer.com
+Then: Dynamic redirect
+Expression: concat("https://playlistxfer.com", http.request.uri.path)
+Status code: 301
+Preserve query string: enabled
+```
+
 After deploy, smoke test:
 
 ```bash
 curl https://playlistxfer.com/health
 curl https://playlistxfer.com/privacy
 curl https://playlistxfer.com/api/events
+curl -I https://www.playlistxfer.com/privacy
 ```
 
 The `/api/events` request should return a method or payload error from the Render API, proving that the Pages proxy is reaching the backend without exposing backend secrets to the browser.

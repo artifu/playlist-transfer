@@ -36,7 +36,7 @@ For the production domain launch sequence, use [playlistxfer-launch-roadmap.md](
 - Cloudflare Pages build output directory is `apps/web/public`.
 - Cloudflare Pages Functions are active only for `/api/*` and `/health`.
 - `playlistxfer.com` points to the Cloudflare Pages project.
-- `www.playlistxfer.com` redirects to the apex domain.
+- Cloudflare Redirect Rule sends `www.playlistxfer.com` to the apex domain.
 - `playlist.arthurmendes.com` is staging or fallback, not the production domain.
 - Render web env remains optional fallback only: `WEB_HOST=0.0.0.0` and `TRANSFER_API_URL=https://playlist-transfer-api.onrender.com`.
 

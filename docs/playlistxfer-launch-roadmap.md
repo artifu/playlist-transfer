@@ -30,7 +30,6 @@ The goal is a fast, public, ad-ready web MVP with the static site on Cloudflare 
   - `functions/api/[[path]].js`
   - `functions/health.js`
   - `apps/web/public/_routes.json`
-  - `apps/web/public/_redirects`
   - `apps/web/public/_headers`
 - Cloudflare Pages clean URLs serve `/privacy` from `privacy.html` and `/terms` from `terms.html`.
 - The landing page does not call the API or load MusicKit on initial page load.
@@ -71,6 +70,16 @@ Expected behavior:
 - `/api/*` calls should proxy to the Render API only after user actions.
 
 Keep `playlist.arthurmendes.com` as staging until production smoke tests pass.
+
+Create a Cloudflare Redirect Rule for `www`:
+
+```text
+If incoming requests match: Hostname equals www.playlistxfer.com
+Then: Dynamic redirect
+Expression: concat("https://playlistxfer.com", http.request.uri.path)
+Status code: 301
+Preserve query string: enabled
+```
 
 ## Phase 2 - Apple Music / MusicKit Production Origin
 
