@@ -8,6 +8,7 @@ final class TransferViewModel: ObservableObject {
         case previewReady
         case analyzing
         case analysisReady
+        case createUnavailable
         case failed(String)
     }
 
@@ -29,6 +30,10 @@ final class TransferViewModel: ObservableObject {
 
     var canAnalyze: Bool {
         preview != nil && !isBusy
+    }
+
+    var canCreate: Bool {
+        analysis != nil && !readyItems.isEmpty && !isBusy
     }
 
     var isBusy: Bool {
@@ -74,10 +79,15 @@ final class TransferViewModel: ObservableObject {
         do {
             analysis = try await api.analyzePublicPlaylist(input: input)
             phase = .analysisReady
-            statusMessage = "Match report ready. Review anything fuzzy before creating."
+            statusMessage = "Match report ready. Create from ready tracks when you are comfortable."
         } catch {
             fail(error)
         }
+    }
+
+    func showCreateUnavailable() {
+        phase = .createUnavailable
+        statusMessage = "Native Apple Music creation is the next iOS milestone. The web app can create today; this build validates preview and matching."
     }
 
     func reset() {

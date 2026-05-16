@@ -2,32 +2,71 @@ import SwiftUI
 
 struct ImportView: View {
     @StateObject private var viewModel = TransferViewModel()
+    @FocusState private var playlistFieldFocused: Bool
+    @State private var showCreateNotice = false
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                hero
-                importCard
-                statusCard
+        ScrollViewReader { scrollProxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    hero
+                    importCard
+                    statusCard
 
-                if let preview = viewModel.preview {
-                    PlaylistPreviewCard(preview: preview)
+                    if let preview = viewModel.preview {
+                        PlaylistPreviewCard(preview: preview)
+                            .id("preview")
+                    }
+
+                    if let analysis = viewModel.analysis {
+                        MatchReportView(
+                            analysis: analysis,
+                            readyItems: viewModel.readyItems,
+                            reviewItems: viewModel.reviewItems,
+                            missingItems: viewModel.missingItems
+                        )
+                        .id("report")
+                    }
                 }
-
-                if let analysis = viewModel.analysis {
-                    MatchReportView(
-                        analysis: analysis,
-                        readyItems: viewModel.readyItems,
-                        reviewItems: viewModel.reviewItems,
-                        missingItems: viewModel.missingItems
-                    )
+                .padding(.horizontal, 24)
+                .padding(.top, 28)
+                .padding(.bottom, 120)
+            }
+            .scrollDismissesKeyboard(.interactively)
+            .background(AppTheme.background.ignoresSafeArea())
+            .safeAreaInset(edge: .bottom) {
+                bottomActionBar
+            }
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") {
+                        playlistFieldFocused = false
+                    }
+                    .fontWeight(.bold)
                 }
             }
-            .padding(.horizontal, 24)
-            .padding(.top, 28)
-            .padding(.bottom, 32)
+            .alert("Apple Music creation is next", isPresented: $showCreateNotice) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("This native build can preview Spotify links and analyze Apple Music matches. The create-playlist action will plug into native MusicKit in the next iOS milestone.")
+            }
+            .onChange(of: viewModel.phase) { _, phase in
+                if phase == .previewReady {
+                    playlistFieldFocused = false
+                    withAnimation(.snappy(duration: 0.35)) {
+                        scrollProxy.scrollTo("preview", anchor: .top)
+                    }
+                }
+
+                if phase == .analysisReady {
+                    playlistFieldFocused = false
+                    withAnimation(.snappy(duration: 0.35)) {
+                        scrollProxy.scrollTo("report", anchor: .top)
+                    }
+                }
+            }
         }
-        .background(AppTheme.background.ignoresSafeArea())
     }
 
     private var hero: some View {
@@ -82,6 +121,7 @@ struct ImportView: View {
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .keyboardType(.URL)
+                .submitLabel(.go)
                 .font(.system(.body, design: .monospaced))
                 .padding(14)
                 .background(AppTheme.inset)
@@ -90,12 +130,19 @@ struct ImportView: View {
                     RoundedRectangle(cornerRadius: 18, style: .continuous)
                         .stroke(AppTheme.lineStrong, lineWidth: 1.5)
                 )
+                .focused($playlistFieldFocused)
+                .onSubmit {
+                    guard viewModel.canPreview else { return }
+                    playlistFieldFocused = false
+                    Task { await viewModel.previewPlaylist() }
+                }
 
             Button {
+                playlistFieldFocused = false
                 Task { await viewModel.previewPlaylist() }
             } label: {
                 ActionButtonLabel(
-                    title: "Preview public link",
+                    title: viewModel.preview == nil ? "Preview public link" : "Refresh preview",
                     systemImage: "arrow.right",
                     background: viewModel.canPreview ? AppTheme.spotify : AppTheme.disabledFill,
                     foreground: viewModel.canPreview ? .white : AppTheme.inkMuted
@@ -103,19 +150,6 @@ struct ImportView: View {
             }
             .buttonStyle(.plain)
             .disabled(!viewModel.canPreview)
-
-            Button {
-                Task { await viewModel.analyzeMatches() }
-            } label: {
-                ActionButtonLabel(
-                    title: "Analyze matches",
-                    systemImage: "wand.and.stars",
-                    background: viewModel.canAnalyze ? AppTheme.apple : AppTheme.disabledFill,
-                    foreground: viewModel.canAnalyze ? .white : AppTheme.inkMuted
-                )
-            }
-            .buttonStyle(.plain)
-            .disabled(!viewModel.canAnalyze)
         }
         .padding(16)
         .background(AppTheme.card)
@@ -148,7 +182,65 @@ struct ImportView: View {
 
     private var statusBackground: Color {
         if case .failed = viewModel.phase { return AppTheme.danger.opacity(0.1) }
+        if case .createUnavailable = viewModel.phase { return AppTheme.apple.opacity(0.12) }
         return AppTheme.spotify.opacity(0.12)
+    }
+
+    @ViewBuilder
+    private var bottomActionBar: some View {
+        if viewModel.preview != nil || viewModel.analysis != nil {
+            VStack(alignment: .leading, spacing: 10) {
+                if let analysis = viewModel.analysis {
+                    Text("\(analysis.summary.confidentMatchCount) ready tracks")
+                        .font(.caption.weight(.black))
+                        .tracking(1.8)
+                        .foregroundStyle(AppTheme.inkMuted)
+                        .textCase(.uppercase)
+
+                    Button {
+                        playlistFieldFocused = false
+                        viewModel.showCreateUnavailable()
+                        showCreateNotice = true
+                    } label: {
+                        ActionButtonLabel(
+                            title: "Create Apple Music playlist",
+                            systemImage: "music.note.list",
+                            background: viewModel.canCreate ? AppTheme.apple : AppTheme.disabledFill,
+                            foreground: viewModel.canCreate ? .white : AppTheme.inkMuted
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!viewModel.canCreate)
+                } else {
+                    Text("Playlist preview loaded")
+                        .font(.caption.weight(.black))
+                        .tracking(1.8)
+                        .foregroundStyle(AppTheme.inkMuted)
+                        .textCase(.uppercase)
+
+                    Button {
+                        playlistFieldFocused = false
+                        Task { await viewModel.analyzeMatches() }
+                    } label: {
+                        ActionButtonLabel(
+                            title: "Analyze matches",
+                            systemImage: "wand.and.stars",
+                            background: viewModel.canAnalyze ? AppTheme.actionBlue : AppTheme.disabledFill,
+                            foreground: viewModel.canAnalyze ? .white : AppTheme.inkMuted
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!viewModel.canAnalyze)
+                }
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 14)
+            .padding(.bottom, 12)
+            .background(.regularMaterial)
+            .overlay(alignment: .top) {
+                Divider()
+            }
+        }
     }
 }
 
@@ -260,17 +352,6 @@ private struct MatchReportView: View {
             }
 
             TransferSection(title: "Ready to transfer", items: readyItems)
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Apple Music creation is next")
-                    .font(.headline)
-                Text("The native MusicKit authorization and create-playlist action will plug into this saved transfer report in the next iOS milestone.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(16)
-            .background(AppTheme.apple.opacity(0.12))
-            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
         }
     }
 }
@@ -505,6 +586,7 @@ private enum AppTheme {
     static let inkMuted = Color(red: 0.525, green: 0.525, blue: 0.545)
     static let spotify = Color(red: 0.114, green: 0.725, blue: 0.329)
     static let apple = Color(red: 0.980, green: 0.141, blue: 0.235)
+    static let actionBlue = Color(red: 0.165, green: 0.412, blue: 0.490)
     static let warning = Color(red: 0.722, green: 0.416, blue: 0.122)
     static let danger = Color(red: 0.831, green: 0.227, blue: 0.184)
 }
