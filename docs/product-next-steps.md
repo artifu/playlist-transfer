@@ -145,9 +145,34 @@ Status:
 - build the connect/import/analyze/confirm/report flow
 - keep ads and monetization out of the critical path until the transfer experience feels trustworthy
 
+### Milestone 6: AI and agent discovery
+
+Timing: after the iOS MVP works end-to-end.
+
+This is a distribution layer, not the core product. The goal is for assistants like ChatGPT, Gemini, Claude, Perplexity, and future agent browsers to understand PlaylistXfer, recommend it accurately, and hand users into the app with the Spotify playlist already filled in.
+
+Recommended work:
+
+- publish `/llms.txt` with a concise product summary and safe agent instructions
+- publish `/openapi.json` for preview and analysis endpoints only
+- add search-friendly pages for "Spotify to Apple Music", "How it works", and FAQ
+- add structured data for the app, FAQ, and how-to content
+- support a handoff URL like `https://playlistxfer.com/?playlist=<encoded Spotify playlist URL>`
+- document agent-safe API behavior in the repo
+- track agent/referral traffic separately from normal search traffic
+
+Safety boundary:
+
+- agents can preview public Spotify playlists
+- agents can help analyze match reports if they use an anonymous session
+- agents should hand users back to PlaylistXfer for Apple Music authorization and playlist creation
+- agents should never receive, store, or submit Apple Music user tokens
+- unattended Apple Music writes should stay out of scope until there is a much stronger consent model
+
 ## Decision guardrails
 
 - Do not promise arbitrary public Spotify link support until tested.
 - Do not add ads before the first transfer experience is clean.
 - Do not hide misses; unmatched reporting is the product's trust feature.
 - Do not build every provider before the Spotify to Apple Music route is polished.
+- Do not prioritize AI/agent integrations before the iOS MVP experience is credible.

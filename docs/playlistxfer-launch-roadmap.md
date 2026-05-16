@@ -1,6 +1,6 @@
 # PlaylistXfer Launch Roadmap
 
-Last reviewed: 2026-05-15
+Last reviewed: 2026-05-16
 
 This is the production launch runbook for moving the current PlaylistTransfer MVP to:
 
@@ -162,6 +162,8 @@ Product flow:
 
 Owner: Codex + Arthur
 
+Priority: after the iOS MVP unless the web page starts receiving meaningful organic traffic first.
+
 Before requesting AdSense approval, add trust/content pages so the site is not just a thin utility shell:
 
 - `About`
@@ -176,6 +178,80 @@ Then, after AdSense gives the publisher id and `ads.txt` line:
 - Add the AdSense verification/snippet carefully.
 - Keep the first page load lightweight.
 - Place the first ad/sponsor unit away from auth, progress, and the match report.
+
+## Phase 6 - Post-iOS AI and Agent Discovery
+
+Owner: Codex + Arthur
+
+Priority: after the iOS MVP app is working end-to-end.
+
+This phase is intentionally deferred. The opportunity is real: users may ask ChatGPT, Gemini, Claude, Perplexity, or other agents how to move Spotify playlists into Apple Music. PlaylistXfer should be easy for those systems to understand, cite, and hand off to.
+
+The product rule:
+
+- Agents may help users understand, preview, and analyze a public Spotify playlist.
+- Agents should not create Apple Music playlists unattended.
+- Final Apple Music creation should happen in the PlaylistXfer browser/app experience, where the user can review matches and authorize Apple Music directly.
+
+Recommended public assets:
+
+- `/llms.txt`: short agent-readable summary, canonical links, safe usage rules, and API notes.
+- `/openapi.json`: OpenAPI description for agent-safe read/analysis endpoints.
+- `/spotify-to-apple-music`: search-friendly transfer guide.
+- `/how-it-works`: trust-focused explanation of preview, match review, and late Apple authorization.
+- `/faq`: FAQ with structured data.
+- JSON-LD on the main page for `SoftwareApplication`.
+- JSON-LD on FAQ/guide pages for `FAQPage` and `HowTo`.
+
+Recommended agent-safe API surface:
+
+```text
+GET /health
+POST /api/spotify/public-playlist-preview
+POST /api/transfers/analyze-public-job
+GET /api/jobs/{jobId}
+```
+
+Do not expose these as public agent actions until there is an explicit consent design:
+
+```text
+POST /api/apple-music/user-token
+POST /api/transfers/create-public-job
+PATCH /api/transfers/:id/items/:index
+```
+
+Recommended handoff URL:
+
+```text
+https://playlistxfer.com/?playlist=<encoded Spotify playlist URL>
+```
+
+Expected agent behavior:
+
+1. User asks an assistant how to transfer a Spotify playlist to Apple Music.
+2. Assistant recommends PlaylistXfer and explains that creation requires user consent.
+3. If the user provides a playlist link, assistant may preview or analyze using safe API endpoints.
+4. Assistant sends the user to a prefilled PlaylistXfer URL.
+5. User reviews matches, approves any fuzzy rows, connects Apple Music, and creates the playlist.
+
+Validation checklist:
+
+- `/llms.txt` is reachable and concise.
+- `/openapi.json` validates as OpenAPI.
+- The OpenAPI file does not expose Apple Music write endpoints.
+- The handoff URL pre-fills the playlist box without auto-starting API work.
+- The landing page still does not wake the API on initial load.
+- Search snippets and agent summaries describe the product accurately.
+- Logs can identify agent referrals without storing sensitive playlist or Apple user-token data.
+
+Success metrics:
+
+- Visits from known AI/chat referrers.
+- Visits with a prefilled playlist URL.
+- Preview starts from prefilled URLs.
+- Analyze starts from prefilled URLs.
+- Completed transfers from agent referrals.
+- Support tickets caused by incorrect agent instructions.
 
 ## Rollback Plan
 
