@@ -32,6 +32,7 @@ The goal is a fast, public, ad-ready web MVP with the static site on Cloudflare 
   - `apps/web/public/_routes.json`
   - `apps/web/public/_redirects`
   - `apps/web/public/_headers`
+- Cloudflare Pages clean URLs serve `/privacy` from `privacy.html` and `/terms` from `terms.html`.
 - The landing page does not call the API or load MusicKit on initial page load.
 - A static sponsor placeholder exists without loading a third-party ad script.
 

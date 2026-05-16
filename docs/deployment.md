@@ -89,7 +89,7 @@ The repo includes:
 - [functions/api/[[path]].js](/Users/arthur_t_m/Documents/PlaylistTransfer/functions/api/[[path]].js), a same-origin `/api/*` proxy to the Render API.
 - [functions/health.js](/Users/arthur_t_m/Documents/PlaylistTransfer/functions/health.js), a Pages health endpoint.
 - [apps/web/public/_routes.json](/Users/arthur_t_m/Documents/PlaylistTransfer/apps/web/public/_routes.json), which ensures only `/api/*` and `/health` invoke Functions.
-- [apps/web/public/_redirects](/Users/arthur_t_m/Documents/PlaylistTransfer/apps/web/public/_redirects), which maps `/privacy` and `/terms` to static HTML files.
+- [apps/web/public/_redirects](/Users/arthur_t_m/Documents/PlaylistTransfer/apps/web/public/_redirects), which redirects `www.playlistxfer.com` to the apex domain.
 - [apps/web/public/_headers](/Users/arthur_t_m/Documents/PlaylistTransfer/apps/web/public/_headers), which adds lightweight security and cache headers.
 
 Create the Cloudflare Pages project from GitHub with these settings:
