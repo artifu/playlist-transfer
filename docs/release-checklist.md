@@ -2,7 +2,7 @@
 
 Last reviewed: 2026-05-15
 
-Use this checklist before sharing a public PlaylistTransfer link with testers, recruiters, or app-store reviewers.
+Use this checklist before sharing a public PlaylistXfer link with testers, recruiters, or app-store reviewers.
 
 For the production domain launch sequence, use [playlistxfer-launch-roadmap.md](/Users/arthur_t_m/Documents/PlaylistTransfer/docs/playlistxfer-launch-roadmap.md).
 
@@ -17,6 +17,7 @@ For the production domain launch sequence, use [playlistxfer-launch-roadmap.md](
 - `/health` on the Cloudflare Pages site returns `host: "cloudflare-pages"` and the expected `transferApiUrl`.
 - `/privacy` and `/terms` load from the custom domain.
 - `/api/*` calls on the Cloudflare Pages site proxy to the Render API.
+- `/robots.txt` and `/sitemap.xml` load from the custom domain.
 
 ## Backend Environment
 
@@ -43,7 +44,7 @@ For the production domain launch sequence, use [playlistxfer-launch-roadmap.md](
 ## Apple Music
 
 - MusicKit identifier is configured for the public web origin.
-- Apple Music authorization popup shows the PlaylistTransfer app icon/name.
+- Apple Music authorization popup shows the PlaylistXfer app icon/name and `playlistxfer.com`.
 - User authorization is requested only when creating the Apple Music playlist.
 - Denying Apple Music authorization does not create a playlist.
 - Retrying create after authorization succeeds.

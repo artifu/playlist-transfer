@@ -1,6 +1,6 @@
-# PlaylistTransfer
+# PlaylistTransfer / PlaylistXfer
 
-PlaylistTransfer is a music migration product focused on helping users move playlists between streaming services without losing visibility into what did and did not transfer.
+PlaylistTransfer is the open technical foundation behind PlaylistXfer, a music migration product focused on helping users move playlists between streaming services without losing visibility into what did and did not transfer.
 
 It is also being developed as an open, inspectable reference implementation so other builders can understand, reproduce, or adapt the transfer flow by hand.
 
@@ -21,7 +21,7 @@ Most transfer tools fail in one of three ways:
 - they hide or poorly explain failed matches
 - they feel untrustworthy at the exact moment a user must grant account access
 
-PlaylistTransfer is built around a simpler promise:
+PlaylistXfer is built around a simpler promise:
 
 > Move your playlist in minutes and see exactly what did not make it over.
 
@@ -53,7 +53,7 @@ For the first hosted MVP, use:
 - Render Web Service for the Node API.
 - Cloudflare Pages for the product web shell.
 - Supabase Postgres through the `supabase-rest` storage adapter.
-- Optional custom domain such as `playlist.arthurmendes.com` for a real public testing origin.
+- Production domain `playlistxfer.com`, with `playlist.arthurmendes.com` available as staging or fallback.
 
 See [docs/deployment.md](./docs/deployment.md) for setup steps, Supabase schema, Render API settings, Cloudflare Pages settings, and required environment variables.
 

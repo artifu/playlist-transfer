@@ -111,6 +111,8 @@ Validation:
 
 Owner: Codex
 
+Status: implemented in the web shell.
+
 Update the web app and docs for the production brand:
 
 - Page title: `PlaylistXfer - Transfer Spotify playlists to Apple Music`
@@ -120,7 +122,7 @@ Update the web app and docs for the production brand:
 - Web manifest name and short name.
 - Privacy and terms pages with the production domain and brand name.
 - README and deployment docs with `playlistxfer.com` as production and `playlist.arthurmendes.com` as staging.
-- Optional `robots.txt` and `sitemap.xml`.
+- `robots.txt` and `sitemap.xml`.
 
 Do not add AdSense scripts in this phase unless the AdSense account/site approval flow is ready.
 

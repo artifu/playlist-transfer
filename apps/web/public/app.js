@@ -422,7 +422,7 @@ async function connectAppleMusic() {
     await MusicKit.configure({
       developerToken: state.appleSession.developerToken,
       app: {
-        name: "PlaylistTransfer",
+        name: "PlaylistXfer",
         build: "web-mvp"
       },
       storefrontId: state.appleSession.storefront || "us",

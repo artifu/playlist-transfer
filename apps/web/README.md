@@ -1,6 +1,6 @@
-# PlaylistTransfer Web
+# PlaylistXfer Web
 
-This is the clean product web shell for PlaylistTransfer.
+This is the clean product web shell for PlaylistXfer.
 
 It intentionally lives outside the local demo:
 
@@ -49,6 +49,12 @@ Set:
 
 ```bash
 TRANSFER_API_URL=https://playlist-transfer-api.onrender.com
+```
+
+Production domain:
+
+```text
+https://playlistxfer.com
 ```
 
 The repo-level `functions/api/[[path]].js` file proxies same-origin `/api/*` requests to the Transfer API, and `apps/web/public/_routes.json` keeps Cloudflare Functions limited to `/api/*` and `/health` so ordinary page views stay fully static.
