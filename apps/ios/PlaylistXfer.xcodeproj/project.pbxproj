@@ -14,6 +14,7 @@
 		A10000000000000000000005 /* TransferViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000005 /* TransferViewModel.swift */; };
 		A10000000000000000000006 /* ImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000006 /* ImportView.swift */; };
 		A10000000000000000000007 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000007 /* Assets.xcassets */; };
+		A10000000000000000000008 /* AppleMusicLibraryWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000009 /* AppleMusicLibraryWriter.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -25,6 +26,8 @@
 		B10000000000000000000006 /* ImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportView.swift; sourceTree = "<group>"; };
 		B10000000000000000000007 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B10000000000000000000008 /* PlaylistXfer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PlaylistXfer.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B10000000000000000000009 /* AppleMusicLibraryWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleMusicLibraryWriter.swift; sourceTree = "<group>"; };
+		B10000000000000000000010 /* PlaylistXfer.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PlaylistXfer.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -51,8 +54,10 @@
 			children = (
 				B10000000000000000000001 /* PlaylistXferApp.swift */,
 				B10000000000000000000002 /* AppConfig.swift */,
+				B10000000000000000000010 /* PlaylistXfer.entitlements */,
 				D10000000000000000000003 /* Models */,
 				D10000000000000000000004 /* Networking */,
+				D10000000000000000000008 /* Services */,
 				D10000000000000000000005 /* ViewModels */,
 				D10000000000000000000006 /* Views */,
 				B10000000000000000000007 /* Assets.xcassets */,
@@ -98,6 +103,14 @@
 				B10000000000000000000008 /* PlaylistXfer.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		D10000000000000000000008 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				B10000000000000000000009 /* AppleMusicLibraryWriter.swift */,
+			);
+			path = Services;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -174,6 +187,7 @@
 				A10000000000000000000003 /* TransferModels.swift in Sources */,
 				A10000000000000000000004 /* TransferAPIClient.swift in Sources */,
 				A10000000000000000000005 /* TransferViewModel.swift in Sources */,
+				A10000000000000000000008 /* AppleMusicLibraryWriter.swift in Sources */,
 				A10000000000000000000006 /* ImportView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -300,6 +314,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = PlaylistXfer/PlaylistXfer.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
@@ -307,6 +322,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = PlaylistXfer;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "PlaylistXfer needs Apple Music access to create transferred playlists in your library.";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -327,6 +343,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = PlaylistXfer/PlaylistXfer.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
@@ -334,6 +351,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = PlaylistXfer;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "PlaylistXfer needs Apple Music access to create transferred playlists in your library.";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";

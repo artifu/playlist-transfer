@@ -1,9 +1,9 @@
 import SwiftUI
 
 struct ImportView: View {
+    @Environment(\.openURL) private var openURL
     @StateObject private var viewModel = TransferViewModel()
     @FocusState private var playlistFieldFocused: Bool
-    @State private var showCreateNotice = false
 
     var body: some View {
         ScrollViewReader { scrollProxy in
@@ -45,11 +45,6 @@ struct ImportView: View {
                     }
                     .fontWeight(.bold)
                 }
-            }
-            .alert("Apple Music creation is next", isPresented: $showCreateNotice) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text("This native build can preview Spotify links and analyze Apple Music matches. The create-playlist action will plug into native MusicKit in the next iOS milestone.")
             }
             .onChange(of: viewModel.phase) { _, phase in
                 if phase == .previewReady {
@@ -177,12 +172,13 @@ struct ImportView: View {
 
     private var statusColor: Color {
         if case .failed = viewModel.phase { return AppTheme.danger }
+        if case .created = viewModel.phase { return AppTheme.spotify }
         return AppTheme.ink
     }
 
     private var statusBackground: Color {
         if case .failed = viewModel.phase { return AppTheme.danger.opacity(0.1) }
-        if case .createUnavailable = viewModel.phase { return AppTheme.apple.opacity(0.12) }
+        if case .created = viewModel.phase { return AppTheme.spotify.opacity(0.12) }
         return AppTheme.spotify.opacity(0.12)
     }
 
@@ -190,7 +186,28 @@ struct ImportView: View {
     private var bottomActionBar: some View {
         if viewModel.preview != nil || viewModel.analysis != nil {
             VStack(alignment: .leading, spacing: 10) {
-                if let analysis = viewModel.analysis {
+                if let createdPlaylist = viewModel.createdPlaylist {
+                    Text("\(createdPlaylist.trackCount) tracks transferred")
+                        .font(.caption.weight(.black))
+                        .tracking(1.8)
+                        .foregroundStyle(AppTheme.inkMuted)
+                        .textCase(.uppercase)
+
+                    Button {
+                        if let url = createdPlaylist.url {
+                            openURL(url)
+                        }
+                    } label: {
+                        ActionButtonLabel(
+                            title: "Open in Apple Music",
+                            systemImage: "music.note",
+                            background: createdPlaylist.url == nil ? AppTheme.disabledFill : AppTheme.spotify,
+                            foreground: createdPlaylist.url == nil ? AppTheme.inkMuted : .white
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(createdPlaylist.url == nil)
+                } else if let analysis = viewModel.analysis {
                     Text("\(analysis.summary.confidentMatchCount) ready tracks")
                         .font(.caption.weight(.black))
                         .tracking(1.8)
@@ -199,11 +216,10 @@ struct ImportView: View {
 
                     Button {
                         playlistFieldFocused = false
-                        viewModel.showCreateUnavailable()
-                        showCreateNotice = true
+                        Task { await viewModel.createAppleMusicPlaylist() }
                     } label: {
                         ActionButtonLabel(
-                            title: "Create Apple Music playlist",
+                            title: viewModel.isBusy ? "Creating playlist..." : "Create Apple Music playlist",
                             systemImage: "music.note.list",
                             background: viewModel.canCreate ? AppTheme.apple : AppTheme.disabledFill,
                             foreground: viewModel.canCreate ? .white : AppTheme.inkMuted

@@ -8,7 +8,8 @@ final class TransferViewModel: ObservableObject {
         case previewReady
         case analyzing
         case analysisReady
-        case createUnavailable
+        case creating
+        case created
         case failed(String)
     }
 
@@ -16,12 +17,18 @@ final class TransferViewModel: ObservableObject {
     @Published private(set) var phase: Phase = .idle
     @Published private(set) var preview: PlaylistPreviewResponse?
     @Published private(set) var analysis: TransferAnalysis?
+    @Published private(set) var createdPlaylist: CreatedAppleMusicPlaylist?
     @Published private(set) var statusMessage = "Paste a public Spotify playlist link to begin."
 
     private let api: TransferAPIClient
+    private let appleMusic: AppleMusicLibraryWriter
 
-    init(api: TransferAPIClient = TransferAPIClient()) {
+    init(
+        api: TransferAPIClient = TransferAPIClient(),
+        appleMusic: AppleMusicLibraryWriter = AppleMusicLibraryWriter()
+    ) {
         self.api = api
+        self.appleMusic = appleMusic
     }
 
     var canPreview: Bool {
@@ -33,11 +40,11 @@ final class TransferViewModel: ObservableObject {
     }
 
     var canCreate: Bool {
-        analysis != nil && !readyItems.isEmpty && !isBusy
+        analysis != nil && !readyItems.isEmpty && createdPlaylist == nil && !isBusy
     }
 
     var isBusy: Bool {
-        phase == .previewing || phase == .analyzing
+        phase == .previewing || phase == .analyzing || phase == .creating
     }
 
     var readyItems: [TransferItem] {
@@ -59,6 +66,7 @@ final class TransferViewModel: ObservableObject {
         phase = .previewing
         statusMessage = "Reading public Spotify playlist..."
         analysis = nil
+        createdPlaylist = nil
 
         do {
             preview = try await api.previewPublicPlaylist(input: input)
@@ -75,6 +83,7 @@ final class TransferViewModel: ObservableObject {
 
         phase = .analyzing
         statusMessage = "Matching this playlist against Apple Music..."
+        createdPlaylist = nil
 
         do {
             analysis = try await api.analyzePublicPlaylist(input: input)
@@ -85,14 +94,26 @@ final class TransferViewModel: ObservableObject {
         }
     }
 
-    func showCreateUnavailable() {
-        phase = .createUnavailable
-        statusMessage = "Native Apple Music creation is the next iOS milestone. The web app can create today; this build validates preview and matching."
+    func createAppleMusicPlaylist() async {
+        guard let analysis, canCreate else { return }
+
+        phase = .creating
+        statusMessage = "Asking Apple Music for access and preparing the ready tracks..."
+
+        do {
+            let playlist = try await appleMusic.createPlaylist(from: analysis)
+            createdPlaylist = playlist
+            phase = .created
+            statusMessage = "Created \(playlist.name) with \(playlist.trackCount) ready tracks."
+        } catch {
+            fail(error)
+        }
     }
 
     func reset() {
         preview = nil
         analysis = nil
+        createdPlaylist = nil
         phase = .idle
         statusMessage = "Paste a public Spotify playlist link to begin."
     }
