@@ -37,10 +37,11 @@ What exists today:
 - report generation for matched and unmatched tracks
 - an open repository structure meant to be easy to inspect and replicate
 - a local mobile-first MVP preview with public Spotify import, Apple Music matching, review decisions, late Apple Music authorization, and playlist creation
+- a native iOS MVP shell with Spotify public preview and Apple Music match analysis
 
 What does not exist yet:
 
-- React Native mobile app
+- native Apple Music creation inside the iOS app
 - billing, ads, or polished UI
 - full retry and manual-correction flows
 
@@ -162,6 +163,7 @@ If a future mobile app introduces ads, app-store packaging, or paid tiers, this 
 
 - [docs/product-prd.md](./docs/product-prd.md): product goals, MVP scope, and user flow
 - [docs/architecture.md](./docs/architecture.md): recommended system shape for the future app
+- [docs/ios-mvp-architecture.md](./docs/ios-mvp-architecture.md): native iOS MVP architecture and MusicKit plan
 - [docs/api-feasibility.md](./docs/api-feasibility.md): API feasibility notes and external constraints
 - [docs/roadmap.md](./docs/roadmap.md): phased execution plan
 - [docs/monetization.md](./docs/monetization.md): monetization options and constraints
