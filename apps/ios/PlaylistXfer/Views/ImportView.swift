@@ -4,52 +4,68 @@ struct ImportView: View {
     @StateObject private var viewModel = TransferViewModel()
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    hero
-                    importCard
-                    statusCard
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                hero
+                importCard
+                statusCard
 
-                    if let preview = viewModel.preview {
-                        PlaylistPreviewCard(preview: preview)
-                    }
-
-                    if let analysis = viewModel.analysis {
-                        MatchReportView(
-                            analysis: analysis,
-                            readyItems: viewModel.readyItems,
-                            reviewItems: viewModel.reviewItems,
-                            missingItems: viewModel.missingItems
-                        )
-                    }
+                if let preview = viewModel.preview {
+                    PlaylistPreviewCard(preview: preview)
                 }
-                .padding(20)
+
+                if let analysis = viewModel.analysis {
+                    MatchReportView(
+                        analysis: analysis,
+                        readyItems: viewModel.readyItems,
+                        reviewItems: viewModel.reviewItems,
+                        missingItems: viewModel.missingItems
+                    )
+                }
             }
-            .background(AppTheme.background.ignoresSafeArea())
-            .navigationTitle("PlaylistXfer")
-            .navigationBarTitleDisplayMode(.inline)
+            .padding(.horizontal, 24)
+            .padding(.top, 28)
+            .padding(.bottom, 32)
         }
+        .background(AppTheme.background.ignoresSafeArea())
     }
 
     private var hero: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Spotify to Apple Music")
-                .font(.caption)
-                .fontWeight(.heavy)
-                .tracking(2)
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
+        VStack(alignment: .leading, spacing: 22) {
+            HStack {
+                HStack(spacing: 9) {
+                    BrandMark(size: 30)
+                    Text("PlaylistXfer")
+                        .font(.caption)
+                        .fontWeight(.black)
+                        .tracking(1.8)
+                        .foregroundStyle(AppTheme.inkMuted)
+                        .textCase(.uppercase)
+                }
 
-            Text("Move playlists without blind guessing.")
-                .font(.system(size: 44, weight: .black, design: .serif))
+                Spacer()
+
+                HStack(spacing: 7) {
+                    Circle()
+                        .fill(AppTheme.spotify)
+                        .frame(width: 7, height: 7)
+                    Text("Public link MVP")
+                        .font(.caption2.monospaced().weight(.bold))
+                        .foregroundStyle(AppTheme.inkMuted)
+                        .textCase(.uppercase)
+                }
+            }
+
+            Text("Drop a link.\nWe'll do the digging.")
+                .font(.system(size: 42, weight: .black, design: .serif))
                 .italic()
+                .foregroundStyle(AppTheme.ink)
                 .lineLimit(nil)
-                .minimumScaleFactor(0.72)
+                .minimumScaleFactor(0.76)
 
-            Text("Preview the Spotify link first, build an Apple Music match report, then create only after review.")
+            Text("Move public Spotify playlists into Apple Music. We preview first, match every track, and show what will not make it over.")
                 .font(.body)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppTheme.inkSoft)
         }
     }
 
@@ -68,38 +84,47 @@ struct ImportView: View {
                 .keyboardType(.URL)
                 .font(.system(.body, design: .monospaced))
                 .padding(14)
-                .background(Color.white)
+                .background(AppTheme.inset)
                 .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .stroke(.black.opacity(0.18), lineWidth: 1)
+                        .stroke(AppTheme.lineStrong, lineWidth: 1.5)
                 )
 
             Button {
                 Task { await viewModel.previewPlaylist() }
             } label: {
-                ActionButtonLabel(title: "Preview public link", systemImage: "arrow.right")
+                ActionButtonLabel(
+                    title: "Preview public link",
+                    systemImage: "arrow.right",
+                    background: viewModel.canPreview ? AppTheme.spotify : AppTheme.disabledFill,
+                    foreground: viewModel.canPreview ? .white : AppTheme.inkMuted
+                )
             }
             .buttonStyle(.plain)
             .disabled(!viewModel.canPreview)
-            .opacity(viewModel.canPreview ? 1 : 0.45)
 
             Button {
                 Task { await viewModel.analyzeMatches() }
             } label: {
-                ActionButtonLabel(title: "Analyze matches", systemImage: "wand.and.stars", background: AppTheme.deepTeal)
+                ActionButtonLabel(
+                    title: "Analyze matches",
+                    systemImage: "wand.and.stars",
+                    background: viewModel.canAnalyze ? AppTheme.apple : AppTheme.disabledFill,
+                    foreground: viewModel.canAnalyze ? .white : AppTheme.inkMuted
+                )
             }
             .buttonStyle(.plain)
             .disabled(!viewModel.canAnalyze)
-            .opacity(viewModel.canAnalyze ? 1 : 0.45)
         }
-        .padding(18)
+        .padding(16)
         .background(AppTheme.card)
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
                 .stroke(AppTheme.border, lineWidth: 1)
         )
+        .shadow(color: .black.opacity(0.04), radius: 24, y: 10)
     }
 
     private var statusCard: some View {
@@ -124,6 +149,41 @@ struct ImportView: View {
     private var statusBackground: Color {
         if case .failed = viewModel.phase { return AppTheme.danger.opacity(0.1) }
         return AppTheme.spotify.opacity(0.12)
+    }
+}
+
+private struct BrandMark: View {
+    let size: CGFloat
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: size * 0.22, style: .continuous)
+                .fill(AppTheme.ink)
+
+            ZStack {
+                RoundedRectangle(cornerRadius: size * 0.12, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [AppTheme.spotify.opacity(0.72), AppTheme.card, AppTheme.apple.opacity(0.82)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: size * 0.56, height: size * 0.36)
+                    .offset(x: size * 0.04)
+
+                Circle()
+                    .fill(AppTheme.ink)
+                    .frame(width: size * 0.20, height: size * 0.20)
+                    .offset(x: -size * 0.06)
+
+                RoundedRectangle(cornerRadius: size * 0.018, style: .continuous)
+                    .fill(AppTheme.ink)
+                    .frame(width: size * 0.11, height: size * 0.30)
+                    .offset(x: size * 0.16)
+            }
+        }
+        .frame(width: size, height: size)
     }
 }
 
@@ -414,29 +474,39 @@ private struct ArtworkView: View {
 private struct ActionButtonLabel: View {
     let title: String
     let systemImage: String
-    var background: Color = .black
+    var background: Color
+    var foreground: Color = .white
 
     var body: some View {
         Label(title, systemImage: systemImage)
             .font(.headline.weight(.black))
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
-            .foregroundStyle(.white)
+            .foregroundStyle(foreground)
             .background(background)
             .clipShape(Capsule())
+            .overlay(
+                Capsule()
+                    .stroke(AppTheme.line, lineWidth: 1)
+            )
     }
 }
 
 private enum AppTheme {
-    static let background = Color(red: 1.0, green: 0.98, blue: 0.92)
-    static let card = Color(red: 1.0, green: 0.995, blue: 0.96)
-    static let border = Color(red: 0.86, green: 0.80, blue: 0.70)
-    static let ink = Color(red: 0.08, green: 0.07, blue: 0.06)
-    static let spotify = Color(red: 0.12, green: 0.74, blue: 0.35)
-    static let apple = Color(red: 1.0, green: 0.2, blue: 0.38)
-    static let warning = Color(red: 0.75, green: 0.36, blue: 0.05)
-    static let danger = Color(red: 0.84, green: 0.22, blue: 0.20)
-    static let deepTeal = Color(red: 0.16, green: 0.42, blue: 0.50)
+    static let background = Color(red: 0.984, green: 0.984, blue: 0.992)
+    static let card = Color.white
+    static let inset = Color(red: 0.949, green: 0.949, blue: 0.961)
+    static let disabledFill = Color(red: 0.918, green: 0.918, blue: 0.938)
+    static let border = Color.black.opacity(0.08)
+    static let line = Color.black.opacity(0.08)
+    static let lineStrong = Color.black.opacity(0.14)
+    static let ink = Color(red: 0.043, green: 0.043, blue: 0.051)
+    static let inkSoft = Color(red: 0.227, green: 0.227, blue: 0.239)
+    static let inkMuted = Color(red: 0.525, green: 0.525, blue: 0.545)
+    static let spotify = Color(red: 0.114, green: 0.725, blue: 0.329)
+    static let apple = Color(red: 0.980, green: 0.141, blue: 0.235)
+    static let warning = Color(red: 0.722, green: 0.416, blue: 0.122)
+    static let danger = Color(red: 0.831, green: 0.227, blue: 0.184)
 }
 
 #if DEBUG

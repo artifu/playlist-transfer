@@ -7,4 +7,6 @@ dist
 data/*.sqlite*
 DesignSuggestions/PlaylistTransfer.zip
 *.xcuserdata
+xcuserdata/
+*.xcworkspace/
 DerivedData
