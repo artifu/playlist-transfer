@@ -79,7 +79,7 @@ final class TransferViewModel: ObservableObject {
         do {
             preview = try await api.previewPublicPlaylist(input: input)
             phase = .previewReady
-            statusMessage = "Playlist loaded. Analyze matches when you are ready."
+            statusMessage = "Playlist loaded. Match it with Apple Music when you are ready."
         } catch {
             fail(error)
         }
@@ -97,7 +97,7 @@ final class TransferViewModel: ObservableObject {
         do {
             analysis = try await api.analyzePublicPlaylist(input: input)
             phase = .analysisReady
-            statusMessage = "Match report ready. Create from ready tracks when you are comfortable."
+            statusMessage = "Apple Music match report ready. Create from ready tracks when you are comfortable."
         } catch {
             fail(error)
         }

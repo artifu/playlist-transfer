@@ -273,7 +273,7 @@ struct ImportView: View {
                         Task { await viewModel.analyzeMatches() }
                     } label: {
                         ActionButtonLabel(
-                            title: "Analyze matches",
+                            title: "Match Apple Music catalog",
                             systemImage: "wand.and.stars",
                             background: viewModel.canAnalyze ? AppTheme.actionBlue : AppTheme.disabledFill,
                             foreground: viewModel.canAnalyze ? .white : AppTheme.inkMuted
@@ -659,7 +659,7 @@ private struct TransferItemRow: View {
                         Button {
                             skipTrack(item)
                         } label: {
-                            Text(mode == .ready ? "Skip if wrong" : "Skip track")
+                            Text(mode == .ready ? "Wrong match" : "Skip this track")
                                 .font(.caption.weight(.black))
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 8)

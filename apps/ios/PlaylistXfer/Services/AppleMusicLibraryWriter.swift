@@ -80,10 +80,10 @@ struct AppleMusicLibraryWriter: Sendable {
             await progress?("Creating the playlist in your Apple Music library...")
             print("[PlaylistXfer] Creating Apple Music playlist with \(songs.count) songs.")
 
-            let playlistName = "\(analysis.playlist.name) (Transferred from Spotify)"
+            let playlistName = "\(analysis.playlist.name) (PlaylistXfer)"
             let playlist = try await MusicLibrary.shared.createPlaylist(
                 name: playlistName,
-                description: "Transferred from Spotify with PlaylistXfer. Review and missing tracks were left out.",
+                description: "Matched from a Spotify playlist with PlaylistXfer. Review and missing tracks were left out.",
                 authorDisplayName: "PlaylistXfer",
                 items: songs
             )
