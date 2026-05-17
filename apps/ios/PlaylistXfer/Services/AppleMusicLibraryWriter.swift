@@ -32,7 +32,14 @@ enum AppleMusicLibraryWriterError: LocalizedError {
 }
 
 struct AppleMusicLibraryWriter: Sendable {
-    func createPlaylist(from analysis: TransferAnalysis) async throws -> CreatedAppleMusicPlaylist {
+    func createPlaylist(
+        from analysis: TransferAnalysis,
+        itemIDsToTransfer: Set<Int>? = nil,
+        progress: (@MainActor (String) -> Void)? = nil
+    ) async throws -> CreatedAppleMusicPlaylist {
+        await progress?("Checking Apple Music permission...")
+        print("[PlaylistXfer] Checking Apple Music authorization.")
+
         let authorizationStatus = MusicAuthorization.currentStatus == .authorized
             ? MusicAuthorization.currentStatus
             : await MusicAuthorization.request()
@@ -40,6 +47,9 @@ struct AppleMusicLibraryWriter: Sendable {
         guard authorizationStatus == .authorized else {
             throw AppleMusicLibraryWriterError.authorizationDenied(authorizationStatus)
         }
+
+        await progress?("Checking Apple Music subscription and Sync Library...")
+        print("[PlaylistXfer] Apple Music authorized. Checking subscription.")
 
         let subscription = try await MusicSubscription.current
         guard subscription.canPlayCatalogContent else {
@@ -49,11 +59,17 @@ struct AppleMusicLibraryWriter: Sendable {
             throw AppleMusicLibraryWriterError.cloudLibraryDisabled
         }
 
-        let songIDs = readyAppleMusicSongIDs(from: analysis)
+        let songIDs = appleMusicSongIDs(from: analysis, itemIDsToTransfer: itemIDsToTransfer)
         guard !songIDs.isEmpty else { throw AppleMusicLibraryWriterError.noReadyTracks }
+
+        await progress?("Loading \(songIDs.count) matched Apple Music songs...")
+        print("[PlaylistXfer] Loading \(songIDs.count) catalog songs before playlist creation.")
 
         let songs = try await catalogSongs(for: songIDs)
         guard !songs.isEmpty else { throw AppleMusicLibraryWriterError.noCatalogSongsFound }
+
+        await progress?("Creating the playlist in your Apple Music library...")
+        print("[PlaylistXfer] Creating Apple Music playlist with \(songs.count) songs.")
 
         let playlistName = "\(analysis.playlist.name) (Transferred from Spotify)"
         let playlist = try await MusicLibrary.shared.createPlaylist(
@@ -71,9 +87,15 @@ struct AppleMusicLibraryWriter: Sendable {
         )
     }
 
-    private func readyAppleMusicSongIDs(from analysis: TransferAnalysis) -> [MusicItemID] {
+    private func appleMusicSongIDs(from analysis: TransferAnalysis, itemIDsToTransfer: Set<Int>?) -> [MusicItemID] {
         analysis.items.compactMap { item in
-            guard item.status == "matched", let appleSongID = item.appleCandidate?.id else {
+            if let itemIDsToTransfer {
+                guard itemIDsToTransfer.contains(item.id) else { return nil }
+            } else {
+                guard item.status == "matched" else { return nil }
+            }
+
+            guard let appleSongID = item.appleCandidate?.id else {
                 return nil
             }
 

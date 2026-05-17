@@ -18,6 +18,8 @@ final class TransferViewModel: ObservableObject {
     @Published private(set) var preview: PlaylistPreviewResponse?
     @Published private(set) var analysis: TransferAnalysis?
     @Published private(set) var createdPlaylist: CreatedAppleMusicPlaylist?
+    @Published private(set) var approvedReviewItemIDs: Set<Int> = []
+    @Published private(set) var skippedItemIDs: Set<Int> = []
     @Published private(set) var statusMessage = "Paste a public Spotify playlist link to begin."
 
     private let api: TransferAPIClient
@@ -48,15 +50,19 @@ final class TransferViewModel: ObservableObject {
     }
 
     var readyItems: [TransferItem] {
-        analysis?.items.filter { $0.status == "matched" } ?? []
+        analysis?.items.filter { shouldTransfer($0) } ?? []
     }
 
     var reviewItems: [TransferItem] {
-        analysis?.items.filter { $0.status == "needs_review" } ?? []
+        analysis?.items.filter { $0.status == "needs_review" && !approvedReviewItemIDs.contains($0.id) && !skippedItemIDs.contains($0.id) } ?? []
     }
 
     var missingItems: [TransferItem] {
-        analysis?.items.filter { $0.status == "unmatched" } ?? []
+        analysis?.items.filter { $0.status == "unmatched" && !skippedItemIDs.contains($0.id) } ?? []
+    }
+
+    var skippedItems: [TransferItem] {
+        analysis?.items.filter { skippedItemIDs.contains($0.id) } ?? []
     }
 
     func previewPlaylist() async {
@@ -67,6 +73,7 @@ final class TransferViewModel: ObservableObject {
         statusMessage = "Reading public Spotify playlist..."
         analysis = nil
         createdPlaylist = nil
+        resetDecisions()
 
         do {
             preview = try await api.previewPublicPlaylist(input: input)
@@ -84,6 +91,7 @@ final class TransferViewModel: ObservableObject {
         phase = .analyzing
         statusMessage = "Matching this playlist against Apple Music..."
         createdPlaylist = nil
+        resetDecisions()
 
         do {
             analysis = try await api.analyzePublicPlaylist(input: input)
@@ -101,7 +109,13 @@ final class TransferViewModel: ObservableObject {
         statusMessage = "Asking Apple Music for access and preparing the ready tracks..."
 
         do {
-            let playlist = try await appleMusic.createPlaylist(from: analysis)
+            let itemIDsToTransfer = Set(readyItems.map(\.id))
+            let playlist = try await appleMusic.createPlaylist(
+                from: analysis,
+                itemIDsToTransfer: itemIDsToTransfer
+            ) { [weak self] message in
+                self?.statusMessage = message
+            }
             createdPlaylist = playlist
             phase = .created
             statusMessage = "Created \(playlist.name) with \(playlist.trackCount) ready tracks."
@@ -110,12 +124,47 @@ final class TransferViewModel: ObservableObject {
         }
     }
 
+    func approveSuggestedMatch(_ item: TransferItem) {
+        guard item.appleCandidate != nil else { return }
+        approvedReviewItemIDs.insert(item.id)
+        skippedItemIDs.remove(item.id)
+        createdPlaylist = nil
+        phase = .analysisReady
+        statusMessage = "Approved \"\(item.source.name)\". It will be included when you create the Apple Music playlist."
+    }
+
+    func skipTrack(_ item: TransferItem) {
+        skippedItemIDs.insert(item.id)
+        approvedReviewItemIDs.remove(item.id)
+        createdPlaylist = nil
+        phase = .analysisReady
+        statusMessage = "Skipped \"\(item.source.name)\". It will stay out of the Apple Music playlist."
+    }
+
+    func restoreTrack(_ item: TransferItem) {
+        skippedItemIDs.remove(item.id)
+        createdPlaylist = nil
+        phase = .analysisReady
+        statusMessage = "Restored \"\(item.source.name)\" to the match report."
+    }
+
     func reset() {
         preview = nil
         analysis = nil
         createdPlaylist = nil
+        resetDecisions()
         phase = .idle
         statusMessage = "Paste a public Spotify playlist link to begin."
+    }
+
+    private func shouldTransfer(_ item: TransferItem) -> Bool {
+        guard !skippedItemIDs.contains(item.id) else { return false }
+        return item.status == "matched" || approvedReviewItemIDs.contains(item.id)
+    }
+
+    private func resetDecisions() {
+        approvedReviewItemIDs = []
+        skippedItemIDs = []
     }
 
     private func fail(_ error: Error) {

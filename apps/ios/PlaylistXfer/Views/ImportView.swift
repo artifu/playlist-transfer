@@ -23,7 +23,11 @@ struct ImportView: View {
                             analysis: analysis,
                             readyItems: viewModel.readyItems,
                             reviewItems: viewModel.reviewItems,
-                            missingItems: viewModel.missingItems
+                            missingItems: viewModel.missingItems,
+                            skippedItems: viewModel.skippedItems,
+                            approveSuggestedMatch: viewModel.approveSuggestedMatch,
+                            skipTrack: viewModel.skipTrack,
+                            restoreTrack: viewModel.restoreTrack
                         )
                         .id("report")
                     }
@@ -39,7 +43,14 @@ struct ImportView: View {
             }
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
+                    Button("Preview") {
+                        submitPreview()
+                    }
+                    .fontWeight(.bold)
+                    .disabled(!viewModel.canPreview)
+
                     Spacer()
+
                     Button("Done") {
                         playlistFieldFocused = false
                     }
@@ -112,12 +123,13 @@ struct ImportView: View {
                 .foregroundStyle(AppTheme.spotify)
                 .textCase(.uppercase)
 
-            TextField("https://open.spotify.com/playlist/...", text: $viewModel.playlistInput, axis: .vertical)
+            TextField("https://open.spotify.com/playlist/...", text: $viewModel.playlistInput)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .keyboardType(.URL)
                 .submitLabel(.go)
                 .font(.system(.body, design: .monospaced))
+                .lineLimit(1)
                 .padding(14)
                 .background(AppTheme.inset)
                 .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -127,14 +139,11 @@ struct ImportView: View {
                 )
                 .focused($playlistFieldFocused)
                 .onSubmit {
-                    guard viewModel.canPreview else { return }
-                    playlistFieldFocused = false
-                    Task { await viewModel.previewPlaylist() }
+                    submitPreview()
                 }
 
             Button {
-                playlistFieldFocused = false
-                Task { await viewModel.previewPlaylist() }
+                submitPreview()
             } label: {
                 ActionButtonLabel(
                     title: viewModel.preview == nil ? "Preview public link" : "Refresh preview",
@@ -154,6 +163,12 @@ struct ImportView: View {
                 .stroke(AppTheme.border, lineWidth: 1)
         )
         .shadow(color: .black.opacity(0.04), radius: 24, y: 10)
+    }
+
+    private func submitPreview() {
+        guard viewModel.canPreview else { return }
+        playlistFieldFocused = false
+        Task { await viewModel.previewPlaylist() }
     }
 
     private var statusCard: some View {
@@ -182,10 +197,27 @@ struct ImportView: View {
         return AppTheme.spotify.opacity(0.12)
     }
 
+    private var shouldShowStickyStatus: Bool {
+        if viewModel.isBusy || viewModel.createdPlaylist != nil { return true }
+        if case .failed = viewModel.phase { return true }
+        return false
+    }
+
     @ViewBuilder
     private var bottomActionBar: some View {
         if viewModel.preview != nil || viewModel.analysis != nil {
             VStack(alignment: .leading, spacing: 10) {
+                if shouldShowStickyStatus {
+                    Text(viewModel.statusMessage)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(statusColor)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(statusBackground)
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+
                 if let createdPlaylist = viewModel.createdPlaylist {
                     Text("\(createdPlaylist.trackCount) tracks transferred")
                         .font(.caption.weight(.black))
@@ -297,6 +329,9 @@ private struct BrandMark: View {
 
 private struct PlaylistPreviewCard: View {
     let preview: PlaylistPreviewResponse
+    @State private var showsAllTracks = false
+
+    private let collapsedTrackLimit = 8
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -313,22 +348,37 @@ private struct PlaylistPreviewCard: View {
                     Text(preview.playlist.name)
                         .font(.system(size: 30, weight: .black, design: .serif))
                         .italic()
-                    Text("\(preview.tracks.count) readable tracks")
+                    Text(trackCountText)
                         .font(.caption.weight(.bold))
                         .foregroundStyle(.secondary)
                 }
             }
 
             VStack(spacing: 0) {
-                ForEach(Array(preview.tracks.prefix(8).enumerated()), id: \.element.id) { index, track in
+                ForEach(Array(visibleTracks.enumerated()), id: \.element.id) { index, track in
                     TrackPreviewRow(index: index + 1, track: track)
-                    if index < min(preview.tracks.count, 8) - 1 {
+                    if index < visibleTracks.count - 1 {
                         Divider()
                     }
                 }
             }
             .background(Color.white.opacity(0.64))
             .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+
+            if preview.tracks.count > collapsedTrackLimit {
+                Button {
+                    withAnimation(.snappy(duration: 0.25)) {
+                        showsAllTracks.toggle()
+                    }
+                } label: {
+                    Text(showsAllTracks ? "Show fewer preview tracks" : "Show all \(preview.tracks.count) preview tracks")
+                        .font(.caption.weight(.black))
+                        .tracking(1.2)
+                        .foregroundStyle(AppTheme.actionBlue)
+                        .textCase(.uppercase)
+                }
+                .buttonStyle(.plain)
+            }
         }
         .padding(18)
         .background(AppTheme.card)
@@ -338,6 +388,19 @@ private struct PlaylistPreviewCard: View {
                 .stroke(AppTheme.border, lineWidth: 1)
         )
     }
+
+    private var visibleTracks: [SpotifyTrack] {
+        showsAllTracks ? preview.tracks : Array(preview.tracks.prefix(collapsedTrackLimit))
+    }
+
+    private var trackCountText: String {
+        let total = preview.playlist.totalItems ?? preview.tracks.count
+        if total > preview.tracks.count {
+            return "\(preview.tracks.count) readable tracks fetched from \(total) total"
+        }
+
+        return "\(preview.tracks.count) readable tracks"
+    }
 }
 
 private struct MatchReportView: View {
@@ -345,6 +408,10 @@ private struct MatchReportView: View {
     let readyItems: [TransferItem]
     let reviewItems: [TransferItem]
     let missingItems: [TransferItem]
+    let skippedItems: [TransferItem]
+    let approveSuggestedMatch: (TransferItem) -> Void
+    let skipTrack: (TransferItem) -> Void
+    let restoreTrack: (TransferItem) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -353,28 +420,75 @@ private struct MatchReportView: View {
                 .italic()
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                MetricCard(label: "Ready", value: "\(analysis.summary.confidentMatchCount)", color: AppTheme.spotify)
-                MetricCard(label: "Review", value: "\(analysis.summary.needsReviewCount)", color: AppTheme.warning)
-                MetricCard(label: "Missing", value: "\(analysis.summary.unmatchedCount)", color: AppTheme.danger)
+                MetricCard(label: "Ready", value: "\(readyItems.count)", color: AppTheme.spotify)
+                MetricCard(label: "Review", value: "\(reviewItems.count)", color: AppTheme.warning)
+                MetricCard(label: "Missing", value: "\(missingItems.count)", color: AppTheme.danger)
                 MetricCard(label: "Any match", value: "\(Int((analysis.summary.matchRate * 100).rounded()))%", color: AppTheme.ink)
             }
 
             if !reviewItems.isEmpty {
-                TransferSection(title: "Needs review", items: reviewItems)
+                TransferSection(
+                    title: "Needs review",
+                    items: reviewItems,
+                    mode: .review,
+                    approveSuggestedMatch: approveSuggestedMatch,
+                    skipTrack: skipTrack,
+                    restoreTrack: restoreTrack
+                )
             }
 
             if !missingItems.isEmpty {
-                TransferSection(title: "Missing", items: missingItems)
+                TransferSection(
+                    title: "Missing",
+                    items: missingItems,
+                    mode: .missing,
+                    approveSuggestedMatch: approveSuggestedMatch,
+                    skipTrack: skipTrack,
+                    restoreTrack: restoreTrack
+                )
             }
 
-            TransferSection(title: "Ready to transfer", items: readyItems)
+            TransferSection(
+                title: "Ready to transfer",
+                items: readyItems,
+                mode: .ready,
+                approveSuggestedMatch: approveSuggestedMatch,
+                skipTrack: skipTrack,
+                restoreTrack: restoreTrack
+            )
+
+            if !skippedItems.isEmpty {
+                TransferSection(
+                    title: "Skipped",
+                    items: skippedItems,
+                    mode: .skipped,
+                    approveSuggestedMatch: approveSuggestedMatch,
+                    skipTrack: skipTrack,
+                    restoreTrack: restoreTrack
+                )
+            }
         }
     }
+}
+
+private enum TransferSectionMode: Equatable {
+    case review
+    case missing
+    case ready
+    case skipped
 }
 
 private struct TransferSection: View {
     let title: String
     let items: [TransferItem]
+    let mode: TransferSectionMode
+    let approveSuggestedMatch: (TransferItem) -> Void
+    let skipTrack: (TransferItem) -> Void
+    let restoreTrack: (TransferItem) -> Void
+
+    @State private var showsAllItems = false
+
+    private let collapsedItemLimit = 12
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -386,19 +500,45 @@ private struct TransferSection: View {
                 .textCase(.uppercase)
 
             VStack(spacing: 0) {
-                ForEach(items.prefix(12)) { item in
-                    TransferItemRow(item: item)
-                    if item.id != items.prefix(12).last?.id {
+                ForEach(visibleItems) { item in
+                    TransferItemRow(
+                        item: item,
+                        mode: mode,
+                        approveSuggestedMatch: approveSuggestedMatch,
+                        skipTrack: skipTrack,
+                        restoreTrack: restoreTrack
+                    )
+                    if item.id != visibleItems.last?.id {
                         Divider()
                     }
                 }
             }
             .background(Color.white.opacity(0.72))
             .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+
+            if items.count > collapsedItemLimit {
+                Button {
+                    withAnimation(.snappy(duration: 0.25)) {
+                        showsAllItems.toggle()
+                    }
+                } label: {
+                    Text(showsAllItems ? "Show fewer \(title.lowercased()) tracks" : "Show all \(items.count) \(title.lowercased()) tracks")
+                        .font(.caption.weight(.black))
+                        .tracking(1.2)
+                        .foregroundStyle(sectionColor)
+                        .textCase(.uppercase)
+                }
+                .buttonStyle(.plain)
+            }
         }
     }
 
+    private var visibleItems: [TransferItem] {
+        showsAllItems ? items : Array(items.prefix(collapsedItemLimit))
+    }
+
     private var sectionColor: Color {
+        if title.lowercased().contains("skipped") { return AppTheme.inkMuted }
         if title.lowercased().contains("review") { return AppTheme.warning }
         if title.lowercased().contains("missing") { return AppTheme.danger }
         return AppTheme.spotify
@@ -407,6 +547,10 @@ private struct TransferSection: View {
 
 private struct TransferItemRow: View {
     let item: TransferItem
+    let mode: TransferSectionMode
+    let approveSuggestedMatch: (TransferItem) -> Void
+    let skipTrack: (TransferItem) -> Void
+    let restoreTrack: (TransferItem) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -434,7 +578,7 @@ private struct TransferItemRow: View {
             }
 
             HStack {
-                Text(item.statusLabel)
+                Text(mode == .skipped ? "Skipped" : item.statusLabel)
                     .font(.caption.weight(.black))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 7)
@@ -473,11 +617,100 @@ private struct TransferItemRow: View {
                         .frame(width: 3)
                 }
             }
+
+            if shouldShowActions {
+                HStack(spacing: 10) {
+                    if mode == .review, item.appleCandidate != nil {
+                        Button {
+                            approveSuggestedMatch(item)
+                        } label: {
+                            Text("Approve suggested")
+                                .font(.caption.weight(.black))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(AppTheme.spotify)
+                                .foregroundStyle(.white)
+                                .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    if mode == .ready || mode == .review {
+                        Button {
+                            skipTrack(item)
+                        } label: {
+                            Text(mode == .ready ? "Skip if wrong" : "Skip track")
+                                .font(.caption.weight(.black))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(AppTheme.disabledFill)
+                                .foregroundStyle(AppTheme.ink)
+                                .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    if mode == .skipped {
+                        Button {
+                            restoreTrack(item)
+                        } label: {
+                            Text("Restore")
+                                .font(.caption.weight(.black))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(AppTheme.disabledFill)
+                                .foregroundStyle(AppTheme.ink)
+                                .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+
+            if let alternatives = alternativeCandidates, !alternatives.isEmpty {
+                DisclosureGroup {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(alternatives, id: \.id) { candidate in
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(candidate.name)
+                                    .font(.caption.weight(.bold))
+                                Text("\(candidate.artistName) - \(candidate.albumName ?? "Unknown album")")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(10)
+                            .background(Color.white.opacity(0.68))
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        }
+
+                        Text("Choosing a different candidate is next; for now, Approve uses the highlighted candidate above.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.top, 8)
+                } label: {
+                    Text("Browse \(alternatives.count) other candidate\(alternatives.count == 1 ? "" : "s")")
+                        .font(.caption.weight(.black))
+                        .foregroundStyle(AppTheme.inkMuted)
+                }
+            }
         }
         .padding(14)
     }
 
+    private var shouldShowActions: Bool {
+        mode == .review || mode == .ready || mode == .skipped
+    }
+
+    private var alternativeCandidates: [AppleSongCandidate]? {
+        guard let candidates = item.candidates, candidates.count > 1 else { return nil }
+        let highlightedID = item.appleCandidate?.id
+        return candidates.filter { $0.id != highlightedID }
+    }
+
     private var statusColor: Color {
+        if mode == .skipped { return AppTheme.inkMuted }
         switch item.status {
         case "matched":
             return AppTheme.spotify
