@@ -2,7 +2,7 @@ import SwiftUI
 
 struct ImportView: View {
     @Environment(\.openURL) private var openURL
-    @StateObject private var viewModel = TransferViewModel()
+    @ObservedObject var viewModel: TransferViewModel
     @FocusState private var playlistFieldFocused: Bool
 
     var body: some View {
@@ -874,7 +874,7 @@ private enum AppTheme {
 #if DEBUG
 private struct ImportViewPreviews: PreviewProvider {
     static var previews: some View {
-        ImportView()
+        ImportView(viewModel: TransferViewModel())
     }
 }
 #endif

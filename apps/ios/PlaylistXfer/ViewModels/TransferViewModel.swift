@@ -85,6 +85,17 @@ final class TransferViewModel: ObservableObject {
         }
     }
 
+    func openIncomingURL(_ url: URL) async {
+        guard let playlistURL = playlistInput(fromIncomingURL: url) else {
+            phase = .failed("PlaylistXfer could not find a Spotify playlist URL in that shared link.")
+            statusMessage = "PlaylistXfer could not find a Spotify playlist URL in that shared link."
+            return
+        }
+
+        playlistInput = playlistURL
+        await previewPlaylist()
+    }
+
     func analyzeMatches() async {
         let input = playlistInput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !input.isEmpty else { return }
@@ -185,6 +196,29 @@ final class TransferViewModel: ObservableObject {
         approvedReviewItemIDs = []
         skippedItemIDs = []
         selectedCandidatesByItemID = [:]
+    }
+
+    private func playlistInput(fromIncomingURL url: URL) -> String? {
+        if url.scheme?.lowercased() == "playlistxfer" {
+            let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+            if let sharedURL = components?.queryItems?.first(where: { $0.name == "url" })?.value,
+               isSupportedSpotifyPlaylistInput(sharedURL) {
+                return sharedURL
+            }
+        }
+
+        let rawURL = url.absoluteString
+        if isSupportedSpotifyPlaylistInput(rawURL) {
+            return rawURL
+        }
+
+        return nil
+    }
+
+    private func isSupportedSpotifyPlaylistInput(_ input: String) -> Bool {
+        let normalized = input.lowercased()
+        return normalized.contains("open.spotify.com/playlist/")
+            || normalized.contains("spotify.link/")
     }
 
     private func fail(_ error: Error) {
