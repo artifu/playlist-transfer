@@ -27,7 +27,9 @@ struct ImportView: View {
                             skippedItems: viewModel.skippedItems,
                             approveSuggestedMatch: viewModel.approveSuggestedMatch,
                             skipTrack: viewModel.skipTrack,
-                            restoreTrack: viewModel.restoreTrack
+                            restoreTrack: viewModel.restoreTrack,
+                            selectedCandidate: viewModel.selectedCandidate,
+                            selectCandidate: viewModel.selectCandidate
                         )
                         .id("report")
                     }
@@ -412,6 +414,8 @@ private struct MatchReportView: View {
     let approveSuggestedMatch: (TransferItem) -> Void
     let skipTrack: (TransferItem) -> Void
     let restoreTrack: (TransferItem) -> Void
+    let selectedCandidate: (TransferItem) -> AppleSongCandidate?
+    let selectCandidate: (AppleSongCandidate, TransferItem) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -433,7 +437,9 @@ private struct MatchReportView: View {
                     mode: .review,
                     approveSuggestedMatch: approveSuggestedMatch,
                     skipTrack: skipTrack,
-                    restoreTrack: restoreTrack
+                    restoreTrack: restoreTrack,
+                    selectedCandidate: selectedCandidate,
+                    selectCandidate: selectCandidate
                 )
             }
 
@@ -444,7 +450,9 @@ private struct MatchReportView: View {
                     mode: .missing,
                     approveSuggestedMatch: approveSuggestedMatch,
                     skipTrack: skipTrack,
-                    restoreTrack: restoreTrack
+                    restoreTrack: restoreTrack,
+                    selectedCandidate: selectedCandidate,
+                    selectCandidate: selectCandidate
                 )
             }
 
@@ -454,7 +462,9 @@ private struct MatchReportView: View {
                 mode: .ready,
                 approveSuggestedMatch: approveSuggestedMatch,
                 skipTrack: skipTrack,
-                restoreTrack: restoreTrack
+                restoreTrack: restoreTrack,
+                selectedCandidate: selectedCandidate,
+                selectCandidate: selectCandidate
             )
 
             if !skippedItems.isEmpty {
@@ -464,7 +474,9 @@ private struct MatchReportView: View {
                     mode: .skipped,
                     approveSuggestedMatch: approveSuggestedMatch,
                     skipTrack: skipTrack,
-                    restoreTrack: restoreTrack
+                    restoreTrack: restoreTrack,
+                    selectedCandidate: selectedCandidate,
+                    selectCandidate: selectCandidate
                 )
             }
         }
@@ -485,6 +497,8 @@ private struct TransferSection: View {
     let approveSuggestedMatch: (TransferItem) -> Void
     let skipTrack: (TransferItem) -> Void
     let restoreTrack: (TransferItem) -> Void
+    let selectedCandidate: (TransferItem) -> AppleSongCandidate?
+    let selectCandidate: (AppleSongCandidate, TransferItem) -> Void
 
     @State private var showsAllItems = false
 
@@ -506,7 +520,11 @@ private struct TransferSection: View {
                         mode: mode,
                         approveSuggestedMatch: approveSuggestedMatch,
                         skipTrack: skipTrack,
-                        restoreTrack: restoreTrack
+                        restoreTrack: restoreTrack,
+                        selectedCandidate: selectedCandidate(item),
+                        selectCandidate: { candidate in
+                            selectCandidate(candidate, item)
+                        }
                     )
                     if item.id != visibleItems.last?.id {
                         Divider()
@@ -551,6 +569,8 @@ private struct TransferItemRow: View {
     let approveSuggestedMatch: (TransferItem) -> Void
     let skipTrack: (TransferItem) -> Void
     let restoreTrack: (TransferItem) -> Void
+    let selectedCandidate: AppleSongCandidate?
+    let selectCandidate: (AppleSongCandidate) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -593,9 +613,9 @@ private struct TransferItemRow: View {
                 }
             }
 
-            if let candidate = item.appleCandidate {
+            if let candidate = selectedCandidate {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("Apple Music candidate")
+                    Text("Selected Apple Music candidate")
                         .font(.caption2)
                         .fontWeight(.black)
                         .tracking(1.5)
@@ -671,22 +691,33 @@ private struct TransferItemRow: View {
                 DisclosureGroup {
                     VStack(alignment: .leading, spacing: 8) {
                         ForEach(alternatives, id: \.id) { candidate in
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(candidate.name)
-                                    .font(.caption.weight(.bold))
-                                Text("\(candidate.artistName) - \(candidate.albumName ?? "Unknown album")")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                            VStack(alignment: .leading, spacing: 8) {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(candidate.name)
+                                        .font(.caption.weight(.bold))
+                                    Text("\(candidate.artistName) - \(candidate.albumName ?? "Unknown album")")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+
+                                Button {
+                                    selectCandidate(candidate)
+                                } label: {
+                                    Text(mode == .review ? "Use this and approve" : "Use this match")
+                                        .font(.caption.weight(.black))
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 8)
+                                        .background(AppTheme.spotify)
+                                        .foregroundStyle(.white)
+                                        .clipShape(Capsule())
+                                }
+                                .buttonStyle(.plain)
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(10)
+                            .padding(12)
                             .background(Color.white.opacity(0.68))
                             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                         }
-
-                        Text("Choosing a different candidate is next; for now, Approve uses the highlighted candidate above.")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
                     }
                     .padding(.top, 8)
                 } label: {
@@ -705,7 +736,7 @@ private struct TransferItemRow: View {
 
     private var alternativeCandidates: [AppleSongCandidate]? {
         guard let candidates = item.candidates, candidates.count > 1 else { return nil }
-        let highlightedID = item.appleCandidate?.id
+        let highlightedID = selectedCandidate?.id ?? item.appleCandidate?.id
         return candidates.filter { $0.id != highlightedID }
     }
 

@@ -20,6 +20,7 @@ final class TransferViewModel: ObservableObject {
     @Published private(set) var createdPlaylist: CreatedAppleMusicPlaylist?
     @Published private(set) var approvedReviewItemIDs: Set<Int> = []
     @Published private(set) var skippedItemIDs: Set<Int> = []
+    @Published private(set) var selectedCandidatesByItemID: [Int: AppleSongCandidate] = [:]
     @Published private(set) var statusMessage = "Paste a public Spotify playlist link to begin."
 
     private let api: TransferAPIClient
@@ -112,7 +113,8 @@ final class TransferViewModel: ObservableObject {
             let itemIDsToTransfer = Set(readyItems.map(\.id))
             let playlist = try await appleMusic.createPlaylist(
                 from: analysis,
-                itemIDsToTransfer: itemIDsToTransfer
+                itemIDsToTransfer: itemIDsToTransfer,
+                candidateOverrides: selectedCandidatesByItemID
             ) { [weak self] message in
                 self?.statusMessage = message
             }
@@ -125,12 +127,29 @@ final class TransferViewModel: ObservableObject {
     }
 
     func approveSuggestedMatch(_ item: TransferItem) {
-        guard item.appleCandidate != nil else { return }
+        guard selectedCandidate(for: item) != nil else { return }
         approvedReviewItemIDs.insert(item.id)
         skippedItemIDs.remove(item.id)
         createdPlaylist = nil
         phase = .analysisReady
         statusMessage = "Approved \"\(item.source.name)\". It will be included when you create the Apple Music playlist."
+    }
+
+    func selectCandidate(_ candidate: AppleSongCandidate, for item: TransferItem) {
+        selectedCandidatesByItemID[item.id] = candidate
+        skippedItemIDs.remove(item.id)
+
+        if item.status == "needs_review" {
+            approvedReviewItemIDs.insert(item.id)
+        }
+
+        createdPlaylist = nil
+        phase = .analysisReady
+        statusMessage = "Selected \"\(candidate.name)\" for \"\(item.source.name)\"."
+    }
+
+    func selectedCandidate(for item: TransferItem) -> AppleSongCandidate? {
+        selectedCandidatesByItemID[item.id] ?? item.appleCandidate
     }
 
     func skipTrack(_ item: TransferItem) {
@@ -165,6 +184,7 @@ final class TransferViewModel: ObservableObject {
     private func resetDecisions() {
         approvedReviewItemIDs = []
         skippedItemIDs = []
+        selectedCandidatesByItemID = [:]
     }
 
     private func fail(_ error: Error) {

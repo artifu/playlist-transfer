@@ -12,6 +12,7 @@ enum AppleMusicLibraryWriterError: LocalizedError {
     case authorizationDenied(MusicAuthorization.Status)
     case catalogSubscriptionUnavailable
     case cloudLibraryDisabled
+    case developerTokenUnavailable(String)
     case noReadyTracks
     case noCatalogSongsFound
 
@@ -23,6 +24,8 @@ enum AppleMusicLibraryWriterError: LocalizedError {
             return "This Apple ID cannot add Apple Music catalog songs right now. Check the Apple Music subscription, then try again."
         case .cloudLibraryDisabled:
             return "Sync Library is disabled for Apple Music. Turn on Sync Library, then try creating the playlist again."
+        case .developerTokenUnavailable(let detail):
+            return "MusicKit could not request a developer token. Enable the MusicKit service for this app's identifier in Apple Developer, refresh Xcode signing, then try again. \(detail)"
         case .noReadyTracks:
             return "There are no confident Apple Music matches ready to transfer."
         case .noCatalogSongsFound:
@@ -35,59 +38,75 @@ struct AppleMusicLibraryWriter: Sendable {
     func createPlaylist(
         from analysis: TransferAnalysis,
         itemIDsToTransfer: Set<Int>? = nil,
+        candidateOverrides: [Int: AppleSongCandidate] = [:],
         progress: (@MainActor (String) -> Void)? = nil
     ) async throws -> CreatedAppleMusicPlaylist {
-        await progress?("Checking Apple Music permission...")
-        print("[PlaylistXfer] Checking Apple Music authorization.")
+        do {
+            await progress?("Checking Apple Music permission...")
+            print("[PlaylistXfer] Checking Apple Music authorization.")
 
-        let authorizationStatus = MusicAuthorization.currentStatus == .authorized
-            ? MusicAuthorization.currentStatus
-            : await MusicAuthorization.request()
+            let authorizationStatus = MusicAuthorization.currentStatus == .authorized
+                ? MusicAuthorization.currentStatus
+                : await MusicAuthorization.request()
 
-        guard authorizationStatus == .authorized else {
-            throw AppleMusicLibraryWriterError.authorizationDenied(authorizationStatus)
+            guard authorizationStatus == .authorized else {
+                throw AppleMusicLibraryWriterError.authorizationDenied(authorizationStatus)
+            }
+
+            await progress?("Checking Apple Music subscription and Sync Library...")
+            print("[PlaylistXfer] Apple Music authorized. Checking subscription.")
+
+            let subscription = try await MusicSubscription.current
+            guard subscription.canPlayCatalogContent else {
+                throw AppleMusicLibraryWriterError.catalogSubscriptionUnavailable
+            }
+            guard subscription.hasCloudLibraryEnabled else {
+                throw AppleMusicLibraryWriterError.cloudLibraryDisabled
+            }
+
+            let songIDs = appleMusicSongIDs(
+                from: analysis,
+                itemIDsToTransfer: itemIDsToTransfer,
+                candidateOverrides: candidateOverrides
+            )
+            guard !songIDs.isEmpty else { throw AppleMusicLibraryWriterError.noReadyTracks }
+
+            await progress?("Loading \(songIDs.count) matched Apple Music songs...")
+            print("[PlaylistXfer] Loading \(songIDs.count) catalog songs before playlist creation.")
+
+            let songs = try await catalogSongs(for: songIDs)
+            guard !songs.isEmpty else { throw AppleMusicLibraryWriterError.noCatalogSongsFound }
+
+            await progress?("Creating the playlist in your Apple Music library...")
+            print("[PlaylistXfer] Creating Apple Music playlist with \(songs.count) songs.")
+
+            let playlistName = "\(analysis.playlist.name) (Transferred from Spotify)"
+            let playlist = try await MusicLibrary.shared.createPlaylist(
+                name: playlistName,
+                description: "Transferred from Spotify with PlaylistXfer. Review and missing tracks were left out.",
+                authorDisplayName: "PlaylistXfer",
+                items: songs
+            )
+
+            return CreatedAppleMusicPlaylist(
+                id: playlist.id.rawValue,
+                name: playlist.name,
+                url: playlist.url,
+                trackCount: songs.count
+            )
+        } catch let error as AppleMusicLibraryWriterError {
+            throw error
+        } catch {
+            print("[PlaylistXfer] MusicKit create failed: \(error.localizedDescription)")
+            throw mapMusicKitError(error)
         }
-
-        await progress?("Checking Apple Music subscription and Sync Library...")
-        print("[PlaylistXfer] Apple Music authorized. Checking subscription.")
-
-        let subscription = try await MusicSubscription.current
-        guard subscription.canPlayCatalogContent else {
-            throw AppleMusicLibraryWriterError.catalogSubscriptionUnavailable
-        }
-        guard subscription.hasCloudLibraryEnabled else {
-            throw AppleMusicLibraryWriterError.cloudLibraryDisabled
-        }
-
-        let songIDs = appleMusicSongIDs(from: analysis, itemIDsToTransfer: itemIDsToTransfer)
-        guard !songIDs.isEmpty else { throw AppleMusicLibraryWriterError.noReadyTracks }
-
-        await progress?("Loading \(songIDs.count) matched Apple Music songs...")
-        print("[PlaylistXfer] Loading \(songIDs.count) catalog songs before playlist creation.")
-
-        let songs = try await catalogSongs(for: songIDs)
-        guard !songs.isEmpty else { throw AppleMusicLibraryWriterError.noCatalogSongsFound }
-
-        await progress?("Creating the playlist in your Apple Music library...")
-        print("[PlaylistXfer] Creating Apple Music playlist with \(songs.count) songs.")
-
-        let playlistName = "\(analysis.playlist.name) (Transferred from Spotify)"
-        let playlist = try await MusicLibrary.shared.createPlaylist(
-            name: playlistName,
-            description: "Transferred from Spotify with PlaylistXfer. Review and missing tracks were left out.",
-            authorDisplayName: "PlaylistXfer",
-            items: songs
-        )
-
-        return CreatedAppleMusicPlaylist(
-            id: playlist.id.rawValue,
-            name: playlist.name,
-            url: playlist.url,
-            trackCount: songs.count
-        )
     }
 
-    private func appleMusicSongIDs(from analysis: TransferAnalysis, itemIDsToTransfer: Set<Int>?) -> [MusicItemID] {
+    private func appleMusicSongIDs(
+        from analysis: TransferAnalysis,
+        itemIDsToTransfer: Set<Int>?,
+        candidateOverrides: [Int: AppleSongCandidate]
+    ) -> [MusicItemID] {
         analysis.items.compactMap { item in
             if let itemIDsToTransfer {
                 guard itemIDsToTransfer.contains(item.id) else { return nil }
@@ -95,12 +114,22 @@ struct AppleMusicLibraryWriter: Sendable {
                 guard item.status == "matched" else { return nil }
             }
 
-            guard let appleSongID = item.appleCandidate?.id else {
+            let selectedCandidate = candidateOverrides[item.id] ?? item.appleCandidate
+            guard let appleSongID = selectedCandidate?.id else {
                 return nil
             }
 
             return MusicItemID(appleSongID)
         }
+    }
+
+    private func mapMusicKitError(_ error: Error) -> Error {
+        let detail = error.localizedDescription
+        if detail.localizedCaseInsensitiveContains("developer token") {
+            return AppleMusicLibraryWriterError.developerTokenUnavailable("Underlying error: \(detail)")
+        }
+
+        return error
     }
 
     private func catalogSongs(for ids: [MusicItemID]) async throws -> [Song] {
