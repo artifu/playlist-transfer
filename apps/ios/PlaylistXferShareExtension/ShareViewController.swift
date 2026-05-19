@@ -179,9 +179,9 @@ final class ShareViewController: UIViewController {
             return
         }
 
-        extensionContext?.open(deepLink) { [weak self] _ in
-            self?.extensionContext?.completeRequest(returningItems: nil)
-        }
+        let context = extensionContext
+        context?.completeRequest(returningItems: nil)
+        context?.open(deepLink)
     }
 
     @objc private func cancel() {
