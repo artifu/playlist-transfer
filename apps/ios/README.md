@@ -48,10 +48,10 @@ Implemented:
 - native MusicKit playlist creation
 - manual candidate selection
 - deep link import with `playlistxfer://import?url=<spotify-playlist-url>`
+- Share Sheet extension for receiving Spotify links from the iOS share menu
 
 Not implemented yet:
 
-- Share Sheet extension for receiving Spotify links directly from the iOS share menu
 - App Store signing/profile configuration
 
 ## Deep link import
@@ -62,7 +62,22 @@ The app registers the `playlistxfer` URL scheme. Opening a URL like this will po
 playlistxfer://import?url=https%3A%2F%2Fopen.spotify.com%2Fplaylist%2F0h8JNovqXS97ygva27IHfi
 ```
 
-This is the foundation for the Spotify Share Sheet flow. The next iOS milestone is a Share Extension target that accepts a shared `open.spotify.com/playlist/...` URL and hands it to this deep link flow.
+This is also the handoff used by the iOS Share Extension.
+
+## Share Sheet import
+
+The `PlaylistXferShareExtension` target appears in the iOS share menu for text and web URL shares. It extracts the first supported Spotify playlist URL and opens the main app through the deep link above.
+
+The current flow intentionally asks the user to tap **Open in PlaylistXfer** inside the extension. That keeps the handoff explicit and safer for App Store review than trying to launch the containing app automatically.
+
+To test on device:
+
+1. Build and run `PlaylistXfer` from Xcode.
+2. Open Spotify or Safari.
+3. Share a public Spotify playlist URL.
+4. Choose `PlaylistXfer` in the Share Sheet.
+5. Tap **Open in PlaylistXfer**.
+6. Confirm the main app opens with the shared playlist already in preview flow.
 
 ## Architecture
 
