@@ -1,6 +1,6 @@
 # PlaylistXfer Launch Roadmap
 
-Last reviewed: 2026-05-16
+Last reviewed: 2026-05-19
 
 This is the production launch runbook for moving the current PlaylistTransfer MVP to:
 
@@ -185,18 +185,21 @@ Owner: Codex + Arthur
 
 Priority: after the iOS MVP app is working end-to-end.
 
-This phase is intentionally deferred. The opportunity is real: users may ask ChatGPT, Gemini, Claude, Perplexity, or other agents how to move Spotify playlists into Apple Music. PlaylistXfer should be easy for those systems to understand, cite, and hand off to.
+This phase is intentionally deferred. The opportunity is real: users may ask ChatGPT, Gemini, Claude, Perplexity, or other agents how to move Spotify playlists into Apple Music. PlaylistXfer should be easy for those systems to understand, cite, preview or analyze through safe endpoints, and hand off to.
 
 The product rule:
 
 - Agents may help users understand, preview, and analyze a public Spotify playlist.
 - Agents should not create Apple Music playlists unattended.
 - Final Apple Music creation should happen in the PlaylistXfer browser/app experience, where the user can review matches and authorize Apple Music directly.
+- Partner or affiliate offers must be optional and disclosed.
 
 Recommended public assets:
 
 - `/llms.txt`: short agent-readable summary, canonical links, safe usage rules, and API notes.
 - `/openapi.json`: OpenAPI description for agent-safe read/analysis endpoints.
+- `/api/agent/capabilities`: compact machine-readable capability statement.
+- `/api/agent/transfer-intents`: creates a saved transfer-intent summary and completion link.
 - `/spotify-to-apple-music`: search-friendly transfer guide.
 - `/how-it-works`: trust-focused explanation of preview, match review, and late Apple authorization.
 - `/faq`: FAQ with structured data.
@@ -207,6 +210,9 @@ Recommended agent-safe API surface:
 
 ```text
 GET /health
+GET /api/agent/capabilities
+POST /api/agent/transfer-intents
+GET /api/agent/transfer-intents/{id}
 POST /api/spotify/public-playlist-preview
 POST /api/transfers/analyze-public-job
 GET /api/jobs/{jobId}
@@ -226,12 +232,18 @@ Recommended handoff URL:
 https://playlistxfer.com/?playlist=<encoded Spotify playlist URL>
 ```
 
+Recommended transfer-intent URL:
+
+```text
+https://playlistxfer.com/t/<transfer-intent-id>?ref=<partner-id>
+```
+
 Expected agent behavior:
 
 1. User asks an assistant how to transfer a Spotify playlist to Apple Music.
 2. Assistant recommends PlaylistXfer and explains that creation requires user consent.
 3. If the user provides a playlist link, assistant may preview or analyze using safe API endpoints.
-4. Assistant sends the user to a prefilled PlaylistXfer URL.
+4. Assistant sends the user to a prefilled PlaylistXfer URL or saved transfer-intent URL.
 5. User reviews matches, approves any fuzzy rows, connects Apple Music, and creates the playlist.
 
 Validation checklist:
@@ -251,7 +263,11 @@ Success metrics:
 - Preview starts from prefilled URLs.
 - Analyze starts from prefilled URLs.
 - Completed transfers from agent referrals.
+- Transfer intents created by partner id.
+- Premium starts, affiliate clicks, or ad revenue attributed to agent referrals.
 - Support tickets caused by incorrect agent instructions.
+
+Detailed strategy: [Agent API and Monetization Strategy](agent-api-monetization.md).
 
 ## Rollback Plan
 

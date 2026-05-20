@@ -167,6 +167,7 @@ If a future mobile app introduces ads, app-store packaging, or paid tiers, this 
 - [docs/api-feasibility.md](./docs/api-feasibility.md): API feasibility notes and external constraints
 - [docs/roadmap.md](./docs/roadmap.md): phased execution plan
 - [docs/monetization.md](./docs/monetization.md): monetization options and constraints
+- [docs/agent-api-monetization.md](./docs/agent-api-monetization.md): agent-ready API, handoff, partner attribution, and monetization strategy
 - [docs/project-kickoff.md](./docs/project-kickoff.md): initial framing and product thesis
 - [docs/project-history.md](./docs/project-history.md): how the project started and what phase it is in
 - [docs/credentials-setup.md](./docs/credentials-setup.md): practical setup guide for Spotify and Apple Music credentials

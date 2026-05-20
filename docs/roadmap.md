@@ -1,6 +1,6 @@
 # Roadmap
 
-Last reviewed: 2026-05-16
+Last reviewed: 2026-05-19
 
 ## Current Position
 
@@ -125,7 +125,7 @@ Guardrails:
 
 ## Phase 6: AI and Agent Distribution
 
-Goal: make PlaylistXfer easy for ChatGPT, Gemini, Claude, Perplexity, and other agents to discover, explain, and hand off to the product after the iOS app is solid.
+Goal: make PlaylistXfer easy for ChatGPT, Gemini, Claude, Perplexity, and other agents to discover, explain, preview, analyze, and hand users off to the product after the iOS app is solid.
 
 Why this is post-iOS:
 
@@ -137,12 +137,14 @@ Recommended AI-facing assets:
 
 - Add `/llms.txt` with a concise product summary, safe usage guidance, and canonical links.
 - Add `/openapi.json` for agent-safe endpoints.
+- Add an agent transfer-intent API that returns a match summary and user completion link.
 - Add `/spotify-to-apple-music` as a plain-language guide agents can quote and link to.
 - Add JSON-LD structured data for:
   - `SoftwareApplication`
   - `FAQPage`
   - `HowTo`
 - Add docs for "Using PlaylistXfer from an agent" in the repo.
+- Add referral and partner attribution so agent handoffs can be measured and monetized without misleading users.
 - Add a handoff URL pattern:
 
 ```text
@@ -161,6 +163,9 @@ Agent-safe API scope:
 Recommended OpenAPI endpoints:
 
 - `GET /health`
+- `GET /api/agent/capabilities`
+- `POST /api/agent/transfer-intents`
+- `GET /api/agent/transfer-intents/{id}`
 - `POST /api/spotify/public-playlist-preview`
 - `POST /api/transfers/analyze-public-job`
 - `GET /api/jobs/{jobId}`
@@ -188,11 +193,15 @@ https://playlistxfer.com/?playlist=https%3A%2F%2Fopen.spotify.com%2Fplaylist%2F.
 Success metrics:
 
 - Agent referral visits.
+- Transfer intents created by agents.
 - Prefilled playlist URL visits.
 - Preview starts from agent referrals.
 - Analyze starts from agent referrals.
 - Completed transfers from agent referrals.
+- Premium starts, affiliate clicks, and revenue by partner id.
 - Support tickets caused by agent-generated instructions.
+
+Detailed plan: [Agent API and Monetization Strategy](agent-api-monetization.md).
 
 ## Phase 7: Expansion
 

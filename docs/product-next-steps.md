@@ -149,17 +149,19 @@ Status:
 
 Timing: after the iOS MVP works end-to-end.
 
-This is a distribution layer, not the core product. The goal is for assistants like ChatGPT, Gemini, Claude, Perplexity, and future agent browsers to understand PlaylistXfer, recommend it accurately, and hand users into the app with the Spotify playlist already filled in.
+This is a distribution layer, not the core product. The goal is for assistants like ChatGPT, Gemini, Claude, Perplexity, and future agent browsers to understand PlaylistXfer, recommend it accurately, preview or analyze a Spotify playlist when safe, and hand users into the app with the Spotify playlist already filled in.
 
 Recommended work:
 
 - publish `/llms.txt` with a concise product summary and safe agent instructions
 - publish `/openapi.json` for preview and analysis endpoints only
+- add a transfer-intent endpoint that creates an agent-safe report and completion link
 - add search-friendly pages for "Spotify to Apple Music", "How it works", and FAQ
 - add structured data for the app, FAQ, and how-to content
 - support a handoff URL like `https://playlistxfer.com/?playlist=<encoded Spotify playlist URL>`
 - document agent-safe API behavior in the repo
 - track agent/referral traffic separately from normal search traffic
+- track partner revenue separately from organic web and App Store traffic
 
 Safety boundary:
 
@@ -168,6 +170,11 @@ Safety boundary:
 - agents should hand users back to PlaylistXfer for Apple Music authorization and playlist creation
 - agents should never receive, store, or submit Apple Music user tokens
 - unattended Apple Music writes should stay out of scope until there is a much stronger consent model
+- affiliate or partner offers should be disclosed and optional
+
+Detailed plan:
+
+- [Agent API and Monetization Strategy](agent-api-monetization.md)
 
 ## Decision guardrails
 
