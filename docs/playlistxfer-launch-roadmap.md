@@ -1,6 +1,6 @@
 # PlaylistXfer Launch Roadmap
 
-Last reviewed: 2026-05-19
+Last reviewed: 2026-05-31
 
 This is the production launch runbook for moving the current PlaylistTransfer MVP to:
 
@@ -8,14 +8,14 @@ This is the production launch runbook for moving the current PlaylistTransfer MV
 https://playlistxfer.com
 ```
 
-The goal is a fast, public, ad-ready web MVP with the static site on Cloudflare Pages and the transfer API still on Render.
+The goal is a fast, public, ad-ready web MVP with the static site on Cloudflare Pages. The API can run in Render proxy mode today, then switch to Cloudflare-native mode with D1 to remove Render cold starts from the transfer path.
 
 ## Launch Decisions
 
 - Production domain: `https://playlistxfer.com`
 - Redirect domain: `https://www.playlistxfer.com` -> `https://playlistxfer.com`
 - Staging domain: `https://playlist.arthurmendes.com`
-- Backend API: `https://playlist-transfer-api.onrender.com`
+- Backend API: Cloudflare Pages Functions with D1 preferred; `https://playlist-transfer-api.onrender.com` as fallback
 - Web host: Cloudflare Pages
 - Apple Music auth timing: ask only when the user creates the Apple Music playlist
 - Spotify auth: no Spotify login for MVP; use public playlist link ingestion
@@ -25,6 +25,7 @@ The goal is a fast, public, ad-ready web MVP with the static site on Cloudflare 
 - Domain `playlistxfer.com` purchased through Cloudflare Registrar.
 - Render API is live.
 - Supabase storage is configured.
+- Cloudflare Pages API fallback is live and can proxy to Render.
 - Cloudflare Pages-compatible files exist in the repo:
   - `wrangler.toml`
   - `functions/api/[[path]].js`
@@ -67,7 +68,7 @@ Expected behavior:
 - `https://playlistxfer.com` serves the app.
 - `https://www.playlistxfer.com` redirects to `https://playlistxfer.com`.
 - Static page views should not wake the Render API.
-- `/api/*` calls should proxy to the Render API only after user actions.
+- `/api/*` calls should use D1 native mode when configured, or proxy to the Render API only after user actions.
 
 Keep `playlist.arthurmendes.com` as staging until production smoke tests pass.
 
@@ -107,6 +108,54 @@ Validation:
 - Deny once and confirm no playlist is created.
 - Retry, allow, and confirm creation succeeds.
 
+## Phase 2.5 - Cloudflare-Native API Cutover
+
+Owner: Arthur + Codex
+
+Goal: remove the Render free-tier cold start from normal transfers while keeping Render as a rollback path.
+
+Cloudflare setup:
+
+```text
+D1 database: playlist-transfer
+Pages D1 binding: PLAYLIST_TRANSFER_DB
+```
+
+Pages environment variables:
+
+```bash
+APPLE_MUSIC_DEVELOPER_TOKEN=your-apple-developer-token
+APPLE_MUSIC_STOREFRONT=us
+TRANSFER_API_URL=https://playlist-transfer-api.onrender.com
+```
+
+Expected health response after redeploy:
+
+```json
+{
+  "apiMode": "cloudflare-native",
+  "nativeApiConfigured": true,
+  "hasAppleDeveloperToken": true
+}
+```
+
+Cutover smoke test:
+
+1. Open `https://playlistxfer.com`.
+2. Paste a public Spotify playlist.
+3. Preview.
+4. Analyze full playlist.
+5. Approve or skip one review candidate.
+6. Create Apple Music playlist.
+7. Confirm the playlist appears in Apple Music.
+8. Confirm Render logs do not wake for this flow.
+
+Rollback:
+
+- Remove or rename the `PLAYLIST_TRANSFER_DB` Pages binding.
+- Redeploy Pages.
+- `/health` should return `apiMode: "render-proxy"` and `/api/*` will proxy to Render again.
+
 ## Phase 3 - Brand And SEO Code Pass
 
 Owner: Codex
@@ -142,6 +191,7 @@ curl -I https://www.playlistxfer.com
 Expected:
 
 - `/health` returns `host: "cloudflare-pages"`.
+- `/health` returns `apiMode: "cloudflare-native"` once D1 is bound, or `render-proxy` before cutover.
 - `/privacy` and `/terms` return HTML.
 - `www` redirects to the apex domain.
 - The first page load does not create a `playlist_transfer_event` log line.

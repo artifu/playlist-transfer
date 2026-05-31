@@ -1,6 +1,6 @@
 # MVP Release Checklist
 
-Last reviewed: 2026-05-15
+Last reviewed: 2026-05-31
 
 Use this checklist before sharing a public PlaylistXfer link with testers, recruiters, or app-store reviewers.
 
@@ -8,24 +8,28 @@ For the production domain launch sequence, use [playlistxfer-launch-roadmap.md](
 
 ## Hosted Services
 
-- Render API service is live at `https://playlist-transfer-api.onrender.com`.
+- Cloudflare Pages API mode is decided for the release: `cloudflare-native` preferred, `render-proxy` acceptable as fallback.
+- Render API service is live at `https://playlist-transfer-api.onrender.com` if fallback is needed.
 - Cloudflare Pages web service is live for `https://playlistxfer.com`.
 - `https://www.playlistxfer.com` redirects to `https://playlistxfer.com`.
 - `https://playlist.arthurmendes.com` remains available as staging or fallback.
 - Render web service at `https://playlist-transfer-web-esj4.onrender.com` remains available as fallback until we remove it.
 - `/health` returns `{"ok":true}` for the API.
-- `/health` on the Cloudflare Pages site returns `host: "cloudflare-pages"` and the expected `transferApiUrl`.
+- `/health` on the Cloudflare Pages site returns `host: "cloudflare-pages"` and the expected `apiMode`.
 - `/privacy` and `/terms` load from the custom domain.
-- `/api/*` calls on the Cloudflare Pages site proxy to the Render API.
+- `/api/*` calls on the Cloudflare Pages site use the native D1 API when `PLAYLIST_TRANSFER_DB` exists; otherwise they proxy to Render.
 - `/robots.txt` and `/sitemap.xml` load from the custom domain.
 
 ## Backend Environment
 
 - `TRANSFER_API_HOST=0.0.0.0`
-- `TRANSFER_API_STORAGE_DRIVER=supabase-rest`
-- `SUPABASE_URL` is set.
-- `SUPABASE_SERVICE_ROLE_KEY` is set only on the API service.
-- `SUPABASE_TRANSFERS_TABLE=transfers`
+- Cloudflare-native mode: `PLAYLIST_TRANSFER_DB` D1 binding exists on the Pages project.
+- Cloudflare-native mode: `APPLE_MUSIC_DEVELOPER_TOKEN` is set on the Pages project.
+- Cloudflare-native mode: `APPLE_MUSIC_STOREFRONT=us` is set on the Pages project.
+- Render fallback mode: `TRANSFER_API_STORAGE_DRIVER=supabase-rest`
+- Render fallback mode: `SUPABASE_URL` is set.
+- Render fallback mode: `SUPABASE_SERVICE_ROLE_KEY` is set only on the API service.
+- Render fallback mode: `SUPABASE_TRANSFERS_TABLE=transfers`
 - `APPLE_MUSIC_DEVELOPER_TOKEN` is set and current.
 - `APPLE_MUSIC_STOREFRONT=us`
 - Rate limiting is enabled.
@@ -34,6 +38,7 @@ For the production domain launch sequence, use [playlistxfer-launch-roadmap.md](
 ## Web Environment
 
 - Cloudflare Pages has `TRANSFER_API_URL=https://playlist-transfer-api.onrender.com`.
+- Cloudflare Pages has `PLAYLIST_TRANSFER_DB` D1 binding when using native mode.
 - Cloudflare Pages build output directory is `apps/web/public`.
 - Cloudflare Pages Functions are active only for `/api/*` and `/health`.
 - `playlistxfer.com` points to the Cloudflare Pages project.
@@ -97,6 +102,6 @@ The web page should not wake the API on initial load. Open the page in a fresh b
 - Public Spotify ingestion depends on public web/embed surfaces and can break if Spotify changes them.
 - Apple Music matching is best-effort and storefront-sensitive.
 - Anonymous sessions are not user accounts.
-- Render free instances can spin down and make the first request slow.
-- Cloudflare Pages avoids web-page cold starts, but the Render API can still cold start on the first real transfer action.
+- Render free instances can spin down and make the first request slow when the site is in Render proxy mode.
+- Cloudflare-native mode avoids Render cold starts, but very large playlists still depend on Cloudflare Function limits and Spotify/Apple response times.
 - The current analytics layer is operational telemetry for MVP testing, not a full product analytics warehouse.

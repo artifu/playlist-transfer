@@ -1,17 +1,21 @@
 # Deployment Notes
 
-Last reviewed: 2026-05-14
+Last reviewed: 2026-05-31
 
-This project should not require a heavy local database install. Local development can keep using SQLite, while the first hosted MVP can use Supabase REST storage from the Node API.
+This project should not require a heavy local database install. Local development can keep using SQLite, while production can run in one of two modes:
+
+- Cloudflare-native API mode: Cloudflare Pages Functions plus D1 for transfer/job storage. This is the preferred free-tier direction because static page loads and transfer API calls stay on Cloudflare without Render cold starts.
+- Render proxy mode: Cloudflare Pages proxies `/api/*` to the Render Node API. This remains the fallback while D1 is not configured.
 
 ## Recommended First Hosted Stack
 
-- Render Web Service for `apps/transfer-api`.
 - Cloudflare Pages for the static web shell in `apps/web/public`.
-- Supabase Postgres for transfer persistence.
-- Local web shell can keep proxying to the hosted API while we test.
+- Cloudflare Pages Functions for same-origin `/api/*`.
+- Cloudflare D1 for anonymous transfer and job persistence.
+- Render Web Service for `apps/transfer-api` only as fallback.
+- Supabase Postgres only as fallback storage for the Render API.
 
-This keeps the mobile/web clients thin and avoids running Postgres on the development Mac.
+This keeps the mobile/web clients thin, avoids running Postgres on the development Mac, and gives us a no-cold-start path for the main production transfer flow.
 
 ## Supabase Setup
 
@@ -79,14 +83,14 @@ The API reads Render's `PORT` automatically. Set `TRANSFER_API_PORT` only if a h
 
 ## Cloudflare Pages Web Setup
 
-Cloudflare Pages is the preferred host for the public web shell because it serves static files from the edge without waking a Node web service for every page hit.
+Cloudflare Pages is the preferred host for the public web shell because it serves static files from the edge without waking a Node web service for every page hit. The same Pages project can also serve the Cloudflare-native transfer API when a D1 binding is present.
 
 The production domain plan lives in [playlistxfer-launch-roadmap.md](/Users/arthur_t_m/Documents/PlaylistTransfer/docs/playlistxfer-launch-roadmap.md).
 
 The repo includes:
 
 - [wrangler.toml](/Users/arthur_t_m/Documents/PlaylistTransfer/wrangler.toml) with the Pages output directory.
-- [functions/api/[[path]].js](/Users/arthur_t_m/Documents/PlaylistTransfer/functions/api/[[path]].js), a same-origin `/api/*` proxy to the Render API.
+- [functions/api/[[path]].js](/Users/arthur_t_m/Documents/PlaylistTransfer/functions/api/[[path]].js), a same-origin `/api/*` entrypoint. It uses Cloudflare D1 when the `PLAYLIST_TRANSFER_DB` binding exists and falls back to the Render API otherwise.
 - [functions/health.js](/Users/arthur_t_m/Documents/PlaylistTransfer/functions/health.js), a Pages health endpoint.
 - [apps/web/public/_routes.json](/Users/arthur_t_m/Documents/PlaylistTransfer/apps/web/public/_routes.json), which ensures only `/api/*` and `/health` invoke Functions.
 - [apps/web/public/_headers](/Users/arthur_t_m/Documents/PlaylistTransfer/apps/web/public/_headers), which adds lightweight security and cache headers.
@@ -106,6 +110,68 @@ Set this Pages environment variable:
 ```bash
 TRANSFER_API_URL=https://playlist-transfer-api.onrender.com
 ```
+
+This keeps Render proxy mode working. When Cloudflare-native API mode is enabled, the Pages Function ignores `TRANSFER_API_URL` for implemented API routes and uses D1 instead.
+
+## Cloudflare-Native API Setup
+
+This removes the Render cold start from the normal transfer path.
+
+1. In Cloudflare, create a D1 database named `playlist-transfer`.
+2. In the Pages project, add a D1 binding:
+
+```text
+Variable name / binding: PLAYLIST_TRANSFER_DB
+D1 database: playlist-transfer
+```
+
+3. Add these Pages environment variables:
+
+```bash
+APPLE_MUSIC_DEVELOPER_TOKEN=your-apple-developer-token
+APPLE_MUSIC_STOREFRONT=us
+TRANSFER_API_URL=https://playlist-transfer-api.onrender.com
+```
+
+4. Redeploy the Pages project.
+5. Confirm `/health` reports native mode:
+
+```bash
+curl https://playlistxfer.com/health
+```
+
+Expected shape:
+
+```json
+{
+  "ok": true,
+  "host": "cloudflare-pages",
+  "apiMode": "cloudflare-native",
+  "nativeApiConfigured": true,
+  "hasAppleDeveloperToken": true
+}
+```
+
+The native API auto-creates the D1 tables on first use. The schema is also saved in [cloudflare-d1-schema.sql](/Users/arthur_t_m/Documents/PlaylistTransfer/apps/transfer-api/sql/cloudflare-d1-schema.sql) if you prefer running it manually.
+
+Supported native routes:
+
+- `GET /api/apple-music/session`
+- `POST /api/apple-music/user-token`
+- `POST /api/events`
+- `POST /api/spotify/public-playlist-preview`
+- `POST /api/transfers/analyze-public-job`
+- `GET /api/jobs/:jobId`
+- `GET /api/transfers/:transferId`
+- `PATCH /api/transfers/:transferId/items/:itemIndex`
+- `POST /api/transfers/:transferId/create-job`
+- `POST /api/transfers/create-public-job`
+
+Important security notes:
+
+- `APPLE_MUSIC_DEVELOPER_TOKEN` is a backend secret and must stay in Cloudflare/Render environment variables only.
+- Apple Music user tokens stay in the browser session and are sent only for the explicit create-playlist action.
+- D1 stores anonymous transfer reports and job results, not Apple Music user tokens.
 
 Then configure these Pages custom domains:
 
@@ -135,7 +201,13 @@ curl https://playlistxfer.com/api/events
 curl -I https://www.playlistxfer.com/privacy
 ```
 
-The `/api/events` request should return a method or payload error from the Render API, proving that the Pages proxy is reaching the backend without exposing backend secrets to the browser.
+In Render proxy mode, the `/api/events` request should return a method or payload error from the Render API, proving that the Pages proxy is reaching the backend without exposing backend secrets to the browser. In Cloudflare-native mode, use a POST request instead:
+
+```bash
+curl -X POST https://playlistxfer.com/api/events \
+  -H "Content-Type: application/json" \
+  -d '{"event":"smoke_test"}'
+```
 
 ## Render Web Setup
 
@@ -202,13 +274,14 @@ Current mitigation:
 
 Current hosting direction:
 
-- Move `apps/web/public` to Cloudflare Pages for static hosting.
-- Keep `apps/transfer-api` on Render for the transfer engine until traffic justifies either a paid no-spin-down API host or a Cloudflare-native rewrite.
-- Use the included Cloudflare Pages Function proxy for `/api/*` so the browser can keep using same-origin API calls.
+- Keep `apps/web/public` on Cloudflare Pages for static hosting.
+- Prefer Cloudflare-native API mode with D1 to avoid Render cold starts in the main transfer path.
+- Keep the Render API deployed as a safety fallback until native D1 mode has passed real playlist smoke tests.
+- Use the included Cloudflare Pages Function entrypoint for `/api/*` so the browser can keep using same-origin API calls in both modes.
 
-This split lets casual page traffic hit Cloudflare's static edge instead of waking the Render API. The API still wakes when a user actually previews, analyzes, or creates a transfer.
+This split lets casual page traffic hit Cloudflare's static edge. With D1 configured, transfer actions also stay on Cloudflare. Without D1, transfer actions fall back to Render.
 
-Do not move the full API to Cloudflare Workers without a separate migration pass. The current API relies on Node runtime behavior, in-memory jobs, and long-running Apple Music matching work that are not a drop-in fit for Workers.
+The native API is intentionally a small compatibility layer, not a blind lift-and-shift of the Node API. It ports the public playlist ingestion, Apple Music catalog matching, anonymous transfer storage, and explicit create flow into Worker-compatible modules.
 
 ## Render Smoke Test
 
@@ -230,10 +303,10 @@ For the web service:
 curl https://your-web-service.onrender.com/health
 ```
 
-Expected response:
+Expected response while Render proxy mode is active:
 
 ```json
-{"ok":true,"transferApiUrl":"https://playlist-transfer-api.onrender.com/"}
+{"ok":true,"host":"cloudflare-pages","apiMode":"render-proxy","transferApiUrl":"https://playlist-transfer-api.onrender.com"}
 ```
 
 ## Local Hosted-Storage Smoke Test

@@ -18,10 +18,12 @@ const fallbackGuide = document.querySelector("#fallback-guide");
 const toast = document.querySelector("#toast");
 const STORED_TRANSFER_ID_KEY = "playlist-transfer:last-transfer-id";
 const STORED_SESSION_ID_KEY = "playlist-transfer:anonymous-session-id";
+const STORED_APPLE_USER_TOKEN_KEY = "playlist-transfer:apple-user-token";
 const SESSION_HEADER = "X-PlaylistTransfer-Session";
 
 const state = {
   appleSession: null,
+  appleUserToken: null,
   busy: false,
   preview: null,
   previewInput: null,
@@ -215,6 +217,27 @@ function hasAppleMusicConnection() {
   return Boolean(state.appleSession?.hasDeveloperToken && state.appleSession?.hasUserToken);
 }
 
+function readStoredAppleUserToken() {
+  try {
+    return window.sessionStorage.getItem(STORED_APPLE_USER_TOKEN_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+function storeAppleUserToken(userToken) {
+  state.appleUserToken = userToken || null;
+  try {
+    if (userToken) {
+      window.sessionStorage.setItem(STORED_APPLE_USER_TOKEN_KEY, userToken);
+    } else {
+      window.sessionStorage.removeItem(STORED_APPLE_USER_TOKEN_KEY);
+    }
+  } catch {
+    // Session storage is a convenience only; the in-memory token is enough for the current create flow.
+  }
+}
+
 function canCreate() {
   const inputValue = input.value.trim();
   return Boolean(
@@ -360,6 +383,15 @@ function adoptAnalysis(data) {
 async function loadAppleSession() {
   try {
     state.appleSession = await apiFetch("/api/apple-music/session");
+    const storedUserToken = readStoredAppleUserToken();
+    if (storedUserToken && state.appleSession?.hasDeveloperToken && !state.appleSession?.hasUserToken) {
+      state.appleUserToken = storedUserToken;
+      state.appleSession = {
+        ...state.appleSession,
+        hasUserToken: true,
+        userTokenSource: "runtime"
+      };
+    }
   } catch (error) {
     state.appleSession = {
       hasDeveloperToken: false,
@@ -394,10 +426,16 @@ async function ensureDeveloperTokenForAnalysis() {
 }
 
 async function saveAppleUserToken(userToken) {
+  storeAppleUserToken(userToken);
   state.appleSession = await postJson("/api/apple-music/user-token", {
     userToken,
     storefront: state.appleSession?.storefront || "us"
   });
+  state.appleSession = {
+    ...state.appleSession,
+    hasUserToken: true,
+    userTokenSource: "runtime"
+  };
   renderAppleSession();
 }
 
@@ -944,12 +982,17 @@ async function createPlaylist() {
   setBusy(true, "Creating Apple Music playlist from ready tracks...");
 
   try {
+    const appleCreatePayload = {
+      userToken: state.appleUserToken || readStoredAppleUserToken(),
+      storefront: state.appleSession?.storefront || "us"
+    };
     const data = state.transferId
-      ? await startJob(`/api/transfers/${encodeURIComponent(state.transferId)}/create-job`, {})
+      ? await startJob(`/api/transfers/${encodeURIComponent(state.transferId)}/create-job`, appleCreatePayload)
       : await startJob("/api/transfers/create-public-job", {
           input: value,
           limit: analysisLimit.value,
-          analysis: state.analysis
+          analysis: state.analysis,
+          ...appleCreatePayload
         });
 
     adoptAnalysis(data);

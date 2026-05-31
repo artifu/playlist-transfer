@@ -1,3 +1,5 @@
+import { handleNativeApiRequest, nativeApiIsConfigured } from "../_lib/native-api.js";
+
 const DEFAULT_TRANSFER_API_URL = "https://playlist-transfer-api.onrender.com";
 
 function transferApiUrl(env) {
@@ -36,6 +38,11 @@ function proxyHeaders(request) {
 export async function onRequest(context) {
   const request = context.request;
   const incomingUrl = new URL(request.url);
+
+  if (nativeApiIsConfigured(context.env)) {
+    return handleNativeApiRequest(context);
+  }
+
   const targetUrl = new URL(incomingUrl.pathname + incomingUrl.search, transferApiUrl(context.env));
   const method = request.method || "GET";
 

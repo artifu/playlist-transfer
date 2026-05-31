@@ -1,0 +1,197 @@
+import { buildSearchTerms, pickBestMatch } from "./matching.js";
+
+export const DEFAULT_PUBLIC_ANALYSIS_LIMIT = 500;
+export const MAX_PUBLIC_ANALYSIS_LIMIT = 500;
+
+function dedupeCandidates(candidates) {
+  const byId = new Map();
+  for (const candidate of candidates) byId.set(candidate.id, candidate);
+  return [...byId.values()];
+}
+
+async function mapWithConcurrency(values, concurrency, mapper) {
+  const results = new Array(values.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < values.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await mapper(values[index], index);
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, values.length) }, () => worker())
+  );
+
+  return results;
+}
+
+async function analyzeTrack(track, apple) {
+  const searchTerms = buildSearchTerms(track);
+  const attemptedSearchTerms = [];
+  const candidates = [];
+  let bestMatch = null;
+
+  for (const searchTerm of searchTerms) {
+    attemptedSearchTerms.push(searchTerm);
+    candidates.push(...(await apple.searchSongs(searchTerm)));
+
+    const uniqueCandidates = dedupeCandidates(candidates);
+    bestMatch = pickBestMatch(track, uniqueCandidates);
+
+    if (bestMatch.reason === "isrc") break;
+  }
+
+  const uniqueCandidates = dedupeCandidates(candidates);
+  const match = bestMatch ?? pickBestMatch(track, uniqueCandidates);
+
+  return {
+    ...match,
+    searchTerm: attemptedSearchTerms.join(" | "),
+    candidates: uniqueCandidates
+  };
+}
+
+export async function analyzeSpotifyPlaylist(playlist, apple, options = {}) {
+  const trackConcurrency = Math.max(1, options.trackConcurrency ?? 4);
+  let completed = 0;
+  const results = await mapWithConcurrency(
+    playlist.tracks,
+    trackConcurrency,
+    async (track, index) => {
+      const result = await analyzeTrack(track, apple);
+      completed += 1;
+      options.onTrackComplete?.({
+        completed,
+        total: playlist.tracks.length,
+        index,
+        result
+      });
+      return result;
+    }
+  );
+
+  const matchedCount = results.filter((result) => result.matched).length;
+  const unmatchedCount = results.length - matchedCount;
+
+  return {
+    playlistName: playlist.name,
+    playlistId: playlist.id,
+    matchedCount,
+    unmatchedCount,
+    matchRate: results.length === 0 ? 0 : matchedCount / results.length,
+    results
+  };
+}
+
+function matchStatus(result) {
+  if (!result.matched) return "unmatched";
+  if (result.confidence < 0.8) return "needs_review";
+  return "matched";
+}
+
+export function serializeAnalysis(analysis, playlistExtra = {}, options = {}) {
+  const candidateLimit = options.candidateLimit ?? 3;
+  const items = analysis.results.map((result, index) => ({
+    index: index + 1,
+    status: matchStatus(result),
+    source: result.source,
+    confidence: result.confidence,
+    reason: result.reason,
+    appleCandidate: result.candidate,
+    searchTerm: result.searchTerm,
+    candidateCount: result.candidates?.length ?? 0,
+    candidates: (result.candidates ?? []).slice(0, candidateLimit)
+  }));
+
+  return {
+    playlist: {
+      id: analysis.playlistId,
+      name: analysis.playlistName,
+      totalItems: analysis.results.length,
+      ...playlistExtra
+    },
+    summary: {
+      matchedCount: analysis.matchedCount,
+      unmatchedCount: analysis.unmatchedCount,
+      needsReviewCount: items.filter((item) => item.status === "needs_review").length,
+      confidentMatchCount: items.filter((item) => item.status === "matched").length,
+      matchRate: analysis.matchRate
+    },
+    items
+  };
+}
+
+export function transferReportFromSerializedAnalysis(serializedAnalysis) {
+  return {
+    playlistName: serializedAnalysis.playlist.name,
+    playlistId: serializedAnalysis.playlist.id,
+    matchedCount: serializedAnalysis.summary.matchedCount,
+    unmatchedCount: serializedAnalysis.summary.unmatchedCount,
+    matchRate: serializedAnalysis.summary.matchRate,
+    results: serializedAnalysis.items.map((item) => ({
+      source: item.source,
+      matched: item.status !== "unmatched" && Boolean(item.appleCandidate),
+      confidence: item.confidence,
+      reason: item.reason,
+      candidate: item.appleCandidate,
+      searchTerm: item.searchTerm,
+      candidates: item.candidates ?? []
+    }))
+  };
+}
+
+function numberFromBody(value, fallback) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
+}
+
+export function analysisLimitFromBody(body) {
+  return Math.min(
+    numberFromBody(body.limit ?? body.analysisLimit, DEFAULT_PUBLIC_ANALYSIS_LIMIT),
+    MAX_PUBLIC_ANALYSIS_LIMIT
+  );
+}
+
+export function slicePlaylistForAnalysis(playlist, limit) {
+  const tracks = playlist.tracks.slice(0, limit);
+  return {
+    ...playlist,
+    totalItems: tracks.length,
+    tracks
+  };
+}
+
+export function playlistAnalysisMetadata(playlist, analyzedTrackCount) {
+  return {
+    imageUrl: playlist.imageUrl,
+    source: playlist.source,
+    limitations: playlist.limitations,
+    originalTotalItems: playlist.totalItems,
+    analyzedTrackCount,
+    partialAnalysis: analyzedTrackCount < playlist.totalItems
+  };
+}
+
+export async function createApplePlaylistFromMatches(input) {
+  const minConfidence = input.minConfidence ?? 0;
+  const matchedSongIds = input.results
+    .filter((result) => result.matched && result.candidate && result.confidence >= minConfidence)
+    .map((result) => result.candidate.id);
+
+  if (matchedSongIds.length === 0) {
+    throw new Error("No confident Apple Music matches are available to create a playlist.");
+  }
+
+  const createdApplePlaylistId = await input.apple.createPlaylist(
+    `${input.playlistName} (PlaylistXfer)`,
+    "Transferred from Spotify with PlaylistXfer. Review and missing tracks were left out."
+  );
+
+  await input.apple.addTracksToPlaylist(createdApplePlaylistId, matchedSongIds);
+
+  return createdApplePlaylistId;
+}
+
