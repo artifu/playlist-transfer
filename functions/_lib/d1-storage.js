@@ -312,7 +312,7 @@ export function serializeJob(job) {
     total: job.total,
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,
-    result: job.result,
+    result: job.status === "complete" ? job.result : null,
     error: job.error
   };
 }
@@ -392,4 +392,3 @@ export async function loadTransferReport(env, transferId, sessionId) {
   const transfer = await requireTransfer(env, transferId, sessionId);
   return transferToPayload(transfer);
 }
-

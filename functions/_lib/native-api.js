@@ -11,17 +11,22 @@ import {
   updateJob
 } from "./d1-storage.js";
 import { errorMessage, jsonResponse, readJsonBody, statusForError } from "./http.js";
-import { requireSessionId, sessionIdFromRequest } from "./session.js";
+import { requireSessionId, SESSION_HEADER } from "./session.js";
 import { getPublicSpotifyPlaylist } from "./spotify-public.js";
 import {
   analysisLimitFromBody,
+  analyzeTrack,
   analyzeSpotifyPlaylist,
   createApplePlaylistFromMatches,
   playlistAnalysisMetadata,
   serializeAnalysis,
+  serializeAnalysisItem,
+  serializedAnalysisFromItems,
   slicePlaylistForAnalysis,
   transferReportFromSerializedAnalysis
 } from "./transfer.js";
+
+const ANALYSIS_CHUNK_SIZE = 2;
 
 function routePath(request) {
   return new URL(request.url).pathname;
@@ -59,6 +64,167 @@ async function handlePublicPlaylistPreview(request) {
     },
     tracks: playlist.tracks
   });
+}
+
+function analysisProgress(completed, total) {
+  return Math.min(95, Math.round(10 + (completed / Math.max(total, 1)) * 85));
+}
+
+function createAnalyzeState(input, limit, playlist, analysisPlaylist) {
+  return {
+    mode: "cloudflare-chunked-analysis-v1",
+    input,
+    limit,
+    playlist: {
+      id: playlist.id,
+      name: playlist.name
+    },
+    playlistExtra: playlistAnalysisMetadata(playlist, analysisPlaylist.tracks.length),
+    tracks: analysisPlaylist.tracks,
+    items: [],
+    nextIndex: 0
+  };
+}
+
+function enqueueAnalyzeJobRun(context, jobId, sessionId) {
+  const url = new URL(`/api/jobs/${encodeURIComponent(jobId)}/run`, context.request.url);
+  const promise = fetch(url.toString(), {
+    method: "POST",
+    headers: {
+      [SESSION_HEADER]: sessionId
+    }
+  }).catch((error) => {
+    console.error("analysis_chunk_enqueue_failed", error);
+  });
+
+  if (typeof context.waitUntil === "function") {
+    context.waitUntil(promise);
+  }
+}
+
+async function initializeChunkedAnalyzeJob(context, job, body) {
+  const input = transferInputFromBody(body);
+  const limit = analysisLimitFromBody(body);
+
+  try {
+    await updateJob(context.env, job, {
+      status: "running",
+      phase: "Reading public Spotify playlist",
+      progress: 4
+    });
+
+    const playlist = await getPublicSpotifyPlaylist(input);
+    const analysisPlaylist = slicePlaylistForAnalysis(playlist, limit);
+    const state = createAnalyzeState(input, limit, playlist, analysisPlaylist);
+
+    await updateJob(context.env, job, {
+      phase: `Matching Apple Music (0/${analysisPlaylist.tracks.length})`,
+      progress: 10,
+      completed: 0,
+      total: analysisPlaylist.tracks.length,
+      playlistName: playlist.name,
+      originalTotalItems: playlist.totalItems,
+      result: state
+    });
+
+    enqueueAnalyzeJobRun(context, job.id, job.sessionId);
+  } catch (error) {
+    await updateJob(context.env, job, {
+      status: "error",
+      phase: "Analysis failed",
+      progress: 100,
+      error: errorMessage(error)
+    });
+  }
+}
+
+async function completeChunkedAnalyzeJob(env, job, state) {
+  const items = state.items.filter(Boolean);
+  const serializedAnalysis = serializedAnalysisFromItems(
+    state.playlist,
+    items,
+    state.playlistExtra
+  );
+  const transfer = await createTransfer(env, {
+    sessionId: job.sessionId,
+    input: state.input,
+    analysisLimit: state.limit,
+    analysis: serializedAnalysis
+  });
+
+  await updateJob(env, job, {
+    status: "complete",
+    phase: "Analysis complete",
+    progress: 100,
+    completed: items.length,
+    total: items.length,
+    result: transfer
+  });
+}
+
+async function continueChunkedAnalyzeJob(context, request, jobId) {
+  const sessionId = requireSessionId(request);
+  const job = await findJob(context.env, jobId, sessionId);
+
+  if (!job) {
+    return noStoreJson(404, {
+      error: true,
+      message: "Job not found."
+    });
+  }
+
+  if (job.status !== "running") {
+    return noStoreJson(200, serializeJob(job));
+  }
+
+  const state = job.result;
+  if (state?.mode !== "cloudflare-chunked-analysis-v1") {
+    throw new Error("This job cannot be resumed by the Cloudflare chunk runner.");
+  }
+
+  try {
+    const apple = createAppleMusicClient(context.env);
+    let processed = 0;
+
+    while (state.nextIndex < state.tracks.length && processed < ANALYSIS_CHUNK_SIZE) {
+      const index = state.nextIndex;
+      const track = state.tracks[index];
+      state.nextIndex += 1;
+      processed += 1;
+
+      if (!track) continue;
+
+      const result = await analyzeTrack(track, apple);
+      state.items[index] = serializeAnalysisItem(result, index);
+      state.tracks[index] = null;
+    }
+
+    const completed = state.items.filter(Boolean).length;
+
+    if (state.nextIndex >= state.tracks.length) {
+      await completeChunkedAnalyzeJob(context.env, job, state);
+      return noStoreJson(200, serializeJob(job));
+    }
+
+    await updateJob(context.env, job, {
+      phase: `Matching Apple Music (${completed}/${state.tracks.length})`,
+      progress: analysisProgress(completed, state.tracks.length),
+      completed,
+      total: state.tracks.length,
+      result: state
+    });
+
+    enqueueAnalyzeJobRun(context, job.id, job.sessionId);
+    return noStoreJson(202, serializeJob(job));
+  } catch (error) {
+    await updateJob(context.env, job, {
+      status: "error",
+      phase: "Analysis failed",
+      progress: 100,
+      error: errorMessage(error)
+    });
+    return noStoreJson(200, serializeJob(job));
+  }
 }
 
 async function runAnalyzeJob(env, job, body) {
@@ -253,7 +419,9 @@ async function createBackgroundJob(context, kind, sessionId, body, runner) {
 async function handleAnalyzePublicJob(context, request) {
   const sessionId = requireSessionId(request);
   const body = await readJsonBody(request);
-  return createBackgroundJob(context, "public-analysis", sessionId, body, runAnalyzeJob);
+  const job = await createJob(context.env, "public-analysis", sessionId);
+  await initializeChunkedAnalyzeJob(context, job, body);
+  return noStoreJson(202, serializeJob(job));
 }
 
 async function handleCreatePublicJob(context, request) {
@@ -364,6 +532,11 @@ export async function handleNativeApiRequest(context) {
 
     if (method === "POST" && path === "/api/transfers/create-public-job") {
       return await handleCreatePublicJob(context, request);
+    }
+
+    const jobRunMatch = path.match(/^\/api\/jobs\/([^/]+)\/run$/);
+    if (method === "POST" && jobRunMatch) {
+      return await continueChunkedAnalyzeJob(context, request, decodeURIComponent(jobRunMatch[1]));
     }
 
     const jobMatch = path.match(/^\/api\/jobs\/([^/]+)$/);

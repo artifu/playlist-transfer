@@ -28,7 +28,7 @@ async function mapWithConcurrency(values, concurrency, mapper) {
   return results;
 }
 
-async function analyzeTrack(track, apple) {
+export async function analyzeTrack(track, apple) {
   const searchTerms = buildSearchTerms(track);
   const attemptedSearchTerms = [];
   const candidates = [];
@@ -92,9 +92,10 @@ function matchStatus(result) {
   return "matched";
 }
 
-export function serializeAnalysis(analysis, playlistExtra = {}, options = {}) {
+export function serializeAnalysisItem(result, index, options = {}) {
   const candidateLimit = options.candidateLimit ?? 3;
-  const items = analysis.results.map((result, index) => ({
+
+  return {
     index: index + 1,
     status: matchStatus(result),
     source: result.source,
@@ -104,24 +105,47 @@ export function serializeAnalysis(analysis, playlistExtra = {}, options = {}) {
     searchTerm: result.searchTerm,
     candidateCount: result.candidates?.length ?? 0,
     candidates: (result.candidates ?? []).slice(0, candidateLimit)
-  }));
+  };
+}
+
+export function summaryFromAnalysisItems(items) {
+  const unmatchedCount = items.filter((item) => item.status === "unmatched").length;
+  const needsReviewCount = items.filter((item) => item.status === "needs_review").length;
+  const confidentMatchCount = items.filter((item) => item.status === "matched").length;
+  const matchedCount = items.length - unmatchedCount;
 
   return {
+    matchedCount,
+    unmatchedCount,
+    needsReviewCount,
+    confidentMatchCount,
+    matchRate: items.length === 0 ? 0 : matchedCount / items.length
+  };
+}
+
+export function serializedAnalysisFromItems(playlist, items, playlistExtra = {}) {
+  return {
     playlist: {
-      id: analysis.playlistId,
-      name: analysis.playlistName,
-      totalItems: analysis.results.length,
+      id: playlist.id,
+      name: playlist.name,
+      totalItems: items.length,
       ...playlistExtra
     },
-    summary: {
-      matchedCount: analysis.matchedCount,
-      unmatchedCount: analysis.unmatchedCount,
-      needsReviewCount: items.filter((item) => item.status === "needs_review").length,
-      confidentMatchCount: items.filter((item) => item.status === "matched").length,
-      matchRate: analysis.matchRate
-    },
+    summary: summaryFromAnalysisItems(items),
     items
   };
+}
+
+export function serializeAnalysis(analysis, playlistExtra = {}, options = {}) {
+  const items = analysis.results.map((result, index) => serializeAnalysisItem(result, index, options));
+  return serializedAnalysisFromItems(
+    {
+      id: analysis.playlistId,
+      name: analysis.playlistName
+    },
+    items,
+    playlistExtra
+  );
 }
 
 export function transferReportFromSerializedAnalysis(serializedAnalysis) {
@@ -194,4 +218,3 @@ export async function createApplePlaylistFromMatches(input) {
 
   return createdApplePlaylistId;
 }
-
