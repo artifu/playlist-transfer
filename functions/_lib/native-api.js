@@ -445,15 +445,19 @@ async function handleStoredCreateJob(context, request, transferId) {
   );
 }
 
-async function handleJobStatus(env, request, jobId) {
+async function handleJobStatus(context, request, jobId) {
   const sessionId = requireSessionId(request);
-  const job = await findJob(env, jobId, sessionId);
+  const job = await findJob(context.env, jobId, sessionId);
 
   if (!job) {
     return noStoreJson(404, {
       error: true,
       message: "Job not found."
     });
+  }
+
+  if (job.status === "running" && job.result?.mode === "cloudflare-chunked-analysis-v1") {
+    return continueChunkedAnalyzeJob(context, request, jobId);
   }
 
   return noStoreJson(200, serializeJob(job));
@@ -541,7 +545,7 @@ export async function handleNativeApiRequest(context) {
 
     const jobMatch = path.match(/^\/api\/jobs\/([^/]+)$/);
     if (method === "GET" && jobMatch) {
-      return await handleJobStatus(context.env, request, decodeURIComponent(jobMatch[1]));
+      return await handleJobStatus(context, request, decodeURIComponent(jobMatch[1]));
     }
 
     const transferItemMatch = path.match(/^\/api\/transfers\/([^/]+)\/items\/(\d+)$/);
