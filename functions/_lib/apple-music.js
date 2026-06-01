@@ -15,6 +15,11 @@ async function fetchJson(input, init) {
   return text ? JSON.parse(text) : null;
 }
 
+function isTransientAppleError(error) {
+  const message = error instanceof Error ? error.message : String(error);
+  return /\bHTTP (429|500|502|503|504)\b/.test(message);
+}
+
 function searchCacheKey(storefront, term, limit) {
   return `${storefront}:${limit}:${term.toLowerCase()}`;
 }
@@ -63,6 +68,7 @@ export class AppleMusicClient {
     url.searchParams.set("limit", String(limit));
 
     let response = null;
+    let lastTransientError = null;
 
     for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
@@ -71,10 +77,19 @@ export class AppleMusicClient {
         });
         break;
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        if (!message.includes("HTTP 429") || attempt === 2) throw error;
+        if (!isTransientAppleError(error)) throw error;
+        lastTransientError = error;
+        if (attempt === 2) break;
         await sleep(750 * (attempt + 1));
       }
+    }
+
+    if (!response && lastTransientError) {
+      console.warn("apple_music_search_transient_failure", {
+        term,
+        message: lastTransientError instanceof Error ? lastTransientError.message : String(lastTransientError)
+      });
+      return [];
     }
 
     return (
@@ -160,4 +175,3 @@ export function appleMusicSessionPayload(env, options = {}) {
     developerToken
   };
 }
-
