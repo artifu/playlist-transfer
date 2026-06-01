@@ -44,6 +44,7 @@ Create a Cloudflare Pages project from the GitHub repository:
 
 ```text
 Repository: artifu/playlist-transfer
+Project name: playlist-transfer
 Production branch: main
 Root directory: /
 Build command: none

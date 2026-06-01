@@ -98,7 +98,7 @@ The repo includes:
 Create the Cloudflare Pages project from GitHub with these settings:
 
 ```text
-Project name: playlist-transfer-web
+Project name: playlist-transfer
 Production branch: main
 Build command: none
 Build output directory: apps/web/public
