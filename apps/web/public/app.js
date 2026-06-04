@@ -187,6 +187,8 @@ function analyticsContext(properties = {}) {
 }
 
 function trackEvent(event, properties = {}) {
+  window.PlaylistXferAnalytics?.track?.(event, analyticsContext(properties));
+
   try {
     void fetch("/api/events", {
       method: "POST",

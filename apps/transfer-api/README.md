@@ -83,7 +83,7 @@ The API accepts safe operational events at:
 POST /api/events
 ```
 
-Events are written as structured JSON to stdout with `logType: "playlist_transfer_event"` so they are searchable in Render logs. The endpoint hashes the anonymous session id and allowlists event/property names to avoid accidentally logging tokens or full playlist URLs.
+Events are written as structured JSON with `logType: "playlist_transfer_event"` so they are searchable in Render logs or Cloudflare Pages Function logs. The endpoint hashes the anonymous session id and allowlists event/property names to avoid accidentally logging tokens or full playlist URLs.
 
 Use these logs to validate early funnel health:
 
@@ -92,7 +92,7 @@ Use these logs to validate early funnel health:
 - Apple Music authorization success/failure
 - playlist creation success/failure
 
-The web app intentionally does not emit page-load events by default, so casual visits do not wake the hosted API. Use Cloudflare or hosting-provider analytics for raw page traffic.
+The web app intentionally does not emit first-party API page-load events by default, so casual visits do not wake the hosted API. Use Google Analytics, Cloudflare Web Analytics, or hosting-provider analytics for raw page traffic.
 
 ## Operational Settings
 

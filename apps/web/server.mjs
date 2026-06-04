@@ -28,6 +28,21 @@ function sendJson(response, statusCode, payload) {
   response.end(JSON.stringify(payload));
 }
 
+function safeGoogleAnalyticsId(value) {
+  const id = String(value || "").trim();
+  return /^G-[A-Z0-9]+$/.test(id) ? id : "";
+}
+
+function sendConfigScript(response) {
+  response.writeHead(200, {
+    "Content-Type": "text/javascript; charset=utf-8",
+    "Cache-Control": "no-store"
+  });
+  response.end(`window.PLAYLIST_XFER_CONFIG = ${JSON.stringify({
+    gaMeasurementId: safeGoogleAnalyticsId(process.env.GA_MEASUREMENT_ID)
+  })};\n`);
+}
+
 function safePublicPath(pathname) {
   const cleanPathname = pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
   const routedPathname = new Map([
@@ -115,6 +130,11 @@ const server = createServer(async (request, response) => {
       ok: true,
       transferApiUrl: transferApiUrl.toString()
     });
+    return;
+  }
+
+  if (url.pathname === "/config.js") {
+    sendConfigScript(response);
     return;
   }
 

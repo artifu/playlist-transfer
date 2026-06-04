@@ -129,7 +129,7 @@ Next SEO tasks:
 
 - Add a branded 1200x630 Open Graph image instead of reusing the SVG favicon.
 - Add Google Search Console, submit `https://playlistxfer.com/sitemap.xml`, and request indexing for the homepage, guide, how-it-works, and FAQ pages.
-- Add lightweight analytics for organic landing-page visits without waking the transfer API.
+- Configure `GA_MEASUREMENT_ID` in Cloudflare Pages so Google Analytics records organic landing-page visits and high-level funnel events without waking the Transfer API.
 - Consider AdSense only after Search Console sees indexed pages and the privacy/contact/about pages are stable.
 
 ## Phase 6: AI and Agent Distribution

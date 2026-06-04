@@ -1,6 +1,6 @@
 # App API Contract
 
-Last reviewed: 2026-05-15
+Last reviewed: 2026-06-03
 
 This is the first app-facing contract between `apps/web`, the future mobile app, and `apps/transfer-api`.
 
@@ -58,6 +58,8 @@ The public preview route intentionally does not require a session because it doe
 ### `POST /api/events`
 
 Records safe first-party MVP telemetry in the API logs. This route is used for operational testing and early conversion debugging, not third-party ad tracking.
+
+Google Analytics may also be enabled on the web page through `GA_MEASUREMENT_ID`, but that is a separate aggregate traffic layer. The first-party API event route should remain useful even when GA is disabled, blocked, or unavailable.
 
 The web app should avoid calling this route on page load. Casual visits, SEO crawlers, and social previews should not wake the hosted API.
 

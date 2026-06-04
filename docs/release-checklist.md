@@ -1,6 +1,6 @@
 # MVP Release Checklist
 
-Last reviewed: 2026-05-31
+Last reviewed: 2026-06-03
 
 Use this checklist before sharing a public PlaylistXfer link with testers, recruiters, or app-store reviewers.
 
@@ -39,8 +39,10 @@ For the production domain launch sequence, use [playlistxfer-launch-roadmap.md](
 
 - Cloudflare Pages has `TRANSFER_API_URL=https://playlist-transfer-api.onrender.com`.
 - Cloudflare Pages has `PLAYLIST_TRANSFER_DB` D1 binding when using native mode.
+- Cloudflare Pages has `GA_MEASUREMENT_ID=G-XXXXXXXXXX` if Google Analytics should load.
 - Cloudflare Pages build output directory is `apps/web/public`.
-- Cloudflare Pages Functions are active only for `/api/*` and `/health`.
+- Cloudflare Pages Functions are active only for `/api/*`, `/health`, and `/config.js`.
+- `/config.js` returns safe public runtime config and does not expose backend secrets.
 - `playlistxfer.com` points to the Cloudflare Pages project.
 - Cloudflare Redirect Rule sends `www.playlistxfer.com` to the apex domain.
 - `playlist.arthurmendes.com` is staging or fallback, not the production domain.
@@ -71,9 +73,21 @@ Run this on `https://playlistxfer.com`:
 
 ## Analytics Smoke Test
 
-The MVP uses first-party structured logs, not third-party analytics.
+The MVP uses Google Analytics for aggregate traffic/acquisition and first-party structured logs for transfer reliability.
 
-In Render logs for `playlist-transfer-api`, filter or search for:
+In Google Analytics, confirm page views arrive for:
+
+- `/`
+- `/spotify-to-apple-music`
+- `/faq`
+
+After a real transfer test, confirm funnel events arrive in GA4 DebugView or Realtime:
+
+- `preview_succeeded` or `preview_failed`
+- `analysis_succeeded` or `analysis_failed`
+- `transfer_create_succeeded` or `transfer_create_failed`
+
+In Cloudflare Pages Function logs, or Render logs for `playlist-transfer-api` if using fallback mode, filter or search for:
 
 ```text
 playlist_transfer_event
@@ -95,7 +109,7 @@ Each log line is JSON and includes:
 
 Do not log Apple Music user tokens, Spotify full URLs, emails, or raw authorization payloads.
 
-The web page should not wake the API on initial load. Open the page in a fresh browser session and confirm no new `playlist_transfer_event` line appears until you click preview, analyze, connect, or create.
+The web page should not wake the Transfer API on initial load. Open the page in a fresh browser session and confirm no new `playlist_transfer_event` line appears until you click preview, analyze, connect, or create. Google Analytics page views may still fire if `GA_MEASUREMENT_ID` is configured.
 
 ## Known MVP Caveats
 

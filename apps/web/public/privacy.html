@@ -9,6 +9,8 @@
   <meta name="theme-color" content="#fffaf0" />
   <link rel="canonical" href="https://playlistxfer.com/privacy" />
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" sizes="any" />
+  <script src="/config.js"></script>
+  <script src="/analytics.js"></script>
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
@@ -17,7 +19,7 @@
     <article class="legal-document">
       <p class="eyebrow">Privacy Policy</p>
       <h1>PlaylistXfer Privacy Policy</h1>
-      <p class="legal-updated">Last updated: May 16, 2026</p>
+      <p class="legal-updated">Last updated: June 3, 2026</p>
 
       <h2>What this app does</h2>
       <p>PlaylistXfer reads a public Spotify playlist link, previews the tracks, searches Apple Music for matches, and creates an Apple Music playlist only after you authorize Apple Music access.</p>
@@ -26,6 +28,9 @@
       <p>We process the Spotify playlist URL you submit, public playlist metadata, track metadata, match results, review decisions, an anonymous browser session id, and Apple Music authorization needed to create the destination playlist.</p>
       <p>We also log minimal operational events after users interact with the transfer flow, such as preview success or failure, match-analysis success or failure, Apple Music connection results, and playlist-creation results. These events use a hashed anonymous session id and safe counts; they are not intended to store Apple Music tokens, emails, or full Spotify URLs.</p>
 
+      <h2>Analytics</h2>
+      <p>PlaylistXfer may use Google Analytics to understand aggregate site traffic, referral sources, page views, and high-level product funnel events. Product events sent to Google Analytics are intentionally limited to safe aggregate fields such as counts, durations, match status, and error category. They are not intended to include Apple Music tokens, emails, full Spotify URLs, or raw authorization payloads.</p>
+
       <h2>Apple Music access</h2>
       <p>Apple Music access is requested only when you create a playlist. The current MVP sends the Music User Token to the backend for the create flow and keeps it in runtime session memory rather than storing it in the database.</p>
 
@@ -33,7 +38,7 @@
       <p>Transfer reports may be stored temporarily so you can refresh and continue a review. The hosted MVP is configured for short-lived anonymous transfer storage, currently intended for about seven days.</p>
 
       <h2>Third-party services</h2>
-      <p>The app depends on Spotify public playlist surfaces, Apple Music/MusicKit, Render hosting, and Supabase storage. Those services may process requests according to their own policies.</p>
+      <p>The app depends on Spotify public playlist surfaces, Apple Music/MusicKit, Cloudflare hosting, Cloudflare D1 storage, Render fallback hosting, Supabase fallback storage, and Google Analytics when analytics is enabled. Those services may process requests according to their own policies.</p>
 
       <h2>What we do not do</h2>
       <p>We do not sell personal data. We do not ask for Spotify login in the current MVP. We do not intentionally store your Apple Music user token long term.</p>

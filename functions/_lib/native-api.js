@@ -11,7 +11,7 @@ import {
   updateJob
 } from "./d1-storage.js";
 import { errorMessage, jsonResponse, readJsonBody, statusForError } from "./http.js";
-import { requireSessionId, SESSION_HEADER } from "./session.js";
+import { requireSessionId, sessionIdFromRequest, SESSION_HEADER } from "./session.js";
 import { getPublicSpotifyPlaylist } from "./spotify-public.js";
 import {
   analysisLimitFromBody,
@@ -28,6 +28,48 @@ import {
 
 const ANALYSIS_CHUNK_SIZE = 2;
 
+const ALLOWED_EVENTS = new Set([
+  "apple_connect_started",
+  "apple_connect_succeeded",
+  "apple_connect_failed",
+  "apple_disconnect_succeeded",
+  "preview_started",
+  "preview_succeeded",
+  "preview_failed",
+  "analysis_started",
+  "analysis_succeeded",
+  "analysis_failed",
+  "review_decision_succeeded",
+  "review_decision_failed",
+  "transfer_create_started",
+  "transfer_create_succeeded",
+  "transfer_create_failed"
+]);
+
+const SAFE_EVENT_PROPERTY_KEYS = new Set([
+  "appleConnected",
+  "analysisLimit",
+  "candidateIndex",
+  "durationMs",
+  "errorCategory",
+  "errorMessage",
+  "hasDeveloperToken",
+  "host",
+  "itemIndex",
+  "matchRate",
+  "missingCount",
+  "path",
+  "playlistId",
+  "playlistSource",
+  "readableTracks",
+  "readyCount",
+  "reviewAction",
+  "reviewCount",
+  "totalTracks",
+  "transferId",
+  "withIsrcCount"
+]);
+
 function routePath(request) {
   return new URL(request.url).pathname;
 }
@@ -38,6 +80,48 @@ function transferInputFromBody(body) {
 
 function noStoreJson(status, payload) {
   return jsonResponse(status, payload);
+}
+
+function scrubEventString(value) {
+  return String(value ?? "")
+    .replace(/https?:\/\/\S+/gi, "[url]")
+    .replace(/spotify:playlist:[A-Za-z0-9]+/gi, "spotify:playlist:[id]")
+    .replace(/[A-Za-z0-9_-]{80,}/g, "[redacted]")
+    .slice(0, 240);
+}
+
+function safeEventScalar(value) {
+  if (value === null || typeof value === "boolean") return value;
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "string") return scrubEventString(value);
+  return null;
+}
+
+function safeEventProperties(rawProperties) {
+  if (!rawProperties || typeof rawProperties !== "object" || Array.isArray(rawProperties)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(rawProperties)
+      .filter(([key]) => SAFE_EVENT_PROPERTY_KEYS.has(key))
+      .map(([key, value]) => [key, safeEventScalar(value)])
+      .filter(([, value]) => value !== null)
+  );
+}
+
+async function sessionHash(sessionId, salt = "playlist-transfer-v1") {
+  const normalizedSessionId = String(sessionId || "").trim();
+  if (!normalizedSessionId) return null;
+
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(`${salt}:${normalizedSessionId}`)
+  );
+  return [...new Uint8Array(digest)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("")
+    .slice(0, 16);
 }
 
 function handleError(error) {
@@ -484,7 +568,7 @@ async function handlePatchTransferItem(env, request, transferId, itemIndex) {
   return noStoreJson(200, transfer);
 }
 
-async function handleUsageEvent(request) {
+async function handleUsageEvent(env, request) {
   let body = {};
   try {
     body = await readJsonBody(request);
@@ -492,10 +576,13 @@ async function handleUsageEvent(request) {
     // Analytics should not block product flows.
   }
 
+  const event = String(body.event ?? "unknown").trim();
   console.log(JSON.stringify({
     logType: "playlist_transfer_event",
-    event: String(body.event ?? "unknown").slice(0, 80),
-    observedAt: new Date().toISOString()
+    event: ALLOWED_EVENTS.has(event) ? event : "unknown",
+    anonymousSession: await sessionHash(sessionIdFromRequest(request), env.TRANSFER_API_ANALYTICS_SALT),
+    observedAt: new Date().toISOString(),
+    properties: ALLOWED_EVENTS.has(event) ? safeEventProperties(body.properties) : {}
   }));
 
   return noStoreJson(202, { ok: true });
@@ -523,7 +610,7 @@ export async function handleNativeApiRequest(context) {
     }
 
     if (method === "POST" && path === "/api/events") {
-      return handleUsageEvent(request);
+      return handleUsageEvent(context.env, request);
     }
 
     if (method === "POST" && path === "/api/spotify/public-playlist-preview") {

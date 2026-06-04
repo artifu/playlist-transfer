@@ -49,7 +49,10 @@ Set:
 
 ```bash
 TRANSFER_API_URL=https://playlist-transfer-api.onrender.com
+GA_MEASUREMENT_ID=G-XXXXXXXXXX
 ```
+
+`GA_MEASUREMENT_ID` is optional. When it is empty or missing, Google Analytics is not loaded.
 
 Production domain:
 
@@ -57,7 +60,7 @@ Production domain:
 https://playlistxfer.com
 ```
 
-The repo-level `functions/api/[[path]].js` file proxies same-origin `/api/*` requests to the Transfer API, and `apps/web/public/_routes.json` keeps Cloudflare Functions limited to `/api/*` and `/health` so ordinary page views stay fully static.
+The repo-level `functions/api/[[path]].js` file proxies same-origin `/api/*` requests to the Transfer API, and `apps/web/public/_routes.json` keeps Cloudflare Functions limited to `/api/*`, `/health`, and `/config.js`. Ordinary HTML/CSS/JS page views stay static; `/config.js` is a tiny no-store script used to expose safe public runtime config such as Google Analytics.
 
 Render can still run the web app as a Node fallback because [server.mjs](/Users/arthur_t_m/Documents/PlaylistTransfer/apps/web/server.mjs) serves static files and proxies API requests.
 
@@ -103,6 +106,13 @@ Current local storage keys:
 
 ## MVP Analytics
 
+The web app has two analytics layers:
+
+- Google Analytics for aggregate page traffic, referral sources, landing pages, and high-level funnel events.
+- First-party operational events sent to `POST /api/events` for debugging transfer reliability.
+
+Google Analytics is loaded only when `GA_MEASUREMENT_ID` is configured. Product events sent to Google Analytics intentionally exclude playlist URLs, Apple Music tokens, transfer ids, emails, and authorization payloads.
+
 The web app sends first-party operational events to `POST /api/events`.
 
 These events are intentionally small and safe:
@@ -115,7 +125,7 @@ These events are intentionally small and safe:
 
 The API writes them as structured JSON lines in the API logs with `logType: "playlist_transfer_event"`. The session id is hashed server-side, and the client sends playlist ids plus aggregate counts instead of full Spotify URLs or Apple Music tokens.
 
-The public page intentionally does not call the API on initial load. This keeps casual visits, SEO crawls, and social-preview traffic from waking the hosted API. The API wakes only after a user starts a transfer action or restores an existing transfer.
+The public page intentionally does not call the Transfer API on initial load. This keeps casual visits, SEO crawls, and social-preview traffic from waking the hosted API. The API wakes only after a user starts a transfer action or restores an existing transfer.
 
 ## Sponsor Slot
 

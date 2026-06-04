@@ -1,6 +1,6 @@
 # Deployment Notes
 
-Last reviewed: 2026-05-31
+Last reviewed: 2026-06-03
 
 This project should not require a heavy local database install. Local development can keep using SQLite, while production can run in one of two modes:
 
@@ -92,7 +92,8 @@ The repo includes:
 - [wrangler.toml](/Users/arthur_t_m/Documents/PlaylistTransfer/wrangler.toml) with the Pages output directory.
 - [functions/api/[[path]].js](/Users/arthur_t_m/Documents/PlaylistTransfer/functions/api/[[path]].js), a same-origin `/api/*` entrypoint. It uses Cloudflare D1 when the `PLAYLIST_TRANSFER_DB` binding exists and falls back to the Render API otherwise.
 - [functions/health.js](/Users/arthur_t_m/Documents/PlaylistTransfer/functions/health.js), a Pages health endpoint.
-- [apps/web/public/_routes.json](/Users/arthur_t_m/Documents/PlaylistTransfer/apps/web/public/_routes.json), which ensures only `/api/*` and `/health` invoke Functions.
+- [functions/config.js](/Users/arthur_t_m/Documents/PlaylistTransfer/functions/config.js), a tiny public runtime config script for safe client-side settings such as Google Analytics.
+- [apps/web/public/_routes.json](/Users/arthur_t_m/Documents/PlaylistTransfer/apps/web/public/_routes.json), which ensures only `/api/*`, `/health`, and `/config.js` invoke Functions.
 - [apps/web/public/_headers](/Users/arthur_t_m/Documents/PlaylistTransfer/apps/web/public/_headers), which adds lightweight security and cache headers.
 
 Create the Cloudflare Pages project from GitHub with these settings:
@@ -109,9 +110,12 @@ Set this Pages environment variable:
 
 ```bash
 TRANSFER_API_URL=https://playlist-transfer-api.onrender.com
+GA_MEASUREMENT_ID=G-XXXXXXXXXX
 ```
 
 This keeps Render proxy mode working. When Cloudflare-native API mode is enabled, the Pages Function ignores `TRANSFER_API_URL` for implemented API routes and uses D1 instead.
+
+`GA_MEASUREMENT_ID` is optional. If it is missing or empty, `/config.js` returns an empty analytics id and Google Analytics is not loaded.
 
 ## Cloudflare-Native API Setup
 
@@ -131,6 +135,7 @@ D1 database: playlist-transfer
 APPLE_MUSIC_DEVELOPER_TOKEN=your-apple-developer-token
 APPLE_MUSIC_STOREFRONT=us
 TRANSFER_API_URL=https://playlist-transfer-api.onrender.com
+GA_MEASUREMENT_ID=G-XXXXXXXXXX
 ```
 
 4. Redeploy the Pages project.
@@ -196,6 +201,7 @@ After deploy, smoke test:
 
 ```bash
 curl https://playlistxfer.com/health
+curl https://playlistxfer.com/config.js
 curl https://playlistxfer.com/privacy
 curl https://playlistxfer.com/api/events
 curl -I https://www.playlistxfer.com/privacy
