@@ -92,7 +92,7 @@ The repo includes:
 - [wrangler.toml](/Users/arthur_t_m/Documents/PlaylistTransfer/wrangler.toml) with the Pages output directory.
 - [functions/api/[[path]].js](/Users/arthur_t_m/Documents/PlaylistTransfer/functions/api/[[path]].js), a same-origin `/api/*` entrypoint. It uses Cloudflare D1 when the `PLAYLIST_TRANSFER_DB` binding exists and falls back to the Render API otherwise.
 - [functions/health.js](/Users/arthur_t_m/Documents/PlaylistTransfer/functions/health.js), a Pages health endpoint.
-- [functions/config.js](/Users/arthur_t_m/Documents/PlaylistTransfer/functions/config.js), a tiny public runtime config script for safe client-side settings such as Google Analytics.
+- [functions/config.js/index.js](/Users/arthur_t_m/Documents/PlaylistTransfer/functions/config.js/index.js), a tiny public runtime config script for safe client-side settings such as Google Analytics.
 - [apps/web/public/_routes.json](/Users/arthur_t_m/Documents/PlaylistTransfer/apps/web/public/_routes.json), which ensures only `/api/*`, `/health`, and `/config.js` invoke Functions.
 - [apps/web/public/_headers](/Users/arthur_t_m/Documents/PlaylistTransfer/apps/web/public/_headers), which adds lightweight security and cache headers.
 
