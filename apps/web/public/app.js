@@ -73,14 +73,6 @@ function applePillHtml() {
   return `<span class="service-pill apple" aria-label="Apple Music"><span aria-hidden="true">♪</span></span>`;
 }
 
-function appleMusicLibraryAppUrl() {
-  return "music://music.apple.com/library";
-}
-
-function appleMusicPlaylistWebUrl(playlistId) {
-  return `https://music.apple.com/library/playlist/${encodeURIComponent(String(playlistId || ""))}`;
-}
-
 function spotifyPlaylistIdFromValue(value) {
   const trimmed = String(value || "").trim();
   const uriMatch = trimmed.match(/^spotify:playlist:([A-Za-z0-9]+)$/);
@@ -859,7 +851,7 @@ function renderAnalysis(data) {
   `;
 }
 
-function renderSuccess(data, createdApplePlaylistId) {
+function renderSuccess(data) {
   const notTransferred = data.summary.needsReviewCount + data.summary.unmatchedCount;
   const destinationName = destinationPlaylistName(data);
   const scope = analyzedScopeText(data);
@@ -883,13 +875,17 @@ function renderSuccess(data, createdApplePlaylistId) {
       <div class="receipt-line"><span>Missing or skipped</span><strong>${data.summary.unmatchedCount}</strong></div>
       <div class="receipt-line"><span>Destination</span><strong>Apple Music</strong></div>
     </div>
-    <div class="trust-note">Only ready tracks from the analyzed report were added. Apple Music does not reliably deep-link private library playlists, so open your Music library and search for ${esc(destinationName)} if it does not land there automatically.</div>
+    <div class="success-next-step">
+      ${applePillHtml()}
+      <div>
+        <strong>Find it in Apple Music</strong>
+        <p>Apple Music creates this as a private library playlist. Search your library for <span class="playlist-name-chip">${esc(destinationName)}</span>.</p>
+      </div>
+    </div>
     <div class="button-row">
-      <a class="button-link" href="${esc(appleMusicLibraryAppUrl())}">
-        ${applePillHtml()} Open Apple Music Library
-      </a>
-      <button class="soft-action" type="button" data-copy-playlist-name="${esc(destinationName)}">Copy playlist name</button>
-      <a class="soft-link" href="${esc(appleMusicPlaylistWebUrl(createdApplePlaylistId))}" target="_blank" rel="noopener noreferrer">Try web link</a>
+      <button class="button-link copy-name-action" type="button" data-copy-playlist-name="${esc(destinationName)}">
+        ${applePillHtml()} Copy exact playlist name
+      </button>
       <button class="soft-action" type="button" data-start-over="true">Transfer another playlist</button>
     </div>
   `;
@@ -1120,7 +1116,7 @@ async function createPlaylist() {
         });
 
     adoptAnalysis(data);
-    renderSuccess(data, data.createdApplePlaylistId);
+    renderSuccess(data);
     resetProgress();
     setStatus("Transfer complete.");
     showToast("Playlist created.", "success");
@@ -1155,7 +1151,7 @@ async function restoreStoredTransfer() {
     adoptAnalysis(data);
 
     if (data.createdApplePlaylistId) {
-      renderSuccess(data, data.createdApplePlaylistId);
+      renderSuccess(data);
       setStatus("Restored your completed transfer receipt.");
     } else {
       renderAnalysis(data);
@@ -1237,7 +1233,7 @@ results.addEventListener("click", async (event) => {
     try {
       await copyTextToClipboard(playlistName);
       showToast("Playlist name copied.", "success");
-      setStatus("Playlist name copied. Search it inside Apple Music if the app opens your library.");
+      setStatus("Playlist name copied. Search this exact name inside your Apple Music library.");
     } catch (error) {
       showToast("Could not copy playlist name.", "error");
       setStatus(errorMessage(error), "error");
