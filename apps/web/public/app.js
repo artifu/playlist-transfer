@@ -129,6 +129,19 @@ function renderStartState({ hasInput = false } = {}) {
     `;
 }
 
+function renderStoredTransferPrompt() {
+  results.className = "result-empty";
+  results.innerHTML = `
+    <p class="eyebrow">Saved transfer found</p>
+    <h2>Continue your last report, or start fresh.</h2>
+    <p>PlaylistXfer saved a previous transfer in this browser so you can keep reviewing it. Nothing will be restored unless you choose to continue.</p>
+    <div class="button-row">
+      <button class="soft-action" type="button" data-restore-transfer="true">Continue saved report</button>
+      <button class="soft-action" type="button" data-start-over="true">Start new transfer</button>
+    </div>
+  `;
+}
+
 function showToast(message, kind = "info") {
   window.clearTimeout(toastTimer);
   toast.textContent = message;
@@ -1137,6 +1150,7 @@ async function restoreStoredTransfer() {
   if (!transferId) return;
 
   try {
+    setStatus("Restoring your saved transfer...");
     const data = await apiFetch(`/api/transfers/${encodeURIComponent(transferId)}`);
     adoptAnalysis(data);
 
@@ -1149,6 +1163,7 @@ async function restoreStoredTransfer() {
     }
   } catch (error) {
     clearStoredTransfer();
+    renderStartState();
     setStatus("Previous transfer could not be restored. Start a new analysis when ready.");
   } finally {
     refreshActions();
@@ -1172,7 +1187,10 @@ function startAnotherTransfer() {
 
 async function initialize() {
   renderAppleSession();
-  if (readStoredTransferId()) await restoreStoredTransfer();
+  if (readStoredTransferId()) {
+    renderStoredTransferPrompt();
+    setStatus("Saved transfer found. Continue it or start a new one.");
+  }
   refreshActions();
 }
 
@@ -1201,6 +1219,12 @@ createButton.addEventListener("click", createPlaylist);
 connectAppleButton.addEventListener("click", toggleAppleMusicConnection);
 
 results.addEventListener("click", async (event) => {
+  const restoreTransfer = event.target instanceof Element ? event.target.closest("[data-restore-transfer]") : null;
+  if (restoreTransfer) {
+    await restoreStoredTransfer();
+    return;
+  }
+
   const startOver = event.target instanceof Element ? event.target.closest("[data-start-over]") : null;
   if (startOver) {
     startAnotherTransfer();
