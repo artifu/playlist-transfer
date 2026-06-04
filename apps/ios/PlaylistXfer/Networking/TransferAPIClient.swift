@@ -51,6 +51,18 @@ struct TransferAPIClient: Sendable {
         return try await pollAnalysisJob(job.id)
     }
 
+    func recordUsageEvent(_ event: String, properties: [String: AnalyticsPropertyValue] = [:]) async {
+        do {
+            let _: UsageEventResponse = try await send(
+                path: "/api/events",
+                method: "POST",
+                body: UsageEventRequest(event: event, properties: properties)
+            )
+        } catch {
+            // Analytics should never interrupt the transfer flow.
+        }
+    }
+
     private func pollAnalysisJob(_ jobID: String) async throws -> TransferAnalysis {
         for _ in 0..<900 {
             try await Task.sleep(for: .milliseconds(650))
@@ -112,6 +124,37 @@ private struct PublicPlaylistRequest: Encodable {
 private struct AnalyzePublicPlaylistRequest: Encodable {
     let input: String
     let limit: Int
+}
+
+enum AnalyticsPropertyValue: Encodable, Sendable {
+    case string(String)
+    case int(Int)
+    case double(Double)
+    case bool(Bool)
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+
+        switch self {
+        case .string(let value):
+            try container.encode(value)
+        case .int(let value):
+            try container.encode(value)
+        case .double(let value):
+            try container.encode(value)
+        case .bool(let value):
+            try container.encode(value)
+        }
+    }
+}
+
+private struct UsageEventRequest: Encodable {
+    let event: String
+    let properties: [String: AnalyticsPropertyValue]
+}
+
+private struct UsageEventResponse: Decodable {
+    let ok: Bool?
 }
 
 private struct EmptyRequest: Encodable {}

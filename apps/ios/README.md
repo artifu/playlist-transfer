@@ -43,6 +43,7 @@ Implemented:
 - public playlist preview
 - public playlist analysis job polling
 - anonymous session id header
+- first-party operational analytics events
 - match report summary
 - mobile-first ready/review/missing rows
 - native MusicKit playlist creation
@@ -78,6 +79,25 @@ To test on device:
 4. Choose `PlaylistXfer` in the Share Sheet.
 5. Tap **Open in PlaylistXfer**.
 6. Confirm the main app opens with the shared playlist already in preview flow.
+
+## Native analytics
+
+The iOS MVP sends small first-party operational events to the hosted API:
+
+```text
+POST /api/events
+```
+
+These events reuse the same anonymous session header as the web app and are intended for early reliability and funnel debugging. Current native events cover:
+
+- preview start, success, and failure
+- Apple Music match analysis start, success, and failure
+- review decisions such as approve, candidate selection, skip, and restore
+- Apple Music playlist creation start, success, and failure
+
+The native app sends safe fields only: host, app path, playlist id, transfer id, aggregate track counts, match rate, duration, source, and error category/message. It should not send Apple Music user tokens, emails, full Spotify playlist URLs, authorization payloads, or raw user library data.
+
+Google Analytics or Firebase Analytics can be added later if we want App Store funnel dashboards in GA4. That follow-up requires a Firebase app, `GoogleService-Info.plist`, and a Swift Package dependency, so this MVP keeps analytics lightweight and dependency-free.
 
 ## Architecture
 
