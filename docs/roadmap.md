@@ -101,6 +101,8 @@ Definition of done:
 
 Goal: make `playlistxfer.com` discoverable and monetizable without slowing down the transfer tool.
 
+Status: foundation in progress. The production site now has search-focused static pages for the main Spotify to Apple Music intent, how the matching flow works, FAQ, about, contact, privacy, and terms.
+
 Recommended scope:
 
 - Keep the static landing page on Cloudflare Pages so normal page views do not wake the API.
@@ -122,6 +124,13 @@ Guardrails:
 - Ad scripts should be deferred and should not block the import form.
 - SEO copy should be honest: "public Spotify playlist links" and "review before creating" are safer promises than "any playlist instantly."
 - The production app should continue working if ads fail to load.
+
+Next SEO tasks:
+
+- Add a branded 1200x630 Open Graph image instead of reusing the SVG favicon.
+- Add Google Search Console, submit `https://playlistxfer.com/sitemap.xml`, and request indexing for the homepage, guide, how-it-works, and FAQ pages.
+- Add lightweight analytics for organic landing-page visits without waking the transfer API.
+- Consider AdSense only after Search Console sees indexed pages and the privacy/contact/about pages are stable.
 
 ## Phase 6: AI and Agent Distribution
 

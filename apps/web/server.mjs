@@ -14,7 +14,10 @@ const mimeTypes = new Map([
   [".html", "text/html; charset=utf-8"],
   [".js", "text/javascript; charset=utf-8"],
   [".json", "application/json; charset=utf-8"],
-  [".svg", "image/svg+xml"]
+  [".svg", "image/svg+xml"],
+  [".txt", "text/plain; charset=utf-8"],
+  [".webmanifest", "application/manifest+json; charset=utf-8"],
+  [".xml", "application/xml; charset=utf-8"]
 ]);
 
 function sendJson(response, statusCode, payload) {
@@ -29,7 +32,12 @@ function safePublicPath(pathname) {
   const cleanPathname = pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
   const routedPathname = new Map([
     ["/", "/index.html"],
+    ["/about", "/about.html"],
+    ["/contact", "/contact.html"],
+    ["/faq", "/faq.html"],
+    ["/how-it-works", "/how-it-works.html"],
     ["/privacy", "/privacy.html"],
+    ["/spotify-to-apple-music", "/spotify-to-apple-music.html"],
     ["/terms", "/terms.html"]
   ]).get(cleanPathname) ?? cleanPathname;
   const requestedPath = decodeURIComponent(routedPathname);
