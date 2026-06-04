@@ -5,6 +5,7 @@ const ALLOWED_EVENTS = new Set([
   "apple_connect_started",
   "apple_connect_succeeded",
   "apple_connect_failed",
+  "apple_disconnect_succeeded",
   "preview_started",
   "preview_succeeded",
   "preview_failed",

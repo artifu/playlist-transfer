@@ -73,7 +73,11 @@ function applePillHtml() {
   return `<span class="service-pill apple" aria-label="Apple Music"><span aria-hidden="true">♪</span></span>`;
 }
 
-function appleMusicPlaylistUrl(playlistId) {
+function appleMusicLibraryAppUrl() {
+  return "music://music.apple.com/library";
+}
+
+function appleMusicPlaylistWebUrl(playlistId) {
   return `https://music.apple.com/library/playlist/${encodeURIComponent(String(playlistId || ""))}`;
 }
 
@@ -96,7 +100,7 @@ function spotifyPlaylistIdFromValue(value) {
 }
 
 function destinationPlaylistName(data) {
-  return `${data.playlist?.name || "Playlist"} (Transferred from Spotify)`;
+  return `${data.playlist?.name || "Playlist"} (PlaylistXfer)`;
 }
 
 function analyzedScopeText(data) {
@@ -132,6 +136,23 @@ function showToast(message, kind = "info") {
   toastTimer = window.setTimeout(() => {
     toast.className = `toast ${kind}`;
   }, 2600);
+}
+
+async function copyTextToClipboard(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.append(textarea);
+  textarea.select();
+  document.execCommand("copy");
+  textarea.remove();
 }
 
 function errorMessage(error) {
@@ -291,8 +312,8 @@ function renderAppleSession() {
 
   const source = session.userTokenSource === "runtime" ? "this browser session" : "local environment";
   appleCard.className = "apple-card connected";
-  appleState.textContent = `Connected from ${source} for storefront ${session.storefront || "us"}.`;
-  connectAppleButton.textContent = "Reconnect Apple Music";
+  appleState.textContent = `Connected from ${source} for storefront ${session.storefront || "us"}. Disconnect if you want to use a different Apple account.`;
+  connectAppleButton.textContent = "Disconnect Apple Music";
   refreshActions();
 }
 
@@ -505,6 +526,38 @@ async function connectAppleMusic() {
   }
 }
 
+async function disconnectAppleMusic() {
+  storeAppleUserToken("");
+
+  try {
+    const music = window.MusicKit?.getInstance?.();
+    if (music?.unauthorize) await music.unauthorize();
+  } catch (error) {
+    console.warn("apple_music_disconnect_warning", error);
+  }
+
+  state.appleSession = {
+    ...(state.appleSession || {}),
+    hasUserToken: false,
+    userTokenSource: "none"
+  };
+  renderAppleSession();
+  setStatus("Apple Music disconnected. We will ask again when you create a playlist.");
+  showToast("Apple Music disconnected.", "info");
+  trackEvent("apple_disconnect_succeeded", {
+    hasDeveloperToken: hasDeveloperToken(),
+    appleConnected: false
+  });
+}
+
+function toggleAppleMusicConnection() {
+  if (hasAppleMusicConnection()) {
+    return disconnectAppleMusic();
+  }
+
+  return connectAppleMusic();
+}
+
 async function ensureAppleMusicForCreate() {
   await ensureAppleSession();
   if (hasAppleMusicConnection()) return true;
@@ -521,6 +574,7 @@ function setBusy(isBusy, message) {
 function setProgress(job) {
   const progress = Math.max(0, Math.min(100, Number(job.progress || 0)));
   progressCard.hidden = false;
+  progressCard.classList.toggle("is-active", progress < 100);
   progressPhase.textContent = job.phase || "Working";
   progressPercent.textContent = `${progress}%`;
   progressBar.style.width = `${progress}%`;
@@ -531,20 +585,65 @@ function setProgress(job) {
 
 function resetProgress() {
   progressCard.hidden = true;
+  progressCard.classList.remove("is-active");
   progressPhase.textContent = "Preparing";
   progressPercent.textContent = "0%";
   progressBar.style.width = "0%";
   progressDetail.textContent = "Waiting to start.";
 }
 
-async function startJob(path, body) {
+function renderWorkingProgress(job, options = {}) {
+  const progress = Math.max(0, Math.min(100, Number(job.progress || 0)));
+  const isCreate = options.kind === "create";
+  const title = isCreate ? "Creating your Apple Music playlist." : "Matching with Apple Music.";
+  const copy = isCreate
+    ? "We are adding the ready tracks now. Keep this tab open until the receipt appears."
+    : "We are checking Apple Music in small batches so the free-tier API stays reliable. Keep this tab open.";
+  const processed = job.total
+    ? `${esc(job.completed)} of ${esc(job.total)} tracks processed`
+    : "Preparing playlist metadata";
+
+  results.className = "screen working-screen";
+  results.innerHTML = `
+    <div class="screen-head">
+      <p class="eyebrow">${isCreate ? "Step 3 of 3 - Creating" : "Step 2 of 3 - Matching"}</p>
+      <h2 class="screen-title">${title}</h2>
+      <p class="screen-copy">${copy}</p>
+    </div>
+    <div class="working-card" role="status" aria-live="polite">
+      <div class="working-orbit" aria-hidden="true">
+        <span></span><span></span><span></span>
+      </div>
+      <div class="working-content">
+        <div class="progress-head">
+          <span>${esc(job.phase || "Working")}</span>
+          <strong>${progress}%</strong>
+        </div>
+        <div class="progress-track progress-track-large">
+          <div style="width: ${progress}%"></div>
+        </div>
+        <p>${processed}</p>
+      </div>
+    </div>
+    <div class="working-steps" aria-hidden="true">
+      <span class="${progress >= 10 ? "done" : ""}">Read playlist</span>
+      <span class="${progress >= 35 ? "done" : ""}">Search catalog</span>
+      <span class="${progress >= 70 ? "done" : ""}">Score matches</span>
+      <span class="${progress >= 100 ? "done" : ""}">Build report</span>
+    </div>
+  `;
+}
+
+async function startJob(path, body, options = {}) {
   const job = await postJson(path, body);
   setProgress(job);
+  renderWorkingProgress(job, options);
 
   for (let pollCount = 0; pollCount < 900; pollCount += 1) {
     await new Promise((resolve) => setTimeout(resolve, 650));
     const current = await apiFetch(`/api/jobs/${encodeURIComponent(job.id)}`);
     setProgress(current);
+    renderWorkingProgress(current, options);
 
     if (current.status === "complete") return current.result;
     if (current.status === "error") throw new Error(current.error || "Job failed.");
@@ -769,11 +868,13 @@ function renderSuccess(data, createdApplePlaylistId) {
       <div class="receipt-line"><span>Missing or skipped</span><strong>${data.summary.unmatchedCount}</strong></div>
       <div class="receipt-line"><span>Destination</span><strong>Apple Music</strong></div>
     </div>
-    <div class="trust-note">Only ready tracks from the analyzed report were added. Open Apple Music to see the new playlist in your library.</div>
+    <div class="trust-note">Only ready tracks from the analyzed report were added. Apple Music does not reliably deep-link private library playlists, so open your Music library and search for ${esc(destinationName)} if it does not land there automatically.</div>
     <div class="button-row">
-      <a class="button-link" href="${esc(appleMusicPlaylistUrl(createdApplePlaylistId))}" target="_blank" rel="noopener noreferrer">
-        ${applePillHtml()} Open in Apple Music
+      <a class="button-link" href="${esc(appleMusicLibraryAppUrl())}">
+        ${applePillHtml()} Open Apple Music Library
       </a>
+      <button class="soft-action" type="button" data-copy-playlist-name="${esc(destinationName)}">Copy playlist name</button>
+      <a class="soft-link" href="${esc(appleMusicPlaylistWebUrl(createdApplePlaylistId))}" target="_blank" rel="noopener noreferrer">Try web link</a>
       <button class="soft-action" type="button" data-start-over="true">Transfer another playlist</button>
     </div>
   `;
@@ -936,15 +1037,19 @@ async function analyzeMatches() {
     const data = await startJob("/api/transfers/analyze-public-job", {
       input: value,
       limit: analysisLimit.value
+    }, {
+      kind: "analysis"
     });
     adoptAnalysis(data);
     renderAnalysis(data);
+    resetProgress();
     setStatus("Analysis complete and saved. Refreshing now will keep this transfer.");
     trackEvent("analysis_succeeded", {
       ...summaryProperties(data),
       durationMs: elapsedMs(startedAt)
     });
   } catch (error) {
+    resetProgress();
     setStatus(errorMessage(error), "error");
     renderError(error, "analysis");
     trackEvent("analysis_failed", {
@@ -987,16 +1092,21 @@ async function createPlaylist() {
       storefront: state.appleSession?.storefront || "us"
     };
     const data = state.transferId
-      ? await startJob(`/api/transfers/${encodeURIComponent(state.transferId)}/create-job`, appleCreatePayload)
+      ? await startJob(`/api/transfers/${encodeURIComponent(state.transferId)}/create-job`, appleCreatePayload, {
+          kind: "create"
+        })
       : await startJob("/api/transfers/create-public-job", {
           input: value,
           limit: analysisLimit.value,
           analysis: state.analysis,
           ...appleCreatePayload
+        }, {
+          kind: "create"
         });
 
     adoptAnalysis(data);
     renderSuccess(data, data.createdApplePlaylistId);
+    resetProgress();
     setStatus("Transfer complete.");
     showToast("Playlist created.", "success");
     trackEvent("transfer_create_succeeded", {
@@ -1005,6 +1115,7 @@ async function createPlaylist() {
       appleConnected: true
     });
   } catch (error) {
+    resetProgress();
     setStatus(errorMessage(error), "error");
     renderError(error, "create");
     trackEvent("transfer_create_failed", {
@@ -1085,12 +1196,26 @@ input.addEventListener("input", () => {
 previewButton.addEventListener("click", previewPlaylist);
 analyzeButton.addEventListener("click", analyzeMatches);
 createButton.addEventListener("click", createPlaylist);
-connectAppleButton.addEventListener("click", connectAppleMusic);
+connectAppleButton.addEventListener("click", toggleAppleMusicConnection);
 
 results.addEventListener("click", async (event) => {
   const startOver = event.target instanceof Element ? event.target.closest("[data-start-over]") : null;
   if (startOver) {
     startAnotherTransfer();
+    return;
+  }
+
+  const copyPlaylistName = event.target instanceof Element ? event.target.closest("[data-copy-playlist-name]") : null;
+  if (copyPlaylistName) {
+    const playlistName = copyPlaylistName.dataset.copyPlaylistName || "";
+    try {
+      await copyTextToClipboard(playlistName);
+      showToast("Playlist name copied.", "success");
+      setStatus("Playlist name copied. Search it inside Apple Music if the app opens your library.");
+    } catch (error) {
+      showToast("Could not copy playlist name.", "error");
+      setStatus(errorMessage(error), "error");
+    }
     return;
   }
 

@@ -19,8 +19,8 @@ export async function createApplePlaylistFromMatches(input: CreateApplePlaylistI
   }
 
   const createdApplePlaylistId = await input.apple.createPlaylist(
-    `${input.playlistName} (Transferred from Spotify)`,
-    "Transferred from Spotify with PlaylistTransfer."
+    `${input.playlistName} (PlaylistXfer)`,
+    "Transferred from Spotify with PlaylistXfer. Review and missing tracks were left out."
   );
 
   await input.apple.addTracksToPlaylist(createdApplePlaylistId, matchedSongIds);

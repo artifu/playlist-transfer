@@ -53,6 +53,15 @@
           <button class="secondary-action" id="analyze-button" type="button" disabled>Analyze matches</button>
           <button class="create-action" id="create-button" type="button" disabled>Create Apple Music playlist</button>
         </div>
+
+        <section class="progress-card sidebar-progress" id="progress-card" hidden>
+          <div class="progress-head">
+            <span id="progress-phase">Preparing</span>
+            <strong id="progress-percent">0%</strong>
+          </div>
+          <div class="progress-track"><div id="progress-bar"></div></div>
+          <p id="progress-detail">Waiting to start.</p>
+        </section>
       </form>
 
       <section class="apple-card" id="apple-card" aria-live="polite">
@@ -81,15 +90,6 @@
         </select>
         <span class="select-hint">Create transfers ready tracks from this analyzed scope only.</span>
       </label>
-
-      <section class="progress-card" id="progress-card" hidden>
-        <div class="progress-head">
-          <span id="progress-phase">Preparing</span>
-          <strong id="progress-percent">0%</strong>
-        </div>
-        <div class="progress-track"><div id="progress-bar"></div></div>
-        <p id="progress-detail">Waiting to start.</p>
-      </section>
 
       <p class="status-line" id="status-line">Paste a playlist link to begin.</p>
       <nav class="legal-links" aria-label="Legal">
