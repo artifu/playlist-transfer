@@ -41,14 +41,22 @@ struct TransferAPIClient: Sendable {
         )
     }
 
-    func analyzePublicPlaylist(input: String, limit: Int = AppConfig.defaultAnalysisLimit) async throws -> TransferAnalysis {
+    func analyzePublicPlaylist(
+        input: String,
+        limit: Int = AppConfig.defaultAnalysisLimit,
+        progress: (@MainActor (TransferJob<TransferAnalysis>) -> Void)? = nil
+    ) async throws -> TransferAnalysis {
         let job: TransferJob<TransferAnalysis> = try await send(
             path: "/api/transfers/analyze-public-job",
             method: "POST",
             body: AnalyzePublicPlaylistRequest(input: input, limit: limit)
         )
 
-        return try await pollAnalysisJob(job.id)
+        if let progress {
+            await progress(job)
+        }
+
+        return try await pollAnalysisJob(job.id, progress: progress)
     }
 
     func recordUsageEvent(_ event: String, properties: [String: AnalyticsPropertyValue] = [:]) async {
@@ -63,7 +71,10 @@ struct TransferAPIClient: Sendable {
         }
     }
 
-    private func pollAnalysisJob(_ jobID: String) async throws -> TransferAnalysis {
+    private func pollAnalysisJob(
+        _ jobID: String,
+        progress: (@MainActor (TransferJob<TransferAnalysis>) -> Void)? = nil
+    ) async throws -> TransferAnalysis {
         for _ in 0..<900 {
             try await Task.sleep(for: .milliseconds(650))
 
@@ -72,6 +83,10 @@ struct TransferAPIClient: Sendable {
                 method: "GET",
                 body: EmptyRequest?.none
             )
+
+            if let progress {
+                await progress(job)
+            }
 
             if job.isFailed {
                 throw TransferAPIError.server(job.error ?? "Analysis failed.")

@@ -1,5 +1,24 @@
 import Foundation
 
+enum TransferActivityKind: Equatable {
+    case preview
+    case analysis
+    case create
+}
+
+struct TransferActivity: Equatable {
+    let kind: TransferActivityKind
+    let eyebrow: String
+    let title: String
+    let detail: String
+    let progress: Int
+    let isEstimated: Bool
+
+    var progressText: String {
+        "\(isEstimated ? "~" : "")\(progress)%"
+    }
+}
+
 @MainActor
 final class TransferViewModel: ObservableObject {
     enum Phase: Equatable {
@@ -22,9 +41,11 @@ final class TransferViewModel: ObservableObject {
     @Published private(set) var skippedItemIDs: Set<Int> = []
     @Published private(set) var selectedCandidatesByItemID: [Int: AppleSongCandidate] = [:]
     @Published private(set) var statusMessage = "Paste a public Spotify playlist link to begin."
+    @Published private(set) var activity: TransferActivity?
 
     private let api: TransferAPIClient
     private let appleMusic: AppleMusicLibraryWriter
+    private var progressPulseTask: Task<Void, Never>?
 
     init(
         api: TransferAPIClient = TransferAPIClient(),
@@ -72,6 +93,7 @@ final class TransferViewModel: ObservableObject {
 
         phase = .previewing
         statusMessage = "Reading public Spotify playlist..."
+        startOptimisticActivity(.preview)
         analysis = nil
         createdPlaylist = nil
         resetDecisions()
@@ -80,10 +102,12 @@ final class TransferViewModel: ObservableObject {
 
         do {
             preview = try await api.previewPublicPlaylist(input: input)
+            stopActivity()
             phase = .previewReady
             statusMessage = "Playlist loaded. Match it with Apple Music when you are ready."
             trackEvent("preview_succeeded", properties: previewProperties(preview, durationMs: elapsedMilliseconds(since: startedAt)))
         } catch {
+            stopActivity()
             trackEvent("preview_failed", properties: [
                 "durationMs": .int(elapsedMilliseconds(since: startedAt)),
                 "errorCategory": .string("spotify_public_preview"),
@@ -114,17 +138,22 @@ final class TransferViewModel: ObservableObject {
 
         phase = .analyzing
         statusMessage = "Matching this playlist against Apple Music..."
+        startOptimisticActivity(.analysis)
         createdPlaylist = nil
         resetDecisions()
         let startedAt = Date()
         trackEvent("analysis_started")
 
         do {
-            analysis = try await api.analyzePublicPlaylist(input: input)
+            analysis = try await api.analyzePublicPlaylist(input: input) { [weak self] job in
+                self?.updateActivity(from: job)
+            }
+            stopActivity()
             phase = .analysisReady
             statusMessage = "Apple Music match report ready. Create from ready tracks when you are comfortable."
             trackEvent("analysis_succeeded", properties: summaryProperties(analysis, durationMs: elapsedMilliseconds(since: startedAt)))
         } catch {
+            stopActivity()
             trackEvent("analysis_failed", properties: [
                 "durationMs": .int(elapsedMilliseconds(since: startedAt)),
                 "errorCategory": .string("apple_music_match"),
@@ -139,6 +168,7 @@ final class TransferViewModel: ObservableObject {
 
         phase = .creating
         statusMessage = "Asking Apple Music for access and preparing the ready tracks..."
+        startOptimisticActivity(.create)
         let startedAt = Date()
         trackEvent("transfer_create_started", properties: summaryProperties(analysis, extra: [
             "appleConnected": .bool(false),
@@ -153,8 +183,10 @@ final class TransferViewModel: ObservableObject {
                 candidateOverrides: selectedCandidatesByItemID
             ) { [weak self] message in
                 self?.statusMessage = message
+                self?.updateCreateActivity(message)
             }
             createdPlaylist = playlist
+            stopActivity()
             phase = .created
             statusMessage = "Created \(playlist.name) with \(playlist.trackCount) ready tracks."
             trackEvent("transfer_create_succeeded", properties: summaryProperties(analysis, durationMs: elapsedMilliseconds(since: startedAt), extra: [
@@ -162,6 +194,7 @@ final class TransferViewModel: ObservableObject {
                 "readyCount": .int(playlist.trackCount)
             ]))
         } catch {
+            stopActivity()
             trackEvent("transfer_create_failed", properties: summaryProperties(analysis, durationMs: elapsedMilliseconds(since: startedAt), extra: [
                 "appleConnected": .bool(false),
                 "errorCategory": .string("apple_music_create"),
@@ -222,8 +255,122 @@ final class TransferViewModel: ObservableObject {
         analysis = nil
         createdPlaylist = nil
         resetDecisions()
+        stopActivity()
         phase = .idle
         statusMessage = "Paste a public Spotify playlist link to begin."
+    }
+
+    private func startOptimisticActivity(_ kind: TransferActivityKind) {
+        stopActivity()
+        let startedAt = Date()
+        updateOptimisticActivity(kind, elapsedSeconds: 0)
+
+        progressPulseTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(1100))
+                guard !Task.isCancelled else { return }
+
+                await MainActor.run {
+                    let elapsedSeconds = Date().timeIntervalSince(startedAt)
+                    self?.updateOptimisticActivity(kind, elapsedSeconds: elapsedSeconds)
+                }
+            }
+        }
+    }
+
+    private func stopActivity() {
+        progressPulseTask?.cancel()
+        progressPulseTask = nil
+        activity = nil
+    }
+
+    private func updateOptimisticActivity(_ kind: TransferActivityKind, elapsedSeconds: TimeInterval) {
+        let phases = optimisticPhases(for: kind)
+        let current = phases.last(where: { elapsedSeconds >= $0.at }) ?? phases[0]
+        let gentleBump = min(8, Int(max(0, elapsedSeconds - current.at) / 4))
+
+        activity = TransferActivity(
+            kind: kind,
+            eyebrow: activityEyebrow(for: kind),
+            title: current.title,
+            detail: current.detail,
+            progress: min(58, current.progress + gentleBump),
+            isEstimated: true
+        )
+    }
+
+    private func updateActivity(from job: TransferJob<TransferAnalysis>) {
+        activity = TransferActivity(
+            kind: .analysis,
+            eyebrow: activityEyebrow(for: .analysis),
+            title: job.phase.isEmpty ? "Matching with Apple Music" : job.phase,
+            detail: job.total > 0
+                ? "\(job.completed) of \(job.total) tracks checked."
+                : "Preparing Apple Music match data.",
+            progress: max(0, min(100, job.progress)),
+            isEstimated: false
+        )
+    }
+
+    private func updateCreateActivity(_ message: String) {
+        let progress: Int
+        if message.localizedCaseInsensitiveContains("permission") {
+            progress = 18
+        } else if message.localizedCaseInsensitiveContains("subscription") || message.localizedCaseInsensitiveContains("sync library") {
+            progress = 34
+        } else if message.localizedCaseInsensitiveContains("loading") {
+            progress = 58
+        } else if message.localizedCaseInsensitiveContains("creating") {
+            progress = 78
+        } else {
+            progress = activity?.progress ?? 24
+        }
+
+        activity = TransferActivity(
+            kind: .create,
+            eyebrow: activityEyebrow(for: .create),
+            title: "Creating your Apple Music playlist.",
+            detail: message,
+            progress: progress,
+            isEstimated: true
+        )
+    }
+
+    private func optimisticPhases(for kind: TransferActivityKind) -> [(at: TimeInterval, progress: Int, title: String, detail: String)] {
+        switch kind {
+        case .preview:
+            return [
+                (0, 8, "Reading the Spotify link.", "Fetching public playlist metadata."),
+                (4, 22, "Opening the playlist.", "Spotify can take a moment to return public tracks."),
+                (10, 36, "Loading the track list.", "Still working. Keep this app open."),
+                (20, 48, "Checking playlist data.", "Large playlists can take a little longer.")
+            ]
+        case .analysis:
+            return [
+                (0, 8, "Starting the match report.", "Sending the playlist to the matcher."),
+                (4, 18, "Warming Apple Music search.", "Large playlists can take a minute on the free tier."),
+                (10, 30, "Checking the catalog.", "Waiting for the first batch of match results."),
+                (20, 42, "Still matching.", "This is normal for larger playlists. Keep this app open.")
+            ]
+        case .create:
+            return [
+                (0, 8, "Preparing Apple Music.", "Getting ready to create the playlist."),
+                (4, 20, "Starting playlist creation.", "Apple Music is receiving the ready tracks."),
+                (10, 34, "Adding tracks.", "This can take a moment for larger playlists."),
+                (20, 46, "Building the receipt.", "Keep this app open until the transfer completes.")
+            ]
+        }
+    }
+
+    private func activityEyebrow(for kind: TransferActivityKind) -> String {
+        switch kind {
+        case .preview:
+            return "Step 1 of 3 - Preview"
+        case .analysis:
+            return "Step 2 of 3 - Match"
+        case .create:
+            return "Step 3 of 3 - Create"
+        }
     }
 
     private func shouldTransfer(_ item: TransferItem) -> Bool {

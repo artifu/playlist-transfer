@@ -11,7 +11,13 @@ struct ImportView: View {
                 VStack(alignment: .leading, spacing: 24) {
                     hero
                     importCard
-                    statusCard
+
+                    if let activity = viewModel.activity {
+                        ActivityCard(activity: activity)
+                            .id("activity")
+                    } else if shouldShowStatusCard {
+                        statusCard
+                    }
 
                     if let preview = viewModel.preview {
                         PlaylistPreviewCard(preview: preview)
@@ -60,6 +66,10 @@ struct ImportView: View {
                 }
             }
             .onChange(of: viewModel.phase) { _, phase in
+                if phase == .previewing || phase == .analyzing || phase == .creating {
+                    playlistFieldFocused = false
+                }
+
                 if phase == .previewReady {
                     playlistFieldFocused = false
                     withAnimation(.snappy(duration: 0.35)) {
@@ -74,6 +84,15 @@ struct ImportView: View {
                     }
                 }
             }
+            .onChange(of: viewModel.activity) { _, activity in
+                guard activity != nil else { return }
+                playlistFieldFocused = false
+                withAnimation(.snappy(duration: 0.35)) {
+                    scrollProxy.scrollTo("activity", anchor: .top)
+                }
+            }
+            .animation(.snappy(duration: 0.25), value: viewModel.phase)
+            .animation(.snappy(duration: 0.25), value: viewModel.activity)
         }
     }
 
@@ -133,7 +152,7 @@ struct ImportView: View {
                 .font(.system(.body, design: .monospaced))
                 .lineLimit(1)
                 .padding(14)
-                .background(AppTheme.inset)
+                .background(AppTheme.card)
                 .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 18, style: .continuous)
@@ -148,7 +167,7 @@ struct ImportView: View {
                 submitPreview()
             } label: {
                 ActionButtonLabel(
-                    title: viewModel.preview == nil ? "Preview public link" : "Refresh preview",
+                    title: viewModel.preview == nil ? "Preview playlist" : "Refresh playlist",
                     systemImage: "arrow.right",
                     background: viewModel.canPreview ? AppTheme.spotify : AppTheme.disabledFill,
                     foreground: viewModel.canPreview ? .white : AppTheme.inkMuted
@@ -173,10 +192,20 @@ struct ImportView: View {
         Task { await viewModel.previewPlaylist() }
     }
 
+    private var shouldShowStatusCard: Bool {
+        switch viewModel.phase {
+        case .idle, .previewing, .analyzing, .creating:
+            return false
+        default:
+            return !viewModel.statusMessage.isEmpty
+        }
+    }
+
     private var statusCard: some View {
         HStack(alignment: .top, spacing: 12) {
-            ProgressView()
-                .opacity(viewModel.isBusy ? 1 : 0)
+            Image(systemName: statusIcon)
+                .font(.headline.weight(.black))
+                .foregroundStyle(statusColor)
             Text(viewModel.statusMessage)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(statusColor)
@@ -197,6 +226,12 @@ struct ImportView: View {
         if case .failed = viewModel.phase { return AppTheme.danger.opacity(0.1) }
         if case .created = viewModel.phase { return AppTheme.spotify.opacity(0.12) }
         return AppTheme.spotify.opacity(0.12)
+    }
+
+    private var statusIcon: String {
+        if case .failed = viewModel.phase { return "exclamationmark.triangle.fill" }
+        if case .created = viewModel.phase { return "checkmark.circle.fill" }
+        return "info.circle.fill"
     }
 
     private var shouldShowStickyStatus: Bool {
@@ -273,7 +308,7 @@ struct ImportView: View {
                         Task { await viewModel.analyzeMatches() }
                     } label: {
                         ActionButtonLabel(
-                            title: "Match Apple Music catalog",
+                            title: "Match with Apple Music",
                             systemImage: "wand.and.stars",
                             background: viewModel.canAnalyze ? AppTheme.actionBlue : AppTheme.disabledFill,
                             foreground: viewModel.canAnalyze ? .white : AppTheme.inkMuted
@@ -290,6 +325,85 @@ struct ImportView: View {
             .overlay(alignment: .top) {
                 Divider()
             }
+        }
+    }
+}
+
+private struct ActivityCard: View {
+    let activity: TransferActivity
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label(activity.eyebrow, systemImage: iconName)
+                .font(.caption)
+                .fontWeight(.black)
+                .tracking(1.7)
+                .foregroundStyle(accent)
+                .textCase(.uppercase)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text(activity.title)
+                    .font(.system(size: 28, weight: .black, design: .serif))
+                    .italic()
+                    .foregroundStyle(AppTheme.ink)
+
+                Text(activity.detail)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(AppTheme.inkSoft)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text(activity.isEstimated ? "Estimated progress" : "Progress")
+                        .font(.caption.weight(.black))
+                        .tracking(1.4)
+                        .foregroundStyle(AppTheme.inkMuted)
+                        .textCase(.uppercase)
+                    Spacer()
+                    Text(activity.progressText)
+                        .font(.caption.weight(.black).monospacedDigit())
+                        .foregroundStyle(accent)
+                }
+
+                ProgressView(value: Double(activity.progress), total: 100)
+                    .tint(accent)
+                    .scaleEffect(x: 1, y: 1.7, anchor: .center)
+            }
+        }
+        .padding(18)
+        .background(
+            LinearGradient(
+                colors: [accent.opacity(0.16), AppTheme.card],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .stroke(accent.opacity(0.24), lineWidth: 1)
+        )
+    }
+
+    private var accent: Color {
+        switch activity.kind {
+        case .preview:
+            return AppTheme.spotify
+        case .analysis:
+            return AppTheme.actionBlue
+        case .create:
+            return AppTheme.apple
+        }
+    }
+
+    private var iconName: String {
+        switch activity.kind {
+        case .preview:
+            return "link"
+        case .analysis:
+            return "wand.and.stars"
+        case .create:
+            return "music.note.list"
         }
     }
 }
@@ -368,6 +482,12 @@ private struct PlaylistPreviewCard: View {
             .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
 
             if preview.tracks.count > collapsedTrackLimit {
+                if !showsAllTracks {
+                    Text("Showing the first \(collapsedTrackLimit) tracks here to keep the preview readable. The match report still uses the full selected review mode.")
+                        .font(.caption)
+                        .foregroundStyle(AppTheme.inkMuted)
+                }
+
                 Button {
                     withAnimation(.snappy(duration: 0.25)) {
                         showsAllTracks.toggle()
@@ -644,7 +764,7 @@ private struct TransferItemRow: View {
                         Button {
                             approveSuggestedMatch(item)
                         } label: {
-                            Text("Approve suggested")
+                            Text("Use suggested match")
                                 .font(.caption.weight(.black))
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 8)
@@ -659,7 +779,7 @@ private struct TransferItemRow: View {
                         Button {
                             skipTrack(item)
                         } label: {
-                            Text(mode == .ready ? "Wrong match" : "Skip this track")
+                            Text(mode == .ready ? "Wrong match" : "Leave out")
                                 .font(.caption.weight(.black))
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 8)
@@ -703,7 +823,7 @@ private struct TransferItemRow: View {
                                 Button {
                                     selectCandidate(candidate)
                                 } label: {
-                                    Text(mode == .review ? "Use this and approve" : "Use this match")
+                                    Text("Use this match")
                                         .font(.caption.weight(.black))
                                         .padding(.horizontal, 12)
                                         .padding(.vertical, 8)
