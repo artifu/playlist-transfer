@@ -110,26 +110,26 @@ function renderStartState({ hasInput = false } = {}) {
   results.className = "result-empty";
   results.innerHTML = hasInput
     ? `
-      <p class="eyebrow">New link ready</p>
-      <h2>Preview this Spotify playlist before matching.</h2>
-      <p>Tap the arrow in the URL box to load the public playlist details, then we will search Apple Music.</p>
+      <p class="eyebrow">New playlist link</p>
+      <h2>Preview this playlist first.</h2>
+      <p>Load the Spotify tracks, then match them against Apple Music.</p>
     `
     : `
-      <p class="eyebrow">Trust-first transfer</p>
-      <h2>Nothing moves until you approve the match report.</h2>
-      <p>Preview the Spotify playlist, analyze Apple Music candidates, review anything fuzzy, then create from clean matches only.</p>
+      <p class="eyebrow">Preview first</p>
+      <h2>See the matches before anything moves.</h2>
+      <p>Load a Spotify playlist, check the Apple Music matches, and create from the tracks you trust.</p>
     `;
 }
 
 function renderStoredTransferPrompt() {
   results.className = "result-empty";
   results.innerHTML = `
-    <p class="eyebrow">Saved transfer found</p>
-    <h2>Continue your last report, or start fresh.</h2>
-    <p>PlaylistXfer saved a previous transfer in this browser so you can keep reviewing it. Nothing will be restored unless you choose to continue.</p>
+    <p class="eyebrow">Saved playlist found</p>
+    <h2>Keep working on this playlist?</h2>
+    <p>We saved the last match report in this browser. Continue reviewing it, or paste a different Spotify playlist.</p>
     <div class="button-row">
-      <button class="soft-action" type="button" data-restore-transfer="true">Continue saved report</button>
-      <button class="soft-action" type="button" data-start-over="true">Start new transfer</button>
+      <button class="soft-action" type="button" data-restore-transfer="true">Continue playlist</button>
+      <button class="soft-action" type="button" data-start-over="true">Use a new playlist</button>
     </div>
   `;
 }
@@ -229,7 +229,9 @@ async function loadMusicKitScript() {
 }
 
 function setStatus(message, kind = "info") {
-  statusLine.textContent = message;
+  const cleanMessage = String(message || "").trim();
+  statusLine.hidden = !cleanMessage;
+  statusLine.textContent = cleanMessage;
   statusLine.className = kind === "error" ? "status-line error" : "status-line";
 }
 
@@ -1185,7 +1187,7 @@ async function initialize() {
   renderAppleSession();
   if (readStoredTransferId()) {
     renderStoredTransferPrompt();
-    setStatus("Saved transfer found. Continue it or start a new one.");
+    setStatus("");
   }
   refreshActions();
 }

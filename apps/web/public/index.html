@@ -55,7 +55,7 @@
       </div>
 
       <p class="hero-copy">
-        Paste a public Spotify playlist. PlaylistXfer previews it first, matches it against Apple Music, then asks for Apple access only when you are ready to create.
+        Paste a public Spotify playlist. PlaylistXfer previews the tracks, matches them to Apple Music, and asks for Apple access only when you create the playlist.
       </p>
 
       <form id="transfer-form" class="transfer-form">
@@ -69,7 +69,7 @@
         </div>
 
         <div class="action-stack">
-          <button class="secondary-action" id="analyze-button" type="button" disabled>Analyze matches</button>
+          <button class="secondary-action" id="analyze-button" type="button" disabled>Match with Apple Music</button>
           <button class="create-action" id="create-button" type="button" disabled>Create Apple Music playlist</button>
         </div>
 
@@ -94,20 +94,14 @@
         <button id="connect-apple" type="button" class="soft-action">Connect Apple Music</button>
       </section>
 
-      <aside class="sponsor-card" aria-label="Sponsor message">
-        <p class="eyebrow">Sponsor spot</p>
-        <strong>Help people switch playlists cleanly.</strong>
-        <p>Reserved for a future ad, affiliate, or direct sponsor placement.</p>
-      </aside>
-
       <label class="select-card analysis-scope-card" for="analysis-limit">
-        <span class="select-label">Transfer scope</span>
+        <span class="select-label">Review mode</span>
         <select id="analysis-limit">
-          <option value="500">Full playlist (up to 500 tracks)</option>
-          <option value="150">Faster review: first 150 tracks</option>
+          <option value="500">Full playlist</option>
+          <option value="150">Faster test: first 150 tracks</option>
           <option value="50">Quick test: first 50 tracks</option>
         </select>
-        <span class="select-hint">Create transfers ready tracks from this analyzed scope only.</span>
+        <span class="select-hint">Full playlist is the default. Use a test mode only when you want a faster dry run; the Apple Music playlist is created from the tracks you analyze.</span>
       </label>
 
       <p class="status-line" id="status-line">Paste a playlist link to begin.</p>
@@ -124,17 +118,17 @@
 
     <section class="result-panel" aria-live="polite">
       <div class="result-empty" id="results">
-        <p class="eyebrow">Trust-first transfer</p>
-        <h2>Nothing moves until you approve the match report.</h2>
-        <p>Preview the Spotify playlist, analyze Apple Music candidates, review anything fuzzy, then create from clean matches only.</p>
+        <p class="eyebrow">Preview first</p>
+        <h2>See the matches before anything moves.</h2>
+        <p>Load a Spotify playlist, check the Apple Music matches, and create from the tracks you trust.</p>
       </div>
 
       <section class="fallback-guide" id="fallback-guide" hidden>
-        <h3>If Spotify blocks the public link</h3>
+        <h3>If a Spotify link will not load</h3>
         <ol>
           <li>Open the playlist in Spotify.</li>
-          <li>Copy the tracks into a normal public playlist you own or can edit.</li>
-          <li>Share that new playlist link and paste it here.</li>
+          <li>Copy the tracks into a public playlist you can share.</li>
+          <li>Paste the new Spotify playlist link here.</li>
         </ol>
       </section>
     </section>

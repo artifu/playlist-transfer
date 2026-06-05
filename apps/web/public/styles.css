@@ -237,11 +237,11 @@ p {
 
 .select-card select {
   width: 100%;
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
   border-radius: 18px;
   padding: 14px 16px;
   color: var(--ink);
-  background: #f6f4f6;
+  background: #fffefb;
   font-weight: 800;
 }
 
@@ -253,7 +253,7 @@ p {
 
 .analysis-scope-card {
   margin-top: 18px;
-  background: rgba(255, 253, 247, 0.84);
+  background: rgba(255, 253, 247, 0.72);
 }
 
 .action-stack {
@@ -315,30 +315,6 @@ p {
 .apple-card {
   margin-top: 18px;
   transition: border-color 160ms ease, background 160ms ease;
-}
-
-.sponsor-card {
-  margin-top: 18px;
-  padding: 16px 18px;
-  border: 1px dashed rgba(45, 95, 116, 0.42);
-  border-radius: 24px;
-  background:
-    linear-gradient(135deg, rgba(29, 185, 84, 0.09), rgba(255, 45, 85, 0.08)),
-    rgba(255, 253, 247, 0.82);
-}
-
-.sponsor-card strong {
-  display: block;
-  margin: 8px 0 6px;
-  font-size: 1rem;
-  line-height: 1.25;
-}
-
-.sponsor-card p:last-child {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.92rem;
-  line-height: 1.35;
 }
 
 .apple-card.connected {
@@ -436,17 +412,25 @@ p {
   font-weight: 800;
 }
 
+.status-line[hidden] {
+  display: none;
+}
+
 .status-line.error {
   color: var(--missing);
 }
 
 .legal-links {
   display: flex;
-  gap: 14px;
+  flex-wrap: wrap;
+  column-gap: 14px;
+  row-gap: 8px;
+  align-items: center;
   margin-top: 18px;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.86rem;
   font-weight: 800;
+  line-height: 1.2;
 }
 
 .legal-links a,
@@ -455,6 +439,10 @@ p {
   color: inherit;
   text-decoration-thickness: 0.08em;
   text-underline-offset: 0.18em;
+}
+
+.legal-links a {
+  white-space: nowrap;
 }
 
 .result-panel {
@@ -1025,15 +1013,28 @@ p {
 .fallback-guide {
   margin-top: 20px;
   padding: 24px;
+  display: grid;
+  gap: 12px;
 }
 
 .fallback-guide h3 {
-  margin-bottom: 10px;
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.9rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.fallback-guide ol {
+  margin: 0;
+  padding-left: 1.35rem;
 }
 
 .fallback-guide li {
   margin: 8px 0;
   color: var(--muted);
+  line-height: 1.45;
 }
 
 .toast {
