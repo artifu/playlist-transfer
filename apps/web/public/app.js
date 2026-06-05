@@ -35,6 +35,7 @@ const state = {
 
 let toastTimer = null;
 let musicKitLoadPromise = null;
+let progressPulseTimer = null;
 
 function esc(value) {
   return String(value ?? "")
@@ -580,21 +581,106 @@ function setBusy(isBusy, message) {
   if (typeof message === "string") setStatus(message);
 }
 
+function clearProgressPulse() {
+  window.clearInterval(progressPulseTimer);
+  progressPulseTimer = null;
+}
+
+function workingCopy(kind) {
+  if (kind === "preview") {
+    return {
+      eyebrow: "Step 1 of 3 - Preview",
+      title: "Reading the Spotify playlist.",
+      copy: "We are loading public Spotify tracks before anything is matched or moved.",
+      steps: ["Read link", "Fetch tracks", "Load artwork", "Ready to match"]
+    };
+  }
+
+  if (kind === "create") {
+    return {
+      eyebrow: "Step 3 of 3 - Creating",
+      title: "Creating your Apple Music playlist.",
+      copy: "We are adding the ready tracks now. Keep this tab open until the receipt appears.",
+      steps: ["Confirm access", "Create playlist", "Add tracks", "Build receipt"]
+    };
+  }
+
+  return {
+    eyebrow: "Step 2 of 3 - Matching",
+    title: "Matching with Apple Music.",
+    copy: "We are checking Apple Music in small batches so the free-tier API stays reliable. Keep this tab open.",
+    steps: ["Read playlist", "Search catalog", "Score matches", "Build report"]
+  };
+}
+
+function optimisticJobFor(kind, elapsedSeconds) {
+  const phaseSets = {
+    preview: [
+      { at: 0, progress: 8, phase: "Reading Spotify link", detail: "Fetching public playlist metadata." },
+      { at: 4, progress: 22, phase: "Opening public playlist", detail: "Spotify can take a moment to return public tracks." },
+      { at: 10, progress: 36, phase: "Loading track list", detail: "Still working. Keep this tab open." },
+      { at: 20, progress: 48, phase: "Checking playlist data", detail: "Large or cold-started requests can take a little longer." }
+    ],
+    create: [
+      { at: 0, progress: 8, phase: "Preparing Apple Music", detail: "Getting ready to create the playlist." },
+      { at: 4, progress: 20, phase: "Starting playlist creation", detail: "Apple Music is receiving the ready tracks." },
+      { at: 10, progress: 34, phase: "Adding tracks", detail: "This can take a moment for larger playlists." },
+      { at: 20, progress: 46, phase: "Building receipt", detail: "Keep this tab open until the receipt appears." }
+    ],
+    analysis: [
+      { at: 0, progress: 8, phase: "Starting match report", detail: "Sending the playlist to the matcher." },
+      { at: 4, progress: 18, phase: "Warming Apple Music search", detail: "Large playlists can take a minute on the free tier." },
+      { at: 10, progress: 30, phase: "Checking the catalog", detail: "Waiting for the first batch of match results." },
+      { at: 20, progress: 42, phase: "Still matching", detail: "This is normal for larger playlists. Keep this tab open." }
+    ]
+  };
+  const phases = phaseSets[kind] || phaseSets.analysis;
+  const current = phases.reduce((active, phase) => elapsedSeconds >= phase.at ? phase : active, phases[0]);
+  const gentleBump = Math.min(8, Math.floor(Math.max(0, elapsedSeconds - current.at) / 4));
+  return {
+    ...current,
+    progress: Math.min(58, current.progress + gentleBump),
+    indeterminate: true
+  };
+}
+
+function startOptimisticProgress(options = {}) {
+  const kind = options.kind || "analysis";
+  const startedAt = performance.now();
+  clearProgressPulse();
+
+  const tick = () => {
+    const elapsedSeconds = Math.floor((performance.now() - startedAt) / 1000);
+    const job = optimisticJobFor(kind, elapsedSeconds);
+    setProgress(job);
+    renderWorkingProgress(job, options);
+  };
+
+  tick();
+  progressPulseTimer = window.setInterval(tick, 1100);
+}
+
 function setProgress(job) {
   const progress = Math.max(0, Math.min(100, Number(job.progress || 0)));
+  const progressLabel = job.indeterminate ? `~${progress}%` : `${progress}%`;
   progressCard.hidden = false;
+  progressCard.classList.toggle("is-indeterminate", Boolean(job.indeterminate));
   progressCard.classList.toggle("is-active", progress < 100);
   progressPhase.textContent = job.phase || "Working";
-  progressPercent.textContent = `${progress}%`;
+  progressPercent.textContent = progressLabel;
   progressBar.style.width = `${progress}%`;
-  progressDetail.textContent = job.total
+  progressDetail.textContent = job.detail
+    ? job.detail
+    : job.total
     ? `${job.completed} of ${job.total} tracks processed.`
     : "Preparing playlist metadata.";
 }
 
 function resetProgress() {
+  clearProgressPulse();
   progressCard.hidden = true;
   progressCard.classList.remove("is-active");
+  progressCard.classList.remove("is-indeterminate");
   progressPhase.textContent = "Preparing";
   progressPercent.textContent = "0%";
   progressBar.style.width = "0%";
@@ -603,30 +689,33 @@ function resetProgress() {
 
 function renderWorkingProgress(job, options = {}) {
   const progress = Math.max(0, Math.min(100, Number(job.progress || 0)));
-  const isCreate = options.kind === "create";
-  const title = isCreate ? "Creating your Apple Music playlist." : "Matching with Apple Music.";
-  const copy = isCreate
-    ? "We are adding the ready tracks now. Keep this tab open until the receipt appears."
-    : "We are checking Apple Music in small batches so the free-tier API stays reliable. Keep this tab open.";
-  const processed = job.total
+  const progressLabel = job.indeterminate ? `~${progress}%` : `${progress}%`;
+  const copy = workingCopy(options.kind);
+  const processed = job.detail
+    ? esc(job.detail)
+    : job.total
     ? `${esc(job.completed)} of ${esc(job.total)} tracks processed`
     : "Preparing playlist metadata";
+  const thresholds = [10, 35, 70, 100];
+  const steps = copy.steps.map((step, index) => (
+    `<span class="${progress >= thresholds[index] ? "done" : ""}">${esc(step)}</span>`
+  )).join("");
 
   results.className = "screen working-screen";
   results.innerHTML = `
     <div class="screen-head">
-      <p class="eyebrow">${isCreate ? "Step 3 of 3 - Creating" : "Step 2 of 3 - Matching"}</p>
-      <h2 class="screen-title">${title}</h2>
-      <p class="screen-copy">${copy}</p>
+      <p class="eyebrow">${esc(copy.eyebrow)}</p>
+      <h2 class="screen-title">${esc(copy.title)}</h2>
+      <p class="screen-copy">${esc(copy.copy)}</p>
     </div>
-    <div class="working-card" role="status" aria-live="polite">
+    <div class="working-card ${job.indeterminate ? "is-indeterminate" : ""}" role="status" aria-live="polite">
       <div class="working-orbit" aria-hidden="true">
         <span></span><span></span><span></span>
       </div>
       <div class="working-content">
         <div class="progress-head">
           <span>${esc(job.phase || "Working")}</span>
-          <strong>${progress}%</strong>
+          <strong>${progressLabel}</strong>
         </div>
         <div class="progress-track progress-track-large">
           <div style="width: ${progress}%"></div>
@@ -635,16 +724,15 @@ function renderWorkingProgress(job, options = {}) {
       </div>
     </div>
     <div class="working-steps" aria-hidden="true">
-      <span class="${progress >= 10 ? "done" : ""}">Read playlist</span>
-      <span class="${progress >= 35 ? "done" : ""}">Search catalog</span>
-      <span class="${progress >= 70 ? "done" : ""}">Score matches</span>
-      <span class="${progress >= 100 ? "done" : ""}">Build report</span>
+      ${steps}
     </div>
   `;
 }
 
 async function startJob(path, body, options = {}) {
+  if (!progressPulseTimer) startOptimisticProgress(options);
   const job = await postJson(path, body);
+  clearProgressPulse();
   setProgress(job);
   renderWorkingProgress(job, options);
 
@@ -1002,6 +1090,7 @@ async function previewPlaylist() {
   fallbackGuide.hidden = true;
   resetProgress();
   setBusy(true, "Reading public Spotify link...");
+  startOptimisticProgress({ kind: "preview" });
   const startedAt = performance.now();
   trackEvent("preview_started");
 
@@ -1012,6 +1101,7 @@ async function previewPlaylist() {
     state.analysis = null;
     state.analysisInput = null;
     clearStoredTransfer();
+    resetProgress();
     renderPreview(data);
     setStatus("Playlist loaded. Next: analyze Apple Music matches.");
     trackEvent("preview_succeeded", {
@@ -1024,6 +1114,7 @@ async function previewPlaylist() {
     state.analysis = null;
     state.analysisInput = null;
     clearStoredTransfer();
+    resetProgress();
     setStatus(errorMessage(error), "error");
     renderError(error, "preview");
     trackEvent("preview_failed", {
@@ -1039,14 +1130,19 @@ async function previewPlaylist() {
 async function analyzeMatches() {
   const value = input.value.trim();
   if (!value) return;
-  if (!(await ensureDeveloperTokenForAnalysis())) return;
 
   fallbackGuide.hidden = true;
-  setBusy(true, "Matching against Apple Music. Large playlists can take a minute.");
+  setBusy(true, "Matching with Apple Music. Large playlists can take a minute.");
+  startOptimisticProgress({ kind: "analysis" });
   const startedAt = performance.now();
   trackEvent("analysis_started");
 
   try {
+    if (!(await ensureDeveloperTokenForAnalysis())) {
+      resetProgress();
+      return;
+    }
+
     const data = await startJob("/api/transfers/analyze-public-job", {
       input: value,
       limit: analysisLimit.value

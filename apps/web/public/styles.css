@@ -390,6 +390,15 @@ p {
   transition: width 220ms ease;
 }
 
+.progress-card.is-indeterminate #progress-bar,
+.working-card.is-indeterminate .progress-track-large > div {
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0)),
+    linear-gradient(90deg, var(--spotify), var(--apple));
+  background-size: 180% 100%, 100% 100%;
+  animation: estimatedProgressFlow 1.6s ease-in-out infinite;
+}
+
 .progress-card.is-active .progress-track::after,
 .working-card .progress-track::after {
   content: "";
@@ -1197,6 +1206,17 @@ p {
 
   to {
     transform: translateX(250%);
+  }
+}
+
+@keyframes estimatedProgressFlow {
+  0%,
+  100% {
+    background-position: 140% 0, 0 0;
+  }
+
+  50% {
+    background-position: -40% 0, 0 0;
   }
 }
 
