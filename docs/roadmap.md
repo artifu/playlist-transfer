@@ -1,6 +1,6 @@
 # Roadmap
 
-Last reviewed: 2026-05-19
+Last reviewed: 2026-06-06
 
 ## Current Position
 
@@ -14,6 +14,27 @@ PlaylistTransfer has moved past technical feasibility. The local product web she
 - create an Apple Music playlist from confident or approved matches
 
 The current local backend uses a small SQLite file for developer convenience. It should stay lightweight on local machines while the production storage target is tested online.
+
+## Immediate Next Sprint
+
+The next push should turn the working product into something that feels demo-ready on iPhone while keeping the public web funnel observable and cheap to run.
+
+1. iOS UAT and short polish.
+   Test 5-10 real Spotify playlists on device and fix conversion blockers first: keyboard behavior, loading states, share-sheet handoff, button labels, review-row decisions, Apple Music creation, and post-transfer actions.
+
+2. Designer-package incorporation.
+   Pull only the useful missing components from the latest `DesignSuggestions/newpackage/` drop. Avoid a full redesign for now; focus on final icon/brand assets, mobile layout polish, loading states, match cards, and the post-transfer screen.
+
+3. App Store basics.
+   Clean up bundle/signing, privacy copy, screenshots, final app icon, display name, short description, MusicKit/Media Library permission strings, and an App Review checklist.
+
+4. Web SEO and analytics finishing.
+   Verify `playlistxfer.com` title/meta, guide pages, sitemap/robots, GA events, and the main funnel logs: preview, analyze, review, create.
+
+5. Reliability pass.
+   Test large playlists, `spotify.link` URLs, duplicates, bad matches, denied Apple authorization, expired sessions, and interrupted creation. This is the pass that turns the demo into a product.
+
+Recommended sequencing: work on iOS UAT and designer-package polish together first, then App Store readiness. Web SEO/analytics can continue in parallel as long as it does not slow down the iOS transfer loop.
 
 ## Phase 0: Technical Validation
 

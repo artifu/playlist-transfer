@@ -8,6 +8,29 @@ The repo can now transfer a real user-owned Spotify playlist to Apple Music, cre
 
 That changes the project from "is this possible?" to "how do we make this a clean product?"
 
+## Current focus
+
+The current product bet is simple: make the iOS transfer flow feel trustworthy enough to demo without caveats, while keeping the web funnel live, measurable, and inexpensive.
+
+Near-term priorities:
+
+1. iOS UAT and short polish.
+   Test real playlists on device and fix the blockers that directly affect conversion: keyboard dismissal, loading/progress feedback, share-sheet handoff, button language, review decisions, Apple Music creation, and post-transfer actions.
+
+2. Designer-package incorporation.
+   Use the latest designer package selectively. Pull in missing components and brand assets, but avoid a broad redesign until the transfer loop is stable.
+
+3. App Store basics.
+   Prepare signing, bundle settings, permission copy, screenshots, app icon, display name, short description, privacy notes, and the first App Review checklist.
+
+4. Web SEO and analytics finishing.
+   Keep improving `playlistxfer.com` with clean copy, indexed guide pages, sitemap/robots, GA4 events, and funnel visibility from preview to create.
+
+5. Reliability pass.
+   Stress the system with large playlists, `spotify.link` URLs, duplicates, bad matches, denied Apple authorization, expired sessions, and interrupted creation.
+
+Recommended next sprint: pair iOS UAT with targeted designer-package polish, then move into App Store readiness once the core mobile loop feels clean.
+
 ## Immediate priorities
 
 ### 1. Match quality and review UX
