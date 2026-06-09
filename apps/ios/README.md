@@ -47,6 +47,7 @@ Implemented:
 - match report summary
 - mobile-first ready/review/missing rows
 - native MusicKit playlist creation
+- editable Apple Music destination playlist name
 - manual candidate selection
 - deep link import with `playlistxfer://import?url=<spotify-playlist-url>`
 - Share Sheet extension for receiving Spotify links from the iOS share menu
@@ -81,6 +82,23 @@ To test on device:
 4. Choose `PlaylistXfer` in the Share Sheet.
 5. Tap **Open in PlaylistXfer**.
 6. Confirm the main app opens with the shared playlist already in preview flow.
+
+## Apple Music creation notes
+
+The native app creates playlists through MusicKit with:
+
+- playlist name
+- description
+- author display name
+- matched Apple Music catalog songs
+
+The app now lets users edit the destination playlist name before creation. The default is:
+
+```text
+Original Spotify playlist name (PlaylistXfer)
+```
+
+The current MusicKit creation path does not take a custom artwork/cover parameter. Apple Music generates private library playlist artwork itself after creation. A custom cover flow should be treated as a separate follow-up, likely requiring a different Apple Music API path or a designer-led receipt/cover strategy.
 
 ## Native analytics
 

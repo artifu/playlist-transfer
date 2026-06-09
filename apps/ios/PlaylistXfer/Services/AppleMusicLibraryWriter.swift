@@ -39,6 +39,7 @@ struct AppleMusicLibraryWriter: Sendable {
         from analysis: TransferAnalysis,
         itemIDsToTransfer: Set<Int>? = nil,
         candidateOverrides: [Int: AppleSongCandidate] = [:],
+        playlistName requestedPlaylistName: String? = nil,
         progress: (@MainActor (String) -> Void)? = nil
     ) async throws -> CreatedAppleMusicPlaylist {
         do {
@@ -80,7 +81,10 @@ struct AppleMusicLibraryWriter: Sendable {
             await progress?("Creating the playlist in your Apple Music library...")
             print("[PlaylistXfer] Creating Apple Music playlist with \(songs.count) songs.")
 
-            let playlistName = "\(analysis.playlist.name) (PlaylistXfer)"
+            let playlistName = Self.destinationPlaylistName(
+                from: requestedPlaylistName,
+                fallbackSourceName: analysis.playlist.name
+            )
             let playlist = try await MusicLibrary.shared.createPlaylist(
                 name: playlistName,
                 description: "Matched from a Spotify playlist with PlaylistXfer. Review and missing tracks were left out.",
@@ -100,6 +104,34 @@ struct AppleMusicLibraryWriter: Sendable {
             print("[PlaylistXfer] MusicKit create failed: \(error.localizedDescription)")
             throw mapMusicKitError(error)
         }
+    }
+
+    static func destinationPlaylistName(from requestedName: String?, fallbackSourceName: String) -> String {
+        let trimmedRequest = requestedName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard trimmedRequest.isEmpty else {
+            return String(trimmedRequest.prefix(120))
+        }
+
+        return defaultPlaylistName(for: fallbackSourceName)
+    }
+
+    static func defaultPlaylistName(for sourceName: String) -> String {
+        var baseName = sourceName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let suffixesToNormalize = [
+            " (Transferred from Spotify)",
+            " (PlaylistXfer)"
+        ]
+
+        for suffix in suffixesToNormalize where baseName.lowercased().hasSuffix(suffix.lowercased()) {
+            baseName.removeLast(suffix.count)
+            baseName = baseName.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        if baseName.isEmpty {
+            baseName = "Spotify Playlist"
+        }
+
+        return String("\(baseName) (PlaylistXfer)".prefix(120))
     }
 
     private func appleMusicSongIDs(

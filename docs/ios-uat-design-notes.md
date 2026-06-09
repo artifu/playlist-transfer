@@ -65,6 +65,14 @@ Suggested hierarchy:
 5. Secondary action: copy playlist name.
 6. Tertiary action: transfer another playlist.
 
+## Destination Name and Cover
+
+- Users should be able to rename the destination Apple Music playlist before creation.
+- Default naming should be clean and predictable: `Original playlist name (PlaylistXfer)`.
+- Avoid legacy or awkward suffixes such as `(Transferred from Spotify)`.
+- The current native MusicKit creation flow sets playlist name, description, author, and items. It does not expose a custom artwork parameter in the create call used by the app.
+- Designer pass should still explore a better perceived cover experience: a nicer in-app transfer receipt, clearer preview artwork, and a future optional custom-cover flow if we later add an API path that supports artwork updates.
+
 ## Design Prompt Seed
 
 Use this prompt when asking for the next design pass:
@@ -82,6 +90,8 @@ Focus areas:
 - A match report that hides technical metadata like ISRC.
 - Clear review actions for "wrong match", "choose another match", and "leave this track out".
 - A post-transfer receipt that feels celebratory but still explains skipped tracks.
+- An optional destination-name editor before Apple Music creation.
+- A visual direction for playlist cover handling, including how to explain Apple Music-generated library artwork.
 - Mobile-first layout for one-handed use on iPhone.
 
 Avoid:

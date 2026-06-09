@@ -33,6 +33,7 @@ final class TransferViewModel: ObservableObject {
     }
 
     @Published var playlistInput = ""
+    @Published var destinationPlaylistName = ""
     @Published private(set) var phase: Phase = .idle
     @Published private(set) var preview: PlaylistPreviewResponse?
     @Published private(set) var analysis: TransferAnalysis?
@@ -102,6 +103,7 @@ final class TransferViewModel: ObservableObject {
 
         do {
             preview = try await api.previewPublicPlaylist(input: input)
+            destinationPlaylistName = AppleMusicLibraryWriter.defaultPlaylistName(for: preview?.playlist.name ?? "Spotify Playlist")
             stopActivity()
             phase = .previewReady
             statusMessage = "Playlist loaded. Match it with Apple Music when you are ready."
@@ -180,7 +182,8 @@ final class TransferViewModel: ObservableObject {
             let playlist = try await appleMusic.createPlaylist(
                 from: analysis,
                 itemIDsToTransfer: itemIDsToTransfer,
-                candidateOverrides: selectedCandidatesByItemID
+                candidateOverrides: selectedCandidatesByItemID,
+                playlistName: destinationPlaylistName
             ) { [weak self] message in
                 self?.statusMessage = message
                 self?.updateCreateActivity(message)
@@ -254,6 +257,7 @@ final class TransferViewModel: ObservableObject {
         preview = nil
         analysis = nil
         createdPlaylist = nil
+        destinationPlaylistName = ""
         resetDecisions()
         stopActivity()
         phase = .idle
@@ -310,6 +314,12 @@ final class TransferViewModel: ObservableObject {
             progress: max(0, min(100, job.progress)),
             isEstimated: false
         )
+    }
+
+    func resetDestinationPlaylistName() {
+        if let sourceName = analysis?.playlist.name ?? preview?.playlist.name {
+            destinationPlaylistName = AppleMusicLibraryWriter.defaultPlaylistName(for: sourceName)
+        }
     }
 
     private func updateCreateActivity(_ message: String) {

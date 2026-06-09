@@ -4,6 +4,7 @@ struct ImportView: View {
     @Environment(\.openURL) private var openURL
     @ObservedObject var viewModel: TransferViewModel
     @FocusState private var playlistFieldFocused: Bool
+    @FocusState private var destinationFieldFocused: Bool
 
     var body: some View {
         ScrollViewReader { scrollProxy in
@@ -22,6 +23,15 @@ struct ImportView: View {
                     if let preview = viewModel.preview {
                         PlaylistPreviewCard(preview: preview)
                             .id("preview")
+                    }
+
+                    if viewModel.analysis != nil && viewModel.createdPlaylist == nil {
+                        DestinationPlaylistNameCard(
+                            playlistName: $viewModel.destinationPlaylistName,
+                            resetName: viewModel.resetDestinationPlaylistName,
+                            isFocused: $destinationFieldFocused
+                        )
+                        .id("destination")
                     }
 
                     if let analysis = viewModel.analysis {
@@ -61,6 +71,7 @@ struct ImportView: View {
 
                     Button("Done") {
                         playlistFieldFocused = false
+                        destinationFieldFocused = false
                     }
                     .fontWeight(.bold)
                 }
@@ -68,10 +79,12 @@ struct ImportView: View {
             .onChange(of: viewModel.phase) { _, phase in
                 if phase == .previewing || phase == .analyzing || phase == .creating {
                     playlistFieldFocused = false
+                    destinationFieldFocused = false
                 }
 
                 if phase == .previewReady {
                     playlistFieldFocused = false
+                    destinationFieldFocused = false
                     withAnimation(.snappy(duration: 0.35)) {
                         scrollProxy.scrollTo("preview", anchor: .top)
                     }
@@ -79,14 +92,16 @@ struct ImportView: View {
 
                 if phase == .analysisReady {
                     playlistFieldFocused = false
+                    destinationFieldFocused = false
                     withAnimation(.snappy(duration: 0.35)) {
-                        scrollProxy.scrollTo("report", anchor: .top)
+                        scrollProxy.scrollTo("destination", anchor: .top)
                     }
                 }
             }
             .onChange(of: viewModel.activity) { _, activity in
                 guard activity != nil else { return }
                 playlistFieldFocused = false
+                destinationFieldFocused = false
                 withAnimation(.snappy(duration: 0.35)) {
                     scrollProxy.scrollTo("activity", anchor: .top)
                 }
@@ -189,6 +204,7 @@ struct ImportView: View {
     private func submitPreview() {
         guard viewModel.canPreview else { return }
         playlistFieldFocused = false
+        destinationFieldFocused = false
         Task { await viewModel.previewPlaylist() }
     }
 
@@ -285,6 +301,7 @@ struct ImportView: View {
 
                     Button {
                         playlistFieldFocused = false
+                        destinationFieldFocused = false
                         Task { await viewModel.createAppleMusicPlaylist() }
                     } label: {
                         ActionButtonLabel(
@@ -522,6 +539,75 @@ private struct PlaylistPreviewCard: View {
         }
 
         return "\(preview.tracks.count) readable tracks"
+    }
+}
+
+private struct DestinationPlaylistNameCard: View {
+    @Binding var playlistName: String
+    let resetName: () -> Void
+    var isFocused: FocusState<Bool>.Binding
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label("Apple Music playlist name", systemImage: "music.note")
+                .font(.caption)
+                .fontWeight(.black)
+                .tracking(1.6)
+                .foregroundStyle(AppTheme.apple)
+                .textCase(.uppercase)
+
+            TextField("Playlist name", text: $playlistName)
+                .textInputAutocapitalization(.words)
+                .autocorrectionDisabled()
+                .submitLabel(.done)
+                .font(.headline.weight(.black))
+                .padding(14)
+                .background(AppTheme.card)
+                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(AppTheme.lineStrong, lineWidth: 1.5)
+                )
+                .focused(isFocused)
+                .onSubmit {
+                    isFocused.wrappedValue = false
+                }
+
+            HStack(alignment: .top, spacing: 10) {
+                Text("You can rename it before creation. Apple Music generates the playlist cover in your library.")
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.inkMuted)
+
+                Spacer(minLength: 10)
+
+                Button {
+                    resetName()
+                    isFocused.wrappedValue = false
+                } label: {
+                    Text("Reset")
+                        .font(.caption.weight(.black))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(AppTheme.disabledFill)
+                        .foregroundStyle(AppTheme.ink)
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(16)
+        .background(
+            LinearGradient(
+                colors: [AppTheme.apple.opacity(0.10), AppTheme.card],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .stroke(AppTheme.apple.opacity(0.16), lineWidth: 1)
+        )
     }
 }
 
