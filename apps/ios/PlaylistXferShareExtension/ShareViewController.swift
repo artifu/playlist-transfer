@@ -142,6 +142,20 @@ final class ShareViewController: UIViewController {
             return
         }
 
+        if provider.hasItemConformingToTypeIdentifier(UTType.text.identifier) {
+            provider.loadItem(forTypeIdentifier: UTType.text.identifier, options: nil) { [weak self] item, _ in
+                let url = Self.spotifyPlaylistURL(from: item)
+                DispatchQueue.main.async {
+                    if let url {
+                        self?.updateForPlaylist(url)
+                    } else {
+                        self?.loadPlaylistURL(at: index + 1)
+                    }
+                }
+            }
+            return
+        }
+
         if provider.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) {
             provider.loadItem(forTypeIdentifier: UTType.plainText.identifier, options: nil) { [weak self] item, _ in
                 let url = Self.spotifyPlaylistURL(from: item)
@@ -162,6 +176,7 @@ final class ShareViewController: UIViewController {
     private func updateForPlaylist(_ url: URL) {
         playlistURL = url
         urlLabel.text = url.absoluteString
+        titleLabel.text = "Open this playlist in PlaylistXfer?"
         openButton.isEnabled = true
         openButton.alpha = 1
     }
@@ -179,8 +194,25 @@ final class ShareViewController: UIViewController {
             return
         }
 
-        extensionContext?.open(deepLink)
-        extensionContext?.completeRequest(returningItems: nil)
+        openButton.isEnabled = false
+        openButton.alpha = 0.7
+        openButton.setTitle("Opening PlaylistXfer...", for: .normal)
+
+        extensionContext?.open(deepLink) { [weak self] opened in
+            DispatchQueue.main.async {
+                guard let self else { return }
+
+                if opened {
+                    self.extensionContext?.completeRequest(returningItems: nil)
+                } else {
+                    self.openButton.isEnabled = true
+                    self.openButton.alpha = 1
+                    self.openButton.setTitle("Open in PlaylistXfer", for: .normal)
+                    self.titleLabel.text = "Could not open PlaylistXfer"
+                    self.urlLabel.text = "The link was found, but iOS did not hand it to the app. Try opening PlaylistXfer once, then share again."
+                }
+            }
+        }
     }
 
     @objc private func cancel() {
@@ -223,6 +255,11 @@ final class ShareViewController: UIViewController {
             return url
         }
 
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.lowercased().hasPrefix("spotify:playlist:") {
+            return URL(string: trimmed)
+        }
+
         let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
         let range = NSRange(text.startIndex..<text.endIndex, in: text)
         return detector?
@@ -235,6 +272,7 @@ final class ShareViewController: UIViewController {
         let absolute = url.absoluteString.lowercased()
         return absolute.contains("open.spotify.com/playlist/")
             || absolute.contains("spotify.link/")
+            || absolute.hasPrefix("spotify:playlist:")
     }
 }
 

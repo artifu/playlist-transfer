@@ -303,7 +303,7 @@ final class TransferViewModel: ObservableObject {
         activity = TransferActivity(
             kind: .analysis,
             eyebrow: activityEyebrow(for: .analysis),
-            title: job.phase.isEmpty ? "Matching with Apple Music" : job.phase,
+            title: "Matching with Apple Music",
             detail: job.total > 0
                 ? "\(job.completed) of \(job.total) tracks checked."
                 : "Preparing Apple Music match data.",
@@ -347,10 +347,10 @@ final class TransferViewModel: ObservableObject {
             ]
         case .analysis:
             return [
-                (0, 8, "Starting the match report.", "Sending the playlist to the matcher."),
-                (4, 18, "Warming Apple Music search.", "Large playlists can take a minute on the free tier."),
-                (10, 30, "Checking the catalog.", "Waiting for the first batch of match results."),
-                (20, 42, "Still matching.", "This is normal for larger playlists. Keep this app open.")
+                (0, 8, "Matching with Apple Music", "Starting the match report."),
+                (4, 18, "Matching with Apple Music", "Large playlists can take a minute on the free tier."),
+                (10, 30, "Matching with Apple Music", "Waiting for the first batch of catalog results."),
+                (20, 42, "Matching with Apple Music", "Still working. Keep this app open.")
             ]
         case .create:
             return [
@@ -405,6 +405,7 @@ final class TransferViewModel: ObservableObject {
         let normalized = input.lowercased()
         return normalized.contains("open.spotify.com/playlist/")
             || normalized.contains("spotify.link/")
+            || normalized.hasPrefix("spotify:playlist:")
     }
 
     private func trackEvent(_ event: String, properties: [String: AnalyticsPropertyValue] = [:]) {

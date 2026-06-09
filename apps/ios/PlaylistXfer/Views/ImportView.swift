@@ -242,7 +242,7 @@ struct ImportView: View {
 
     @ViewBuilder
     private var bottomActionBar: some View {
-        if viewModel.preview != nil || viewModel.analysis != nil {
+        if (viewModel.preview != nil || viewModel.analysis != nil) && !viewModel.isBusy {
             VStack(alignment: .leading, spacing: 10) {
                 if shouldShowStickyStatus {
                     Text(viewModel.statusMessage)
@@ -725,12 +725,6 @@ private struct TransferItemRow: View {
                     .background(statusColor.opacity(0.16))
                     .foregroundStyle(statusColor)
                     .clipShape(Capsule())
-
-                if let reason = item.reason {
-                    Text(reason)
-                        .font(.caption.monospaced())
-                        .foregroundStyle(.secondary)
-                }
             }
 
             if let candidate = selectedCandidate {
@@ -779,7 +773,7 @@ private struct TransferItemRow: View {
                         Button {
                             skipTrack(item)
                         } label: {
-                            Text(mode == .ready ? "Wrong match" : "Leave out")
+                            Label(mode == .ready ? "Wrong match?" : "Skip this track", systemImage: "questionmark.circle")
                                 .font(.caption.weight(.black))
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 8)

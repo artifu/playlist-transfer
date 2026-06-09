@@ -69,6 +69,8 @@ This is also the handoff used by the iOS Share Extension.
 
 The `PlaylistXferShareExtension` target appears in the iOS share menu for text and web URL shares. It extracts the first supported Spotify playlist URL and opens the main app through the deep link above.
 
+iOS decides where PlaylistXfer appears in the Share Sheet. The app can be eligible for Spotify links, but it cannot force itself into the suggested app row. For repeat testing, open `More`, choose `Edit`, and favorite PlaylistXfer so it stays easier to reach.
+
 The current flow intentionally asks the user to tap **Open in PlaylistXfer** inside the extension. That keeps the handoff explicit and safer for App Store review than trying to launch the containing app automatically.
 
 To test on device:
