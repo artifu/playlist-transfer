@@ -15,7 +15,7 @@ struct TransferActivity: Equatable {
     let isEstimated: Bool
 
     var progressText: String {
-        "\(isEstimated ? "~" : "")\(progress)%"
+        "\(progress)%"
     }
 }
 
@@ -254,6 +254,7 @@ final class TransferViewModel: ObservableObject {
     }
 
     func reset() {
+        playlistInput = ""
         preview = nil
         analysis = nil
         createdPlaylist = nil
@@ -288,22 +289,37 @@ final class TransferViewModel: ObservableObject {
         activity = nil
     }
 
+    private func stopOptimisticProgress() {
+        progressPulseTask?.cancel()
+        progressPulseTask = nil
+    }
+
     private func updateOptimisticActivity(_ kind: TransferActivityKind, elapsedSeconds: TimeInterval) {
         let phases = optimisticPhases(for: kind)
         let current = phases.last(where: { elapsedSeconds >= $0.at }) ?? phases[0]
         let gentleBump = min(8, Int(max(0, elapsedSeconds - current.at) / 4))
+        let nextProgress = min(kind == .analysis ? 12 : 58, current.progress + gentleBump)
+        let previousProgress = activity?.kind == kind ? (activity?.progress ?? 0) : 0
+        let displayedProgress = max(previousProgress, nextProgress)
 
         activity = TransferActivity(
             kind: kind,
             eyebrow: activityEyebrow(for: kind),
             title: current.title,
             detail: current.detail,
-            progress: min(58, current.progress + gentleBump),
+            progress: displayedProgress,
             isEstimated: true
         )
     }
 
     private func updateActivity(from job: TransferJob<TransferAnalysis>) {
+        stopOptimisticProgress()
+        let completedProgress = job.total > 0
+            ? Int((Double(job.completed) / Double(job.total) * 100).rounded())
+            : 0
+        let reportedProgress = max(job.progress, completedProgress)
+        let previousProgress = activity?.kind == .analysis ? (activity?.progress ?? 0) : 0
+
         activity = TransferActivity(
             kind: .analysis,
             eyebrow: activityEyebrow(for: .analysis),
@@ -311,7 +327,7 @@ final class TransferViewModel: ObservableObject {
             detail: job.total > 0
                 ? "\(job.completed) of \(job.total) tracks checked."
                 : "Preparing Apple Music match data.",
-            progress: max(0, min(100, job.progress)),
+            progress: max(previousProgress, max(0, min(100, reportedProgress))),
             isEstimated: false
         )
     }
@@ -357,10 +373,10 @@ final class TransferViewModel: ObservableObject {
             ]
         case .analysis:
             return [
-                (0, 8, "Matching with Apple Music", "Starting the match report."),
-                (4, 18, "Matching with Apple Music", "Large playlists can take a minute on the free tier."),
-                (10, 30, "Matching with Apple Music", "Waiting for the first batch of catalog results."),
-                (20, 42, "Matching with Apple Music", "Still working. Keep this app open.")
+                (0, 2, "Matching with Apple Music", "Preparing the Apple Music catalog search."),
+                (4, 4, "Matching with Apple Music", "Preparing the Apple Music catalog search."),
+                (10, 6, "Matching with Apple Music", "Preparing the Apple Music catalog search."),
+                (20, 8, "Matching with Apple Music", "Preparing the Apple Music catalog search.")
             ]
         case .create:
             return [

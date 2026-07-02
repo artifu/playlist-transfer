@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct ImportView: View {
     @Environment(\.openURL) private var openURL
@@ -61,12 +62,6 @@ struct ImportView: View {
             }
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
-                    Button("Preview") {
-                        submitPreview()
-                    }
-                    .fontWeight(.bold)
-                    .disabled(!viewModel.canPreview)
-
                     Spacer()
 
                     Button("Done") {
@@ -96,6 +91,17 @@ struct ImportView: View {
                     withAnimation(.snappy(duration: 0.35)) {
                         scrollProxy.scrollTo("destination", anchor: .top)
                     }
+                }
+            }
+            .onChange(of: playlistFieldFocused) { _, isFocused in
+                guard isFocused, !viewModel.playlistInput.isEmpty else { return }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    UIApplication.shared.sendAction(
+                        #selector(UIResponder.selectAll(_:)),
+                        to: nil,
+                        from: nil,
+                        for: nil
+                    )
                 }
             }
             .onChange(of: viewModel.activity) { _, activity in
@@ -159,24 +165,39 @@ struct ImportView: View {
                 .foregroundStyle(AppTheme.spotify)
                 .textCase(.uppercase)
 
-            TextField("https://open.spotify.com/playlist/...", text: $viewModel.playlistInput)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .keyboardType(.URL)
-                .submitLabel(.go)
-                .font(.system(.body, design: .monospaced))
-                .lineLimit(1)
-                .padding(14)
-                .background(AppTheme.card)
-                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .stroke(AppTheme.lineStrong, lineWidth: 1.5)
-                )
-                .focused($playlistFieldFocused)
-                .onSubmit {
-                    submitPreview()
+            HStack(spacing: 8) {
+                TextField("https://open.spotify.com/playlist/...", text: $viewModel.playlistInput)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .keyboardType(.URL)
+                    .submitLabel(.go)
+                    .font(.system(.body, design: .monospaced))
+                    .lineLimit(1)
+                    .focused($playlistFieldFocused)
+                    .onSubmit {
+                        submitPreview()
+                    }
+
+                if !viewModel.playlistInput.isEmpty {
+                    Button {
+                        viewModel.reset()
+                        playlistFieldFocused = true
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(AppTheme.inkMuted)
+                            .accessibilityLabel("Clear Spotify playlist URL")
+                    }
+                    .buttonStyle(.plain)
                 }
+            }
+            .padding(14)
+            .background(AppTheme.card)
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(AppTheme.lineStrong, lineWidth: 1.5)
+            )
 
             Button {
                 submitPreview()
@@ -371,7 +392,7 @@ private struct ActivityCard: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Text(activity.isEstimated ? "Estimated progress" : "Progress")
+                    Text("Progress")
                         .font(.caption.weight(.black))
                         .tracking(1.4)
                         .foregroundStyle(AppTheme.inkMuted)
