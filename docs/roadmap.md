@@ -1,6 +1,6 @@
 # Roadmap
 
-Last reviewed: 2026-06-06
+Last reviewed: 2026-07-01
 
 ## Current Position
 
@@ -12,6 +12,10 @@ PlaylistTransfer has moved past technical feasibility. The local product web she
 - save review decisions server-side
 - request Apple Music access at create time
 - create an Apple Music playlist from confident or approved matches
+- accept an individual Spotify song link through the same web/iOS input
+- add an approved song to a reusable `PlaylistXfer Inbox` in the native app
+
+The matching pipeline now resolves ISRCs in Apple Music batches of up to 25, caches catalog results in D1 for 30 days, and runs bounded concurrent text fallback only for unresolved tracks. This replaces the previous mostly sequential search path and is the baseline for the next performance UAT.
 
 The current local backend uses a small SQLite file for developer convenience. It should stay lightweight on local machines while the production storage target is tested online.
 
@@ -32,7 +36,7 @@ The next push should turn the working product into something that feels demo-rea
    Verify `playlistxfer.com` title/meta, guide pages, sitemap/robots, GA events, and the main funnel logs: preview, analyze, review, create.
 
 5. Reliability pass.
-   Test large playlists, `spotify.link` URLs, duplicates, bad matches, denied Apple authorization, expired sessions, and interrupted creation. This is the pass that turns the demo into a product.
+   Test large playlists, individual song links, `spotify.link` URLs, duplicates, bad matches, denied Apple authorization, expired sessions, and interrupted creation. This is the pass that turns the demo into a product.
 
 Recommended sequencing: work on iOS UAT and designer-package polish together first, then App Store readiness. Web SEO/analytics can continue in parallel as long as it does not slow down the iOS transfer loop.
 
@@ -87,10 +91,12 @@ Recommended scope:
 - Native or mobile-shell import screen for a Spotify playlist URL.
 - Apple Music authorization using the production MusicKit setup.
 - Public Spotify playlist preview.
+- Unified playlist/song link input with automatic resource detection.
 - Full-playlist analysis by default.
 - Match report with ready, review, and missing groups.
 - Approve suggested match and skip track review actions.
 - Create Apple Music playlist only after explicit user confirmation.
+- Add individual songs to `PlaylistXfer Inbox` only after explicit user confirmation.
 - Transfer receipt with counts, destination playlist name, and not-moved summary.
 - Basic error recovery for expired Apple sessions, API timeout, Spotify blocked links, and Render/Supabase failures.
 
@@ -113,6 +119,7 @@ Definition of done:
 - Manual candidate search for review rows.
 - Saved transfer history if users ask for it.
 - Better confidence scoring and match cache.
+- Optional duplicate prevention for repeated single-song Inbox imports.
 - Support private Spotify playlists where allowed.
 - Freemium usage limits.
 - Analytics and crash reporting.

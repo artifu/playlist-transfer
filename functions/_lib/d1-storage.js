@@ -31,7 +31,16 @@ const SCHEMA_STATEMENTS = [
     expires_at text not null
   )`,
   `create index if not exists idx_jobs_session_updated_at on jobs (session_id, updated_at)`,
-  `create index if not exists idx_jobs_expires_at on jobs (expires_at)`
+  `create index if not exists idx_jobs_expires_at on jobs (expires_at)`,
+  `create table if not exists apple_isrc_cache (
+    cache_key text primary key,
+    storefront text not null,
+    isrc text not null,
+    candidates_json text not null,
+    created_at text not null,
+    expires_at text not null
+  )`,
+  `create index if not exists idx_apple_isrc_cache_expires_at on apple_isrc_cache (expires_at)`
 ];
 
 let schemaReady = false;

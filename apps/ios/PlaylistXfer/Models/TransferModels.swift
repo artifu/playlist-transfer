@@ -8,6 +8,7 @@ struct PlaylistPreviewResponse: Decodable, Sendable {
 struct SpotifyPlaylist: Decodable, Identifiable, Sendable {
     let id: String
     let name: String
+    let kind: String?
     let description: String?
     let imageUrl: URL?
     let totalItems: Int?
@@ -75,6 +76,7 @@ struct TransferRecord: Decodable, Sendable {
 struct AnalyzedPlaylist: Decodable, Identifiable, Sendable {
     let id: String
     let name: String
+    let kind: String?
     let imageUrl: URL?
     let totalItems: Int?
     let originalTotalItems: Int?
@@ -130,6 +132,8 @@ struct AppleSongCandidate: Decodable, Sendable {
     let albumName: String?
     let durationMs: Int?
     let isrc: String?
+    let url: URL?
+    let artworkUrl: URL?
 }
 
 struct APIErrorResponse: Decodable {

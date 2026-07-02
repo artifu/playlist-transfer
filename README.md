@@ -4,11 +4,11 @@ PlaylistTransfer is the open technical foundation behind PlaylistXfer, a music m
 
 It is also being developed as an open, inspectable reference implementation so other builders can understand, reproduce, or adapt the transfer flow by hand.
 
-The current wedge is deliberately narrow:
+The current wedge is deliberately focused:
 
-- source: Spotify
+- source: public Spotify playlist or song links
 - destination: Apple Music
-- priority: technical feasibility first
+- priority: reliable, review-before-write transfers
 - hero feature: transparent unmatched-track reporting
 
 ## Why this exists
@@ -27,7 +27,7 @@ PlaylistXfer is built around a simpler promise:
 
 ## Current status
 
-This repository is in the `technical validation` stage.
+This repository has moved beyond technical validation into a working web and native iOS MVP.
 
 What exists today:
 
@@ -36,14 +36,17 @@ What exists today:
 - a local TypeScript spike for `Spotify -> Apple Music`
 - report generation for matched and unmatched tracks
 - an open repository structure meant to be easy to inspect and replicate
-- a local mobile-first MVP preview with public Spotify import, Apple Music matching, review decisions, late Apple Music authorization, and playlist creation
-- a native iOS MVP shell with Spotify public preview and Apple Music match analysis
+- a production web MVP on Cloudflare Pages Functions and D1
+- public Spotify playlist and individual song ingestion without Spotify OAuth
+- batched Apple Music ISRC matching, bounded fallback search, and a persistent match cache
+- a native iOS MVP with preview, match review, MusicKit authorization, playlist creation, and single-song Inbox import
+- an iOS Share Extension that accepts either Spotify playlist or song links
 
-What does not exist yet:
+What is still in progress:
 
-- native Apple Music creation inside the iOS app
-- billing, ads, or polished UI
-- full retry and manual-correction flows
+- final App Store packaging and release assets
+- billing or production ad monetization
+- broader reliability UAT and the final designer-led UI pass
 
 ## Deployable API
 
@@ -64,7 +67,7 @@ The repo includes a local TypeScript spike that validates the core transfer pipe
 
 Current flow:
 
-1. read a Spotify playlist
+1. detect a Spotify playlist or individual song link
 2. normalize track metadata
 3. search Apple Music for likely matches
 4. classify matched and unmatched items
@@ -127,7 +130,7 @@ npm run dev:api
 
 Then open `http://127.0.0.1:8790`.
 
-The backend includes both public-link and authenticated-API paths. The public path is the current product wedge because it can preview supported Spotify playlist links without Spotify OAuth.
+The backend includes both public-link and authenticated-API paths. The public path is the current product wedge because it can preview supported Spotify playlist and song links without Spotify OAuth.
 
 The preferred public-link prototype reads Spotify's public embed session and public web client metadata, so it can handle larger playlists than the visible embed page alone. It falls back to embed-page metadata if the richer public path stops working.
 

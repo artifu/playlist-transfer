@@ -1,9 +1,10 @@
-import { parseSpotifyPlaylistInput } from "./spotify-url.js";
+import { parseSpotifyInput, parseSpotifyPlaylistInput } from "./spotify-url.js";
 
 const DEFAULT_TIMEOUT_MS = 20_000;
 const SPOTIFY_PUBLIC_METADATA_CONCURRENCY = 4;
 const SPOTIFY_BASE62_ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const publicPlaylistCache = new Map();
+const publicTrackCache = new Map();
 
 export const PUBLIC_SPOTIFY_SPCLIENT_LIMITATIONS = [
   "Uses Spotify public embed session metadata and an internal public web endpoint",
@@ -24,6 +25,14 @@ export function publicSpotifyPlaylistUrl(playlistId) {
 
 function publicSpotifyEmbedUrl(playlistId) {
   return `https://open.spotify.com/embed/playlist/${playlistId}`;
+}
+
+function publicSpotifyTrackUrl(trackId) {
+  return `https://open.spotify.com/track/${trackId}`;
+}
+
+function publicSpotifyTrackEmbedUrl(trackId) {
+  return `https://open.spotify.com/embed/track/${trackId}`;
 }
 
 function publicSpotifyOembedUrl(playlistId) {
@@ -618,6 +627,7 @@ async function fetchPublicSpotifyPlaylist(input) {
 
   return {
     id: report.playlistId,
+    kind: "playlist",
     name: publicSpotifyPlaylistName(report),
     description: usedSpclient
       ? "Read from Spotify public embed session metadata and public web endpoints without Spotify user OAuth."
@@ -633,17 +643,68 @@ async function fetchPublicSpotifyPlaylist(input) {
   };
 }
 
+async function fetchPublicSpotifyTrack(trackId) {
+  const embedPage = await fetchText(publicSpotifyTrackEmbedUrl(trackId));
+  const accessToken = embedAccessToken(embedPage.text);
+  if (!accessToken) {
+    throw new Error("Could not start an anonymous Spotify session for this track.");
+  }
+
+  const track = await fetchSpclientTrack(accessToken, trackId);
+  return {
+    id: trackId,
+    kind: "track",
+    name: track.name,
+    description: "Matched from a public Spotify track link without Spotify user OAuth.",
+    imageUrl: track.albumImageUrl,
+    totalItems: 1,
+    tracks: [track],
+    source: "spotify-public-track",
+    limitations: PUBLIC_SPOTIFY_SPCLIENT_LIMITATIONS,
+    canonicalUrl: publicSpotifyTrackUrl(trackId)
+  };
+}
+
+async function resolvedSpotifyInput(input) {
+  try {
+    return parseSpotifyInput(input);
+  } catch (originalError) {
+    let url;
+    try {
+      url = new URL(String(input ?? "").trim());
+    } catch {
+      throw originalError;
+    }
+
+    if (url.hostname !== "spotify.link") throw originalError;
+    const response = await fetchText(url.toString());
+    return parseSpotifyInput(response.finalUrl);
+  }
+}
+
 export async function getPublicSpotifyPlaylist(input) {
-  const playlistId = parseSpotifyPlaylistInput(input);
-  const cached = publicPlaylistCache.get(playlistId);
+  const parsed = await resolvedSpotifyInput(input);
+
+  if (parsed.kind === "track") {
+    const cachedTrack = publicTrackCache.get(parsed.id);
+    if (cachedTrack) return cachedTrack;
+
+    const trackRequest = fetchPublicSpotifyTrack(parsed.id).catch((error) => {
+      publicTrackCache.delete(parsed.id);
+      throw error;
+    });
+    publicTrackCache.set(parsed.id, trackRequest);
+    return trackRequest;
+  }
+
+  const cached = publicPlaylistCache.get(parsed.id);
   if (cached) return cached;
 
-  const request = fetchPublicSpotifyPlaylist(playlistId).catch((error) => {
-    publicPlaylistCache.delete(playlistId);
+  const request = fetchPublicSpotifyPlaylist(parsed.id).catch((error) => {
+    publicPlaylistCache.delete(parsed.id);
     throw error;
   });
 
-  publicPlaylistCache.set(playlistId, request);
+  publicPlaylistCache.set(parsed.id, request);
   return request;
 }
-

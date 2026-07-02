@@ -5,6 +5,21 @@ function durationDifferenceMs(left, right) {
   return Math.abs(left - right);
 }
 
+function isrcCandidateScore(track, candidate) {
+  const primaryArtist = track.artists?.[0] ?? "";
+  let score = 0;
+
+  if (namesRoughlyMatch(track.name, candidate.name)) score += 4;
+  if (namesRoughlyMatch(primaryArtist, candidate.artistName)) score += 4;
+  if (track.album && candidate.albumName && namesRoughlyMatch(track.album, candidate.albumName)) score += 3;
+
+  const durationDifference = durationDifferenceMs(track.durationMs, candidate.durationMs);
+  if (durationDifference < 2_000) score += 2;
+  else if (durationDifference < 5_000) score += 1;
+
+  return score;
+}
+
 export function buildSearchTerms(track) {
   const primaryArtist = track.artists?.[0] ?? "";
   const terms = [
@@ -28,7 +43,10 @@ export function pickBestMatch(track, candidates) {
   }
 
   if (track.isrc) {
-    const byIsrc = candidates.find((candidate) => candidate.isrc === track.isrc);
+    const sourceISRC = String(track.isrc).trim().toUpperCase();
+    const byIsrc = candidates
+      .filter((candidate) => String(candidate.isrc ?? "").trim().toUpperCase() === sourceISRC)
+      .sort((left, right) => isrcCandidateScore(track, right) - isrcCandidateScore(track, left))[0];
     if (byIsrc) {
       return {
         source: track,
@@ -96,4 +114,3 @@ export function pickBestMatch(track, candidates) {
     candidate: null
   };
 }
-

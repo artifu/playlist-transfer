@@ -35,6 +35,8 @@ enum AppleMusicLibraryWriterError: LocalizedError {
 }
 
 struct AppleMusicLibraryWriter: Sendable {
+    static let inboxPlaylistName = "PlaylistXfer Inbox"
+
     func createPlaylist(
         from analysis: TransferAnalysis,
         itemIDsToTransfer: Set<Int>? = nil,
@@ -43,27 +45,7 @@ struct AppleMusicLibraryWriter: Sendable {
         progress: (@MainActor (String) -> Void)? = nil
     ) async throws -> CreatedAppleMusicPlaylist {
         do {
-            await progress?("Checking Apple Music permission...")
-            print("[PlaylistXfer] Checking Apple Music authorization.")
-
-            let authorizationStatus = MusicAuthorization.currentStatus == .authorized
-                ? MusicAuthorization.currentStatus
-                : await MusicAuthorization.request()
-
-            guard authorizationStatus == .authorized else {
-                throw AppleMusicLibraryWriterError.authorizationDenied(authorizationStatus)
-            }
-
-            await progress?("Checking Apple Music subscription and Sync Library...")
-            print("[PlaylistXfer] Apple Music authorized. Checking subscription.")
-
-            let subscription = try await MusicSubscription.current
-            guard subscription.canPlayCatalogContent else {
-                throw AppleMusicLibraryWriterError.catalogSubscriptionUnavailable
-            }
-            guard subscription.hasCloudLibraryEnabled else {
-                throw AppleMusicLibraryWriterError.cloudLibraryDisabled
-            }
+            try await authorizeAppleMusic(progress: progress)
 
             let songIDs = appleMusicSongIDs(
                 from: analysis,
@@ -102,6 +84,45 @@ struct AppleMusicLibraryWriter: Sendable {
             throw error
         } catch {
             print("[PlaylistXfer] MusicKit create failed: \(error.localizedDescription)")
+            throw mapMusicKitError(error)
+        }
+    }
+
+    func addTrackToInbox(
+        from analysis: TransferAnalysis,
+        itemIDsToTransfer: Set<Int>? = nil,
+        candidateOverrides: [Int: AppleSongCandidate] = [:],
+        progress: (@MainActor (String) -> Void)? = nil
+    ) async throws -> CreatedAppleMusicPlaylist {
+        do {
+            try await authorizeAppleMusic(progress: progress)
+
+            let songIDs = appleMusicSongIDs(
+                from: analysis,
+                itemIDsToTransfer: itemIDsToTransfer,
+                candidateOverrides: candidateOverrides
+            )
+            guard let songID = songIDs.first else { throw AppleMusicLibraryWriterError.noReadyTracks }
+
+            await progress?("Loading the Apple Music song...")
+            guard let song = try await catalogSongs(for: [songID]).first else {
+                throw AppleMusicLibraryWriterError.noCatalogSongsFound
+            }
+
+            await progress?("Adding the song to \(Self.inboxPlaylistName)...")
+            let inbox = try await findOrCreateInbox()
+            let updatedInbox = try await MusicLibrary.shared.add(song, to: inbox)
+
+            return CreatedAppleMusicPlaylist(
+                id: updatedInbox.id.rawValue,
+                name: updatedInbox.name,
+                url: updatedInbox.url,
+                trackCount: 1
+            )
+        } catch let error as AppleMusicLibraryWriterError {
+            throw error
+        } catch {
+            print("[PlaylistXfer] MusicKit inbox add failed: \(error.localizedDescription)")
             throw mapMusicKitError(error)
         }
     }
@@ -153,6 +174,49 @@ struct AppleMusicLibraryWriter: Sendable {
 
             return MusicItemID(appleSongID)
         }
+    }
+
+    private func authorizeAppleMusic(
+        progress: (@MainActor (String) -> Void)?
+    ) async throws {
+        await progress?("Checking Apple Music permission...")
+        print("[PlaylistXfer] Checking Apple Music authorization.")
+
+        let authorizationStatus = MusicAuthorization.currentStatus == .authorized
+            ? MusicAuthorization.currentStatus
+            : await MusicAuthorization.request()
+
+        guard authorizationStatus == .authorized else {
+            throw AppleMusicLibraryWriterError.authorizationDenied(authorizationStatus)
+        }
+
+        await progress?("Checking Apple Music subscription and Sync Library...")
+        let subscription = try await MusicSubscription.current
+        guard subscription.canPlayCatalogContent else {
+            throw AppleMusicLibraryWriterError.catalogSubscriptionUnavailable
+        }
+        guard subscription.hasCloudLibraryEnabled else {
+            throw AppleMusicLibraryWriterError.cloudLibraryDisabled
+        }
+    }
+
+    private func findOrCreateInbox() async throws -> Playlist {
+        var request = MusicLibraryRequest<Playlist>()
+        request.filter(matching: \.name, equalTo: Self.inboxPlaylistName)
+        request.limit = 25
+
+        let response = try await request.response()
+        if let inbox = response.items.first(where: {
+            $0.name.compare(Self.inboxPlaylistName, options: .caseInsensitive) == .orderedSame
+        }) {
+            return inbox
+        }
+
+        return try await MusicLibrary.shared.createPlaylist(
+            name: Self.inboxPlaylistName,
+            description: "Songs matched from Spotify links with PlaylistXfer.",
+            authorDisplayName: "PlaylistXfer"
+        )
     }
 
     private func mapMusicKitError(_ error: Error) -> Error {

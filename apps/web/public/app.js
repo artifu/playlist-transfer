@@ -36,6 +36,7 @@ const state = {
 let toastTimer = null;
 let musicKitLoadPromise = null;
 let progressPulseTimer = null;
+let displayedProgress = 0;
 
 function esc(value) {
   return String(value ?? "")
@@ -96,6 +97,10 @@ function destinationPlaylistName(data) {
   return `${data.playlist?.name || "Playlist"} (PlaylistXfer)`;
 }
 
+function isSingleTrack(data = state.analysis || state.preview) {
+  return data?.playlist?.kind === "track";
+}
+
 function analyzedScopeText(data) {
   const analyzed = data.playlist?.analyzedTrackCount || data.items?.length || data.summary?.matchedCount || 0;
   const original = data.playlist?.originalTotalItems;
@@ -111,14 +116,14 @@ function renderStartState({ hasInput = false } = {}) {
   results.className = "result-empty";
   results.innerHTML = hasInput
     ? `
-      <p class="eyebrow">New playlist link</p>
-      <h2>Preview this playlist first.</h2>
-      <p>Load the Spotify tracks, then match them against Apple Music.</p>
+      <p class="eyebrow">New Spotify link</p>
+      <h2>Preview this link first.</h2>
+      <p>We will detect whether it is a playlist or song, then find the Apple Music match.</p>
     `
     : `
       <p class="eyebrow">Preview first</p>
       <h2>See the matches before anything moves.</h2>
-      <p>Load a Spotify playlist, check the Apple Music matches, and create from the tracks you trust.</p>
+      <p>Load a Spotify playlist or song, check the Apple Music match, and move only what you trust.</p>
     `;
 }
 
@@ -291,6 +296,8 @@ function refreshActions() {
   analyzeButton.classList.toggle("ready", !analyzeButton.disabled);
   createButton.disabled = state.busy || !canCreate();
   connectAppleButton.disabled = state.busy || (appleSessionIsKnown() && !hasDeveloperToken());
+  analyzeButton.textContent = isSingleTrack() ? "Find on Apple Music" : "Match with Apple Music";
+  createButton.textContent = isSingleTrack() ? "Create one-song Apple Music playlist" : "Create Apple Music playlist";
 }
 
 function renderAppleSession() {
@@ -590,9 +597,9 @@ function workingCopy(kind) {
   if (kind === "preview") {
     return {
       eyebrow: "Step 1 of 3 - Preview",
-      title: "Reading the Spotify playlist.",
-      copy: "We are loading public Spotify tracks before anything is matched or moved.",
-      steps: ["Read link", "Fetch tracks", "Load artwork", "Ready to match"]
+      title: "Reading the Spotify link.",
+      copy: "We are identifying the link and loading its public metadata before anything is moved.",
+      steps: ["Read link", "Identify type", "Load details", "Ready to match"]
     };
   }
 
@@ -652,8 +659,8 @@ function startOptimisticProgress(options = {}) {
   const tick = () => {
     const elapsedSeconds = Math.floor((performance.now() - startedAt) / 1000);
     const job = optimisticJobFor(kind, elapsedSeconds);
-    setProgress(job);
-    renderWorkingProgress(job, options);
+    const renderedJob = setProgress(job);
+    renderWorkingProgress(renderedJob, options);
   };
 
   tick();
@@ -661,23 +668,27 @@ function startOptimisticProgress(options = {}) {
 }
 
 function setProgress(job) {
-  const progress = Math.max(0, Math.min(100, Number(job.progress || 0)));
-  const progressLabel = job.indeterminate ? `~${progress}%` : `${progress}%`;
+  const reportedProgress = Math.max(0, Math.min(100, Number(job.progress || 0)));
+  displayedProgress = Math.max(displayedProgress, reportedProgress);
+  const renderedJob = { ...job, progress: displayedProgress };
+  const progressLabel = renderedJob.indeterminate ? `~${displayedProgress}%` : `${displayedProgress}%`;
   progressCard.hidden = false;
-  progressCard.classList.toggle("is-indeterminate", Boolean(job.indeterminate));
-  progressCard.classList.toggle("is-active", progress < 100);
-  progressPhase.textContent = job.phase || "Working";
+  progressCard.classList.toggle("is-indeterminate", Boolean(renderedJob.indeterminate));
+  progressCard.classList.toggle("is-active", displayedProgress < 100);
+  progressPhase.textContent = renderedJob.phase || "Working";
   progressPercent.textContent = progressLabel;
-  progressBar.style.width = `${progress}%`;
-  progressDetail.textContent = job.detail
-    ? job.detail
-    : job.total
-    ? `${job.completed} of ${job.total} tracks processed.`
+  progressBar.style.width = `${displayedProgress}%`;
+  progressDetail.textContent = renderedJob.detail
+    ? renderedJob.detail
+    : renderedJob.total
+    ? `${renderedJob.completed} of ${renderedJob.total} tracks processed.`
     : "Preparing playlist metadata.";
+  return renderedJob;
 }
 
 function resetProgress() {
   clearProgressPulse();
+  displayedProgress = 0;
   progressCard.hidden = true;
   progressCard.classList.remove("is-active");
   progressCard.classList.remove("is-indeterminate");
@@ -733,14 +744,14 @@ async function startJob(path, body, options = {}) {
   if (!progressPulseTimer) startOptimisticProgress(options);
   const job = await postJson(path, body);
   clearProgressPulse();
-  setProgress(job);
-  renderWorkingProgress(job, options);
+  let renderedJob = setProgress(job);
+  renderWorkingProgress(renderedJob, options);
 
   for (let pollCount = 0; pollCount < 900; pollCount += 1) {
     await new Promise((resolve) => setTimeout(resolve, 650));
     const current = await apiFetch(`/api/jobs/${encodeURIComponent(job.id)}`);
-    setProgress(current);
-    renderWorkingProgress(current, options);
+    renderedJob = setProgress(current);
+    renderWorkingProgress(renderedJob, options);
 
     if (current.status === "complete") return current.result;
     if (current.status === "error") throw new Error(current.error || "Job failed.");
@@ -778,6 +789,7 @@ function toneForStatus(statusValue) {
 }
 
 function renderPreview(data) {
+  const singleTrack = isSingleTrack(data);
   const renderedTracks = data.tracks.slice(0, 18);
   const playlistArtwork = {
     albumImageUrl: data.playlist.imageUrl || data.tracks.find((track) => track.albumImageUrl)?.albumImageUrl
@@ -797,17 +809,17 @@ function renderPreview(data) {
   results.className = "screen";
   results.innerHTML = `
     <div class="screen-head">
-      <p class="eyebrow"><span class="service-pill spotify">S</span> We found your playlist</p>
-      <h2 class="screen-title">Here is what we will be working with.</h2>
-      <p class="screen-copy">Nothing has moved yet. The next step searches Apple Music and builds a match report.</p>
+      <p class="eyebrow"><span class="service-pill spotify">S</span> We found your ${singleTrack ? "song" : "playlist"}</p>
+      <h2 class="screen-title">${singleTrack ? "Ready to find its Apple Music match." : "Here is what we will be working with."}</h2>
+      <p class="screen-copy">Nothing has moved yet. The next step searches Apple Music and shows the match first.</p>
     </div>
     <div class="playlist-card">
       ${artworkHtml(playlistArtwork, "big")}
       <div>
-        <p class="eyebrow">Public Spotify playlist</p>
+        <p class="eyebrow">Public Spotify ${singleTrack ? "song" : "playlist"}</p>
         <div class="playlist-name">${esc(data.playlist.name)}</div>
         <div class="playlist-meta">
-          <span>${data.tracks.length} readable tracks</span>
+          <span>${singleTrack ? "1 song" : `${data.tracks.length} readable tracks`}</span>
           <span>${data.tracks.filter((track) => track.isrc).length} with ISRC</span>
         </div>
       </div>
@@ -816,11 +828,11 @@ function renderPreview(data) {
       <span class="service-pill spotify">S</span>
       <span class="eyebrow">to</span>
       ${applePillHtml()}
-      <div class="route-copy">Will create a new Apple Music playlist after review.</div>
+      <div class="route-copy">${singleTrack ? "Will create a one-song Apple Music playlist after review." : "Will create a new Apple Music playlist after review."}</div>
     </div>
     ${sourceNote(data)}
     <section class="group-section">
-      <h3 class="group-title">First tracks</h3>
+      <h3 class="group-title">${singleTrack ? "Spotify song" : "First tracks"}</h3>
       <div class="track-list">${rows}</div>
     </section>
     ${rowsNote(data.tracks.length, renderedTracks.length)}
@@ -1103,7 +1115,7 @@ async function previewPlaylist() {
     clearStoredTransfer();
     resetProgress();
     renderPreview(data);
-    setStatus("Playlist loaded. Next: analyze Apple Music matches.");
+    setStatus(isSingleTrack(data) ? "Song loaded. Next: find its Apple Music match." : "Playlist loaded. Next: analyze Apple Music matches.");
     trackEvent("preview_succeeded", {
       ...summaryProperties(data),
       durationMs: elapsedMs(startedAt)
@@ -1274,7 +1286,7 @@ function startAnotherTransfer() {
   fallbackGuide.hidden = true;
   resetProgress();
   renderStartState();
-  setStatus("Paste a playlist link to begin.");
+  setStatus("Paste a playlist or song link to begin.");
   refreshActions();
   input.focus();
 }
@@ -1303,7 +1315,7 @@ input.addEventListener("input", () => {
   fallbackGuide.hidden = true;
   resetProgress();
   renderStartState({ hasInput });
-  setStatus(hasInput ? "New link ready. Tap the arrow to preview it." : "Paste a playlist link to begin.");
+  setStatus(hasInput ? "New link ready. Tap the arrow to preview it." : "Paste a playlist or song link to begin.");
   refreshActions();
 });
 

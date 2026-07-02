@@ -11,7 +11,7 @@ The local web app currently reaches these routes through its same-origin proxy, 
 1. Generate or restore an anonymous client session id.
 2. Send `X-PlaylistTransfer-Session: <session-id>` with saved-transfer, job, and Apple user-token requests.
 3. `GET /api/apple-music/session`
-4. `POST /api/spotify/public-playlist-preview`
+4. `POST /api/spotify/public-playlist-preview` with either a Spotify playlist or track URL
 5. `POST /api/transfers/analyze-public-job`
 6. Poll `GET /api/jobs/:id`
 7. Persist the returned `transferId` locally.
@@ -51,7 +51,7 @@ Routes that require it:
 - `PATCH /api/transfers/:id/items/:itemIndex`
 - `POST /api/transfers/:id/create-job`
 
-The public preview route intentionally does not require a session because it does not persist user-owned state.
+The public preview route intentionally does not require a session because it does not persist user-owned state. Its historical route name remains unchanged for compatibility, but the `input` field now accepts public Spotify playlist URLs, track URLs, and their equivalent Spotify URIs.
 
 ## Usage Events
 

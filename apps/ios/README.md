@@ -4,8 +4,8 @@ This folder contains the native iOS MVP shell for PlaylistXfer.
 
 The first iOS milestone is intentionally narrow:
 
-- accept a public Spotify playlist URL
-- preview the playlist through the hosted Transfer API
+- accept a public Spotify playlist or song URL in the same field
+- detect the resource type and preview it through the hosted Transfer API
 - analyze Apple Music matches through the hosted Transfer API
 - show ready, review, and missing groups on mobile
 - keep Apple Music playlist creation behind an explicit user-authorized step
@@ -47,9 +47,10 @@ Implemented:
 - match report summary
 - mobile-first ready/review/missing rows
 - native MusicKit playlist creation
+- single-song import into a reusable `PlaylistXfer Inbox` playlist
 - editable Apple Music destination playlist name
 - manual candidate selection
-- deep link import with `playlistxfer://import?url=<spotify-playlist-url>`
+- deep link import with `playlistxfer://import?url=<spotify-url>`
 - Share Sheet extension for receiving Spotify links from the iOS share menu
 
 Not implemented yet:
@@ -64,11 +65,11 @@ The app registers the `playlistxfer` URL scheme. Opening a URL like this will po
 playlistxfer://import?url=https%3A%2F%2Fopen.spotify.com%2Fplaylist%2F0h8JNovqXS97ygva27IHfi
 ```
 
-This is also the handoff used by the iOS Share Extension.
+The URL may point to either a Spotify playlist or an individual Spotify track. This is also the handoff used by the iOS Share Extension.
 
 ## Share Sheet import
 
-The `PlaylistXferShareExtension` target appears in the iOS share menu for text and web URL shares. It extracts the first supported Spotify playlist URL and opens the main app through the deep link above.
+The `PlaylistXferShareExtension` target appears in the iOS share menu for text and web URL shares. It extracts the first supported Spotify playlist or song URL and opens the main app through the deep link above.
 
 iOS decides where PlaylistXfer appears in the Share Sheet. The app can be eligible for Spotify links, but it cannot force itself into the suggested app row. For repeat testing, open `More`, choose `Edit`, and favorite PlaylistXfer so it stays easier to reach.
 
@@ -78,10 +79,16 @@ To test on device:
 
 1. Build and run `PlaylistXfer` from Xcode.
 2. Open Spotify or Safari.
-3. Share a public Spotify playlist URL.
+3. Share a public Spotify playlist or song URL.
 4. Choose `PlaylistXfer` in the Share Sheet.
 5. Tap **Open in PlaylistXfer**.
-6. Confirm the main app opens with the shared playlist already in preview flow.
+6. Confirm the main app opens with the shared Spotify item already in preview flow.
+
+## Individual song flow
+
+There is no separate song-import screen. The app detects `/track/` links in the same field used for playlists, finds the Apple Music catalog equivalent, shows the match, and adds the approved song to a reusable Apple Music playlist named `PlaylistXfer Inbox`.
+
+This keeps the mobile flow one-click friendly while preserving the same review-before-write trust boundary used for full playlists.
 
 ## Apple Music creation notes
 

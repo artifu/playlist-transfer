@@ -15,7 +15,7 @@ import { requireSessionId, sessionIdFromRequest, SESSION_HEADER } from "./sessio
 import { getPublicSpotifyPlaylist } from "./spotify-public.js";
 import {
   analysisLimitFromBody,
-  analyzeTrack,
+  analyzeTracksOptimized,
   analyzeSpotifyPlaylist,
   createApplePlaylistFromMatches,
   playlistAnalysisMetadata,
@@ -26,7 +26,8 @@ import {
   transferReportFromSerializedAnalysis
 } from "./transfer.js";
 
-const ANALYSIS_CHUNK_SIZE = 2;
+const ANALYSIS_CHUNK_SIZE = 16;
+const ANALYSIS_FALLBACK_CONCURRENCY = 4;
 
 const ALLOWED_EVENTS = new Set([
   "apple_connect_started",
@@ -140,6 +141,7 @@ async function handlePublicPlaylistPreview(request) {
     playlist: {
       id: playlist.id,
       name: playlist.name,
+      kind: playlist.kind ?? "playlist",
       description: playlist.description,
       imageUrl: playlist.imageUrl,
       totalItems: playlist.totalItems,
@@ -156,18 +158,24 @@ function analysisProgress(completed, total) {
 
 function createAnalyzeState(input, limit, playlist, analysisPlaylist) {
   return {
-    mode: "cloudflare-chunked-analysis-v1",
+    mode: "cloudflare-chunked-analysis-v2",
     input,
     limit,
     playlist: {
       id: playlist.id,
-      name: playlist.name
+      name: playlist.name,
+      kind: playlist.kind ?? "playlist"
     },
     playlistExtra: playlistAnalysisMetadata(playlist, analysisPlaylist.tracks.length),
     tracks: analysisPlaylist.tracks,
     items: [],
     nextIndex: 0
   };
+}
+
+function isChunkedAnalyzeState(state) {
+  return state?.mode === "cloudflare-chunked-analysis-v1"
+    || state?.mode === "cloudflare-chunked-analysis-v2";
 }
 
 function enqueueAnalyzeJobRun(context, jobId, sessionId) {
@@ -262,26 +270,31 @@ async function continueChunkedAnalyzeJob(context, request, jobId) {
   }
 
   const state = job.result;
-  if (state?.mode !== "cloudflare-chunked-analysis-v1") {
+  if (!isChunkedAnalyzeState(state)) {
     throw new Error("This job cannot be resumed by the Cloudflare chunk runner.");
   }
 
   try {
     const apple = createAppleMusicClient(context.env);
-    let processed = 0;
+    const entries = [];
 
-    while (state.nextIndex < state.tracks.length && processed < ANALYSIS_CHUNK_SIZE) {
+    while (state.nextIndex < state.tracks.length && entries.length < ANALYSIS_CHUNK_SIZE) {
       const index = state.nextIndex;
       const track = state.tracks[index];
       state.nextIndex += 1;
-      processed += 1;
-
-      if (!track) continue;
-
-      const result = await analyzeTrack(track, apple);
-      state.items[index] = serializeAnalysisItem(result, index);
-      state.tracks[index] = null;
+      if (track) entries.push({ index, track });
     }
+
+    const results = await analyzeTracksOptimized(
+      entries.map((entry) => entry.track),
+      apple,
+      { trackConcurrency: ANALYSIS_FALLBACK_CONCURRENCY }
+    );
+
+    entries.forEach((entry, resultIndex) => {
+      state.items[entry.index] = serializeAnalysisItem(results[resultIndex], entry.index);
+      state.tracks[entry.index] = null;
+    });
 
     const completed = state.items.filter(Boolean).length;
 
@@ -540,7 +553,7 @@ async function handleJobStatus(context, request, jobId) {
     });
   }
 
-  if (job.status === "running" && job.result?.mode === "cloudflare-chunked-analysis-v1") {
+  if (job.status === "running" && isChunkedAnalyzeState(job.result)) {
     return continueChunkedAnalyzeJob(context, request, jobId);
   }
 

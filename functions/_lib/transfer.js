@@ -41,7 +41,7 @@ export async function analyzeTrack(track, apple) {
     const uniqueCandidates = dedupeCandidates(candidates);
     bestMatch = pickBestMatch(track, uniqueCandidates);
 
-    if (bestMatch.reason === "isrc") break;
+    if (bestMatch.reason === "isrc" || bestMatch.confidence >= 0.96) break;
   }
 
   const uniqueCandidates = dedupeCandidates(candidates);
@@ -54,22 +54,78 @@ export async function analyzeTrack(track, apple) {
   };
 }
 
+export async function analyzeTracksOptimized(tracks, apple, options = {}) {
+  const results = new Array(tracks.length);
+  const candidatesByISRC = new Map();
+  const isrcs = tracks.map((track) => track?.isrc).filter(Boolean);
+
+  if (isrcs.length > 0 && typeof apple.songsByISRCs === "function") {
+    try {
+      const candidates = await apple.songsByISRCs(isrcs);
+      for (const candidate of candidates) {
+        const isrc = String(candidate.isrc ?? "").trim().toUpperCase();
+        if (!isrc) continue;
+        const existing = candidatesByISRC.get(isrc) ?? [];
+        existing.push(candidate);
+        candidatesByISRC.set(isrc, existing);
+      }
+    } catch (error) {
+      console.warn("apple_music_isrc_batch_fallback", {
+        message: error instanceof Error ? error.message : String(error)
+      });
+    }
+  }
+
+  const fallbackEntries = [];
+
+  tracks.forEach((track, index) => {
+    const isrc = String(track?.isrc ?? "").trim().toUpperCase();
+    const candidates = candidatesByISRC.get(isrc) ?? [];
+    const match = pickBestMatch(track, candidates);
+
+    if (match.reason === "isrc") {
+      results[index] = {
+        ...match,
+        searchTerm: `isrc:${isrc}`,
+        candidates
+      };
+      options.onTrackComplete?.({ index, result: results[index] });
+    } else {
+      fallbackEntries.push({ track, index });
+    }
+  });
+
+  await mapWithConcurrency(
+    fallbackEntries,
+    Math.max(1, options.trackConcurrency ?? 4),
+    async ({ track, index }) => {
+      const result = await analyzeTrack(track, apple);
+      results[index] = result;
+      options.onTrackComplete?.({ index, result });
+      return result;
+    }
+  );
+
+  return results;
+}
+
 export async function analyzeSpotifyPlaylist(playlist, apple, options = {}) {
   const trackConcurrency = Math.max(1, options.trackConcurrency ?? 4);
   let completed = 0;
-  const results = await mapWithConcurrency(
+  const results = await analyzeTracksOptimized(
     playlist.tracks,
-    trackConcurrency,
-    async (track, index) => {
-      const result = await analyzeTrack(track, apple);
-      completed += 1;
-      options.onTrackComplete?.({
-        completed,
-        total: playlist.tracks.length,
-        index,
-        result
-      });
-      return result;
+    apple,
+    {
+      trackConcurrency,
+      onTrackComplete: ({ index, result }) => {
+        completed += 1;
+        options.onTrackComplete?.({
+          completed,
+          total: playlist.tracks.length,
+          index,
+          result
+        });
+      }
     }
   );
 
@@ -190,6 +246,7 @@ export function slicePlaylistForAnalysis(playlist, limit) {
 
 export function playlistAnalysisMetadata(playlist, analyzedTrackCount) {
   return {
+    kind: playlist.kind ?? "playlist",
     imageUrl: playlist.imageUrl,
     source: playlist.source,
     limitations: playlist.limitations,

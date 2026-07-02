@@ -26,7 +26,7 @@ struct ImportView: View {
                             .id("preview")
                     }
 
-                    if viewModel.analysis != nil && viewModel.createdPlaylist == nil {
+                    if viewModel.analysis != nil && viewModel.createdPlaylist == nil && !viewModel.isSingleTrackImport {
                         DestinationPlaylistNameCard(
                             playlistName: $viewModel.destinationPlaylistName,
                             resetName: viewModel.resetDestinationPlaylistName,
@@ -150,7 +150,7 @@ struct ImportView: View {
                 .lineLimit(nil)
                 .minimumScaleFactor(0.76)
 
-            Text("Move public Spotify playlists into Apple Music. We preview first, match every track, and show what will not make it over.")
+            Text("Move Spotify playlists or individual songs into Apple Music. We preview the link first and show the match before anything is added.")
                 .font(.body)
                 .foregroundStyle(AppTheme.inkSoft)
         }
@@ -158,7 +158,7 @@ struct ImportView: View {
 
     private var importCard: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Label("Spotify playlist URL", systemImage: "link")
+            Label("Spotify playlist or song URL", systemImage: "link")
                 .font(.caption)
                 .fontWeight(.black)
                 .tracking(1.8)
@@ -166,7 +166,7 @@ struct ImportView: View {
                 .textCase(.uppercase)
 
             HStack(spacing: 8) {
-                TextField("https://open.spotify.com/playlist/...", text: $viewModel.playlistInput)
+                TextField("Paste a Spotify playlist or song link", text: $viewModel.playlistInput)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .keyboardType(.URL)
@@ -203,7 +203,7 @@ struct ImportView: View {
                 submitPreview()
             } label: {
                 ActionButtonLabel(
-                    title: viewModel.preview == nil ? "Preview playlist" : "Refresh playlist",
+                            title: viewModel.preview == nil ? "Preview Spotify link" : "Refresh Spotify link",
                     systemImage: "arrow.right",
                     background: viewModel.canPreview ? AppTheme.spotify : AppTheme.disabledFill,
                     foreground: viewModel.canPreview ? .white : AppTheme.inkMuted
@@ -293,7 +293,7 @@ struct ImportView: View {
                 }
 
                 if let createdPlaylist = viewModel.createdPlaylist {
-                    Text("\(createdPlaylist.trackCount) tracks transferred")
+                    Text(viewModel.isSingleTrackImport ? "Song added" : "\(createdPlaylist.trackCount) tracks transferred")
                         .font(.caption.weight(.black))
                         .tracking(1.8)
                         .foregroundStyle(AppTheme.inkMuted)
@@ -314,7 +314,7 @@ struct ImportView: View {
                     .buttonStyle(.plain)
                     .disabled(createdPlaylist.url == nil)
                 } else if let analysis = viewModel.analysis {
-                    Text("\(analysis.summary.confidentMatchCount) ready tracks")
+                    Text(viewModel.isSingleTrackImport ? "Song ready" : "\(analysis.summary.confidentMatchCount) ready tracks")
                         .font(.caption.weight(.black))
                         .tracking(1.8)
                         .foregroundStyle(AppTheme.inkMuted)
@@ -326,8 +326,10 @@ struct ImportView: View {
                         Task { await viewModel.createAppleMusicPlaylist() }
                     } label: {
                         ActionButtonLabel(
-                            title: viewModel.isBusy ? "Creating playlist..." : "Create Apple Music playlist",
-                            systemImage: "music.note.list",
+                            title: viewModel.isSingleTrackImport
+                                ? "Add to PlaylistXfer Inbox"
+                                : "Create Apple Music playlist",
+                            systemImage: viewModel.isSingleTrackImport ? "music.note.badge.plus" : "music.note.list",
                             background: viewModel.canCreate ? AppTheme.apple : AppTheme.disabledFill,
                             foreground: viewModel.canCreate ? .white : AppTheme.inkMuted
                         )
@@ -335,7 +337,7 @@ struct ImportView: View {
                     .buttonStyle(.plain)
                     .disabled(!viewModel.canCreate)
                 } else {
-                    Text("Playlist preview loaded")
+                    Text(viewModel.isSingleTrackImport ? "Song preview loaded" : "Playlist preview loaded")
                         .font(.caption.weight(.black))
                         .tracking(1.8)
                         .foregroundStyle(AppTheme.inkMuted)
@@ -346,7 +348,7 @@ struct ImportView: View {
                         Task { await viewModel.analyzeMatches() }
                     } label: {
                         ActionButtonLabel(
-                            title: "Match with Apple Music",
+                            title: viewModel.isSingleTrackImport ? "Find on Apple Music" : "Match with Apple Music",
                             systemImage: "wand.and.stars",
                             background: viewModel.canAnalyze ? AppTheme.actionBlue : AppTheme.disabledFill,
                             foreground: viewModel.canAnalyze ? .white : AppTheme.inkMuted
@@ -493,7 +495,7 @@ private struct PlaylistPreviewCard: View {
                 ArtworkView(url: preview.playlist.imageUrl, size: 92)
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Public Spotify playlist")
+                    Text(preview.playlist.kind == "track" ? "Public Spotify song" : "Public Spotify playlist")
                         .font(.caption)
                         .fontWeight(.black)
                         .tracking(1.8)
@@ -554,6 +556,10 @@ private struct PlaylistPreviewCard: View {
     }
 
     private var trackCountText: String {
+        if preview.playlist.kind == "track" {
+            return "Ready to find on Apple Music"
+        }
+
         let total = preview.playlist.totalItems ?? preview.tracks.count
         if total > preview.tracks.count {
             return "\(preview.tracks.count) readable tracks fetched from \(total) total"

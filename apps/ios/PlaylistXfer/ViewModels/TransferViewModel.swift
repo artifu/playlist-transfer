@@ -68,6 +68,10 @@ final class TransferViewModel: ObservableObject {
         analysis != nil && !readyItems.isEmpty && createdPlaylist == nil && !isBusy
     }
 
+    var isSingleTrackImport: Bool {
+        analysis?.playlist.kind == "track" || preview?.playlist.kind == "track"
+    }
+
     var isBusy: Bool {
         phase == .previewing || phase == .analyzing || phase == .creating
     }
@@ -93,7 +97,7 @@ final class TransferViewModel: ObservableObject {
         guard !input.isEmpty else { return }
 
         phase = .previewing
-        statusMessage = "Reading public Spotify playlist..."
+        statusMessage = "Reading public Spotify link..."
         startOptimisticActivity(.preview)
         analysis = nil
         createdPlaylist = nil
@@ -103,10 +107,14 @@ final class TransferViewModel: ObservableObject {
 
         do {
             preview = try await api.previewPublicPlaylist(input: input)
-            destinationPlaylistName = AppleMusicLibraryWriter.defaultPlaylistName(for: preview?.playlist.name ?? "Spotify Playlist")
+            destinationPlaylistName = preview?.playlist.kind == "track"
+                ? AppleMusicLibraryWriter.inboxPlaylistName
+                : AppleMusicLibraryWriter.defaultPlaylistName(for: preview?.playlist.name ?? "Spotify Playlist")
             stopActivity()
             phase = .previewReady
-            statusMessage = "Playlist loaded. Match it with Apple Music when you are ready."
+            statusMessage = preview?.playlist.kind == "track"
+                ? "Song loaded. Find its Apple Music match when you are ready."
+                : "Playlist loaded. Match it with Apple Music when you are ready."
             trackEvent("preview_succeeded", properties: previewProperties(preview, durationMs: elapsedMilliseconds(since: startedAt)))
         } catch {
             stopActivity()
@@ -123,10 +131,10 @@ final class TransferViewModel: ObservableObject {
         guard let playlistURL = playlistInput(fromIncomingURL: url) else {
             trackEvent("preview_failed", properties: [
                 "errorCategory": .string("shared_link_extract"),
-                "errorMessage": .string("No supported Spotify playlist URL found in shared input.")
+                "errorMessage": .string("No supported Spotify playlist or song URL found in shared input.")
             ])
-            phase = .failed("PlaylistXfer could not find a Spotify playlist URL in that shared link.")
-            statusMessage = "PlaylistXfer could not find a Spotify playlist URL in that shared link."
+            phase = .failed("PlaylistXfer could not find a Spotify playlist or song URL in that shared link.")
+            statusMessage = "PlaylistXfer could not find a Spotify playlist or song URL in that shared link."
             return
         }
 
@@ -139,7 +147,9 @@ final class TransferViewModel: ObservableObject {
         guard !input.isEmpty else { return }
 
         phase = .analyzing
-        statusMessage = "Matching this playlist against Apple Music..."
+        statusMessage = isSingleTrackImport
+            ? "Finding this song in Apple Music..."
+            : "Matching this playlist against Apple Music..."
         startOptimisticActivity(.analysis)
         createdPlaylist = nil
         resetDecisions()
@@ -152,7 +162,9 @@ final class TransferViewModel: ObservableObject {
             }
             stopActivity()
             phase = .analysisReady
-            statusMessage = "Apple Music match report ready. Create from ready tracks when you are comfortable."
+            statusMessage = isSingleTrackImport
+                ? "Apple Music match ready. Add the song when it looks right."
+                : "Apple Music match report ready. Create from ready tracks when you are comfortable."
             trackEvent("analysis_succeeded", properties: summaryProperties(analysis, durationMs: elapsedMilliseconds(since: startedAt)))
         } catch {
             stopActivity()
@@ -179,19 +191,32 @@ final class TransferViewModel: ObservableObject {
 
         do {
             let itemIDsToTransfer = Set(readyItems.map(\.id))
-            let playlist = try await appleMusic.createPlaylist(
-                from: analysis,
-                itemIDsToTransfer: itemIDsToTransfer,
-                candidateOverrides: selectedCandidatesByItemID,
-                playlistName: destinationPlaylistName
-            ) { [weak self] message in
+            let progress: @MainActor (String) -> Void = { [weak self] message in
                 self?.statusMessage = message
                 self?.updateCreateActivity(message)
+            }
+            let playlist = if isSingleTrackImport {
+                try await appleMusic.addTrackToInbox(
+                    from: analysis,
+                    itemIDsToTransfer: itemIDsToTransfer,
+                    candidateOverrides: selectedCandidatesByItemID,
+                    progress: progress
+                )
+            } else {
+                try await appleMusic.createPlaylist(
+                    from: analysis,
+                    itemIDsToTransfer: itemIDsToTransfer,
+                    candidateOverrides: selectedCandidatesByItemID,
+                    playlistName: destinationPlaylistName,
+                    progress: progress
+                )
             }
             createdPlaylist = playlist
             stopActivity()
             phase = .created
-            statusMessage = "Created \(playlist.name) with \(playlist.trackCount) ready tracks."
+            statusMessage = isSingleTrackImport
+                ? "Added the song to \(playlist.name)."
+                : "Created \(playlist.name) with \(playlist.trackCount) ready tracks."
             trackEvent("transfer_create_succeeded", properties: summaryProperties(analysis, durationMs: elapsedMilliseconds(since: startedAt), extra: [
                 "appleConnected": .bool(true),
                 "readyCount": .int(playlist.trackCount)
@@ -333,6 +358,11 @@ final class TransferViewModel: ObservableObject {
     }
 
     func resetDestinationPlaylistName() {
+        if isSingleTrackImport {
+            destinationPlaylistName = AppleMusicLibraryWriter.inboxPlaylistName
+            return
+        }
+
         if let sourceName = analysis?.playlist.name ?? preview?.playlist.name {
             destinationPlaylistName = AppleMusicLibraryWriter.defaultPlaylistName(for: sourceName)
         }
@@ -414,24 +444,26 @@ final class TransferViewModel: ObservableObject {
         if url.scheme?.lowercased() == "playlistxfer" {
             let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
             if let sharedURL = components?.queryItems?.first(where: { $0.name == "url" })?.value,
-               isSupportedSpotifyPlaylistInput(sharedURL) {
+               isSupportedSpotifyInput(sharedURL) {
                 return sharedURL
             }
         }
 
         let rawURL = url.absoluteString
-        if isSupportedSpotifyPlaylistInput(rawURL) {
+        if isSupportedSpotifyInput(rawURL) {
             return rawURL
         }
 
         return nil
     }
 
-    private func isSupportedSpotifyPlaylistInput(_ input: String) -> Bool {
+    private func isSupportedSpotifyInput(_ input: String) -> Bool {
         let normalized = input.lowercased()
         return normalized.contains("open.spotify.com/playlist/")
+            || normalized.contains("open.spotify.com/track/")
             || normalized.contains("spotify.link/")
             || normalized.hasPrefix("spotify:playlist:")
+            || normalized.hasPrefix("spotify:track:")
     }
 
     private func trackEvent(_ event: String, properties: [String: AnalyticsPropertyValue] = [:]) {

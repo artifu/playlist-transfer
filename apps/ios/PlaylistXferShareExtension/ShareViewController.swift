@@ -8,14 +8,14 @@ final class ShareViewController: UIViewController {
     private let openButton = UIButton(type: .system)
     private let cancelButton = UIButton(type: .system)
 
-    private var playlistURL: URL?
+    private var spotifyURL: URL?
     private var itemProviders: [NSItemProvider] = []
 
     override func viewDidLoad() {
         super.viewDidLoad()
         configureView()
         configureActions()
-        loadSharedPlaylistURL()
+        loadSharedSpotifyURL()
     }
 
     private func configureView() {
@@ -41,21 +41,21 @@ final class ShareViewController: UIViewController {
         pill.addSubview(dot)
 
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
-        statusLabel.text = "Spotify playlist handoff"
+        statusLabel.text = "Spotify link handoff"
         statusLabel.font = .monospacedSystemFont(ofSize: 12, weight: .bold)
         statusLabel.textColor = UIColor(red: 0.525, green: 0.525, blue: 0.545, alpha: 1)
         statusLabel.textAlignment = .center
         statusLabel.text = statusLabel.text?.uppercased()
 
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        titleLabel.text = "Open this playlist in PlaylistXfer?"
+        titleLabel.text = "Open this Spotify link in PlaylistXfer?"
         titleLabel.font = .systemFont(ofSize: 28, weight: .black)
         titleLabel.textColor = UIColor(red: 0.043, green: 0.043, blue: 0.051, alpha: 1)
         titleLabel.textAlignment = .center
         titleLabel.numberOfLines = 0
 
         urlLabel.translatesAutoresizingMaskIntoConstraints = false
-        urlLabel.text = "Looking for a Spotify playlist link..."
+        urlLabel.text = "Looking for a Spotify playlist or song link..."
         urlLabel.font = .systemFont(ofSize: 15, weight: .semibold)
         urlLabel.textColor = UIColor(red: 0.227, green: 0.227, blue: 0.239, alpha: 1)
         urlLabel.textAlignment = .center
@@ -112,15 +112,15 @@ final class ShareViewController: UIViewController {
         cancelButton.addTarget(self, action: #selector(cancel), for: .touchUpInside)
     }
 
-    private func loadSharedPlaylistURL() {
+    private func loadSharedSpotifyURL() {
         itemProviders = extensionContext?.inputItems
             .compactMap { $0 as? NSExtensionItem }
             .flatMap { $0.attachments ?? [] } ?? []
 
-        loadPlaylistURL(at: 0)
+        loadSpotifyURL(at: 0)
     }
 
-    private func loadPlaylistURL(at index: Int) {
+    private func loadSpotifyURL(at index: Int) {
         guard index < itemProviders.count else {
             updateForMissingPlaylist()
             return
@@ -130,12 +130,12 @@ final class ShareViewController: UIViewController {
 
         if provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
             provider.loadItem(forTypeIdentifier: UTType.url.identifier, options: nil) { [weak self] item, _ in
-                let url = Self.spotifyPlaylistURL(from: item)
+                let url = Self.spotifyURL(from: item)
                 DispatchQueue.main.async {
                     if let url {
-                        self?.updateForPlaylist(url)
+                        self?.updateForSpotifyURL(url)
                     } else {
-                        self?.loadPlaylistURL(at: index + 1)
+                        self?.loadSpotifyURL(at: index + 1)
                     }
                 }
             }
@@ -144,12 +144,12 @@ final class ShareViewController: UIViewController {
 
         if provider.hasItemConformingToTypeIdentifier(UTType.text.identifier) {
             provider.loadItem(forTypeIdentifier: UTType.text.identifier, options: nil) { [weak self] item, _ in
-                let url = Self.spotifyPlaylistURL(from: item)
+                let url = Self.spotifyURL(from: item)
                 DispatchQueue.main.async {
                     if let url {
-                        self?.updateForPlaylist(url)
+                        self?.updateForSpotifyURL(url)
                     } else {
-                        self?.loadPlaylistURL(at: index + 1)
+                        self?.loadSpotifyURL(at: index + 1)
                     }
                 }
             }
@@ -158,38 +158,40 @@ final class ShareViewController: UIViewController {
 
         if provider.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) {
             provider.loadItem(forTypeIdentifier: UTType.plainText.identifier, options: nil) { [weak self] item, _ in
-                let url = Self.spotifyPlaylistURL(from: item)
+                let url = Self.spotifyURL(from: item)
                 DispatchQueue.main.async {
                     if let url {
-                        self?.updateForPlaylist(url)
+                        self?.updateForSpotifyURL(url)
                     } else {
-                        self?.loadPlaylistURL(at: index + 1)
+                        self?.loadSpotifyURL(at: index + 1)
                     }
                 }
             }
             return
         }
 
-        loadPlaylistURL(at: index + 1)
+        loadSpotifyURL(at: index + 1)
     }
 
-    private func updateForPlaylist(_ url: URL) {
-        playlistURL = url
+    private func updateForSpotifyURL(_ url: URL) {
+        spotifyURL = url
         urlLabel.text = url.absoluteString
-        titleLabel.text = "Open this playlist in PlaylistXfer?"
+        titleLabel.text = Self.isSpotifyTrackURL(url)
+            ? "Find this song on Apple Music?"
+            : "Open this playlist in PlaylistXfer?"
         openButton.isEnabled = true
         openButton.alpha = 1
     }
 
     private func updateForMissingPlaylist() {
-        titleLabel.text = "No Spotify playlist link found"
-        urlLabel.text = "Share a public Spotify playlist URL to send it into PlaylistXfer."
+        titleLabel.text = "No Spotify link found"
+        urlLabel.text = "Share a public Spotify playlist or song URL to send it into PlaylistXfer."
         openButton.isEnabled = false
         openButton.alpha = 0.45
     }
 
     @objc private func openPlaylist() {
-        guard let playlistURL, let deepLink = deepLinkURL(for: playlistURL) else {
+        guard let spotifyURL, let deepLink = deepLinkURL(for: spotifyURL) else {
             updateForMissingPlaylist()
             return
         }
@@ -219,44 +221,45 @@ final class ShareViewController: UIViewController {
         extensionContext?.cancelRequest(withError: ShareExtensionError.cancelled)
     }
 
-    private func deepLinkURL(for playlistURL: URL) -> URL? {
+    private func deepLinkURL(for spotifyURL: URL) -> URL? {
         var components = URLComponents()
         components.scheme = "playlistxfer"
         components.host = "import"
         components.queryItems = [
-            URLQueryItem(name: "url", value: playlistURL.absoluteString)
+            URLQueryItem(name: "url", value: spotifyURL.absoluteString)
         ]
         return components.url
     }
 
-    nonisolated private static func spotifyPlaylistURL(from item: NSSecureCoding?) -> URL? {
-        if let url = item as? URL, isSupportedSpotifyPlaylistURL(url) {
+    nonisolated private static func spotifyURL(from item: NSSecureCoding?) -> URL? {
+        if let url = item as? URL, isSupportedSpotifyURL(url) {
             return url
         }
 
-        if let url = item as? NSURL, let swiftURL = url as URL?, isSupportedSpotifyPlaylistURL(swiftURL) {
+        if let url = item as? NSURL, let swiftURL = url as URL?, isSupportedSpotifyURL(swiftURL) {
             return swiftURL
         }
 
         if let text = item as? String {
-            return firstSpotifyPlaylistURL(in: text)
+            return firstSpotifyURL(in: text)
         }
 
         if let text = item as? NSString {
-            return firstSpotifyPlaylistURL(in: text as String)
+            return firstSpotifyURL(in: text as String)
         }
 
         return nil
     }
 
-    nonisolated private static func firstSpotifyPlaylistURL(in text: String) -> URL? {
+    nonisolated private static func firstSpotifyURL(in text: String) -> URL? {
         if let url = URL(string: text.trimmingCharacters(in: .whitespacesAndNewlines)),
-           isSupportedSpotifyPlaylistURL(url) {
+           isSupportedSpotifyURL(url) {
             return url
         }
 
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.lowercased().hasPrefix("spotify:playlist:") {
+        if trimmed.lowercased().hasPrefix("spotify:playlist:")
+            || trimmed.lowercased().hasPrefix("spotify:track:") {
             return URL(string: trimmed)
         }
 
@@ -265,14 +268,21 @@ final class ShareViewController: UIViewController {
         return detector?
             .matches(in: text, options: [], range: range)
             .compactMap(\.url)
-            .first(where: isSupportedSpotifyPlaylistURL)
+            .first(where: isSupportedSpotifyURL)
     }
 
-    nonisolated private static func isSupportedSpotifyPlaylistURL(_ url: URL) -> Bool {
+    nonisolated private static func isSupportedSpotifyURL(_ url: URL) -> Bool {
         let absolute = url.absoluteString.lowercased()
         return absolute.contains("open.spotify.com/playlist/")
+            || absolute.contains("open.spotify.com/track/")
             || absolute.contains("spotify.link/")
             || absolute.hasPrefix("spotify:playlist:")
+            || absolute.hasPrefix("spotify:track:")
+    }
+
+    nonisolated private static func isSpotifyTrackURL(_ url: URL) -> Bool {
+        let absolute = url.absoluteString.lowercased()
+        return absolute.contains("open.spotify.com/track/") || absolute.hasPrefix("spotify:track:")
     }
 }
 
