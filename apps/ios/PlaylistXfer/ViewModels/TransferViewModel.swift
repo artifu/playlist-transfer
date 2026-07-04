@@ -41,7 +41,7 @@ final class TransferViewModel: ObservableObject {
     @Published private(set) var approvedReviewItemIDs: Set<Int> = []
     @Published private(set) var skippedItemIDs: Set<Int> = []
     @Published private(set) var selectedCandidatesByItemID: [Int: AppleSongCandidate] = [:]
-    @Published private(set) var statusMessage = "Paste a public Spotify playlist link to begin."
+    @Published private(set) var statusMessage = "Paste a public Spotify playlist or song link to begin."
     @Published private(set) var activity: TransferActivity?
 
     private let api: TransferAPIClient
@@ -287,7 +287,13 @@ final class TransferViewModel: ObservableObject {
         resetDecisions()
         stopActivity()
         phase = .idle
-        statusMessage = "Paste a public Spotify playlist link to begin."
+        statusMessage = "Paste a public Spotify playlist or song link to begin."
+    }
+
+    func replaceSpotifyInput(with input: String) {
+        reset()
+        playlistInput = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        statusMessage = "Spotify link ready. Preview it when you are ready."
     }
 
     private func startOptimisticActivity(_ kind: TransferActivityKind) {

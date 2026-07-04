@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 
 struct ImportView: View {
     @Environment(\.openURL) private var openURL
@@ -60,17 +59,6 @@ struct ImportView: View {
             .safeAreaInset(edge: .bottom) {
                 bottomActionBar
             }
-            .toolbar {
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-
-                    Button("Done") {
-                        playlistFieldFocused = false
-                        destinationFieldFocused = false
-                    }
-                    .fontWeight(.bold)
-                }
-            }
             .onChange(of: viewModel.phase) { _, phase in
                 if phase == .previewing || phase == .analyzing || phase == .creating {
                     playlistFieldFocused = false
@@ -91,17 +79,6 @@ struct ImportView: View {
                     withAnimation(.snappy(duration: 0.35)) {
                         scrollProxy.scrollTo("destination", anchor: .top)
                     }
-                }
-            }
-            .onChange(of: playlistFieldFocused) { _, isFocused in
-                guard isFocused, !viewModel.playlistInput.isEmpty else { return }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    UIApplication.shared.sendAction(
-                        #selector(UIResponder.selectAll(_:)),
-                        to: nil,
-                        from: nil,
-                        for: nil
-                    )
                 }
             }
             .onChange(of: viewModel.activity) { _, activity in
@@ -178,7 +155,18 @@ struct ImportView: View {
                         submitPreview()
                     }
 
-                if !viewModel.playlistInput.isEmpty {
+                if viewModel.playlistInput.isEmpty {
+                    PasteButton(payloadType: URL.self) { urls in
+                        guard let url = urls.first else { return }
+                        viewModel.replaceSpotifyInput(with: url.absoluteString)
+                        playlistFieldFocused = false
+                        destinationFieldFocused = false
+                    }
+                    .labelStyle(.titleAndIcon)
+                    .buttonBorderShape(.capsule)
+                    .tint(AppTheme.spotify)
+                    .accessibilityLabel("Paste Spotify link")
+                } else {
                     Button {
                         viewModel.reset()
                         playlistFieldFocused = true
