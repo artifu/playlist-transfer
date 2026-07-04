@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct ImportView: View {
     @Environment(\.openURL) private var openURL
@@ -156,15 +157,18 @@ struct ImportView: View {
                     }
 
                 if viewModel.playlistInput.isEmpty {
-                    PasteButton(payloadType: URL.self) { urls in
-                        guard let url = urls.first else { return }
-                        viewModel.replaceSpotifyInput(with: url.absoluteString)
-                        playlistFieldFocused = false
-                        destinationFieldFocused = false
+                    Button {
+                        pasteSpotifyLink()
+                    } label: {
+                        Label("Paste", systemImage: "doc.on.clipboard")
+                            .font(.caption.weight(.black))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .foregroundStyle(AppTheme.spotify)
+                            .background(AppTheme.spotify.opacity(0.12))
+                            .clipShape(Capsule())
                     }
-                    .labelStyle(.titleAndIcon)
-                    .buttonBorderShape(.capsule)
-                    .tint(AppTheme.spotify)
+                    .buttonStyle(.plain)
                     .accessibilityLabel("Paste Spotify link")
                 } else {
                     Button {
@@ -215,6 +219,13 @@ struct ImportView: View {
         playlistFieldFocused = false
         destinationFieldFocused = false
         Task { await viewModel.previewPlaylist() }
+    }
+
+    private func pasteSpotifyLink() {
+        guard let clipboardText = UIPasteboard.general.string else { return }
+        viewModel.replaceSpotifyInput(with: clipboardText)
+        playlistFieldFocused = false
+        destinationFieldFocused = false
     }
 
     private var shouldShowStatusCard: Bool {
