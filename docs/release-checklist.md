@@ -1,6 +1,6 @@
 # MVP Release Checklist
 
-Last reviewed: 2026-06-03
+Last reviewed: 2026-07-06
 
 Use this checklist before sharing a public PlaylistXfer link with testers, recruiters, or app-store reviewers.
 
@@ -34,6 +34,7 @@ For the production domain launch sequence, use [playlistxfer-launch-roadmap.md](
 - `APPLE_MUSIC_STOREFRONT=us`
 - Rate limiting is enabled.
 - Anonymous transfer retention is configured.
+- D1 rejects transfer restoration after the configured retention window and opportunistically deletes expired transfers, jobs, and cache rows.
 
 ## Web Environment
 
@@ -55,6 +56,32 @@ For the production domain launch sequence, use [playlistxfer-launch-roadmap.md](
 - User authorization is requested only when creating the Apple Music playlist.
 - Denying Apple Music authorization does not create a playlist.
 - Retrying create after authorization succeeds.
+
+## iOS App Store Release
+
+Use [app-store-release.md](/Users/arthur_t_m/Documents/PlaylistTransfer/docs/app-store-release.md) for the prepared metadata, privacy inventory, reviewer notes, screenshots, and TestFlight gate.
+
+- Version is `1.0` and build is `1`.
+- The first release targets iPhone only.
+- Main and Share Extension bundle identifiers exist in Apple Developer.
+- Release archive passes Xcode validation.
+- App Privacy answers match the final native event and storage behavior.
+- App Store Privacy URL is `https://playlistxfer.com/privacy`.
+- Support URL is `https://playlistxfer.com/contact`.
+- A clean TestFlight install passes playlist, song, Share Extension, MusicKit authorization, candidate review, and creation tests.
+- Final icon and screenshots are added only after the final visual pass.
+
+## Web AdSense Readiness
+
+- `playlistxfer.com` is added to AdSense and ownership is verified.
+- AdSense reports the site as `Ready` before production ads are enabled.
+- Arthur provides the public `ca-pub-...` publisher id and generated `ads.txt` line; no account password is shared.
+- `/ads.txt` returns HTTP 200 from the root domain and contains the exact publisher id.
+- Privacy copy explains Google advertising/cookies before ad scripts are enabled.
+- A Google-certified consent message/CMP is configured for the EEA, UK, and Switzerland.
+- The first responsive ad unit is placed away from URL entry, Apple authorization, progress, review controls, and the create button.
+- Ad scripts load asynchronously and reserve layout space to avoid layout shift.
+- Google and AdSense crawlers are not blocked by Cloudflare or `robots.txt`.
 
 ## Product Smoke Test
 

@@ -19,23 +19,23 @@
     <article class="legal-document">
       <p class="eyebrow">Privacy Policy</p>
       <h1>PlaylistXfer Privacy Policy</h1>
-      <p class="legal-updated">Last updated: June 3, 2026</p>
+      <p class="legal-updated">Last updated: July 6, 2026</p>
 
       <h2>What this app does</h2>
-      <p>PlaylistXfer reads a public Spotify playlist link, previews the tracks, searches Apple Music for matches, and creates an Apple Music playlist only after you authorize Apple Music access.</p>
+      <p>PlaylistXfer reads a public Spotify playlist or song link, previews the source, searches Apple Music for matches, and writes to Apple Music only after you authorize access.</p>
 
       <h2>Information we process</h2>
-      <p>We process the Spotify playlist URL you submit, public playlist metadata, track metadata, match results, review decisions, an anonymous browser session id, and Apple Music authorization needed to create the destination playlist.</p>
+      <p>We process the Spotify playlist or song URL you submit, public metadata, track metadata, match results, review decisions, an anonymous browser or app session id, and Apple Music authorization needed to create the destination playlist.</p>
       <p>We also log minimal operational events after users interact with the transfer flow, such as preview success or failure, match-analysis success or failure, Apple Music connection results, and playlist-creation results. These events use a hashed anonymous session id and safe counts; they are not intended to store Apple Music tokens, emails, or full Spotify URLs.</p>
 
       <h2>Analytics</h2>
-      <p>PlaylistXfer may use Google Analytics to understand aggregate site traffic, referral sources, page views, and high-level product funnel events. Product events sent to Google Analytics are intentionally limited to safe aggregate fields such as counts, durations, match status, and error category. They are not intended to include Apple Music tokens, emails, full Spotify URLs, or raw authorization payloads.</p>
+      <p>The PlaylistXfer website may use Google Analytics to understand aggregate site traffic, referral sources, page views, and high-level product funnel events. The native iOS app does not include the Google Analytics advertising SDK; it sends limited first-party reliability events to the PlaylistXfer API. Product events are limited to safe aggregate fields such as counts, durations, match status, and error category. They are not intended to include Apple Music tokens, emails, full Spotify URLs, or raw authorization payloads.</p>
 
       <h2>Apple Music access</h2>
-      <p>Apple Music access is requested only when you create a playlist. The current MVP sends the Music User Token to the backend for the create flow and keeps it in runtime session memory rather than storing it in the database.</p>
+      <p>Apple Music access is requested only when you create a playlist or add a song. The web flow transmits the Music User Token only for the authorized write flow and does not store it in the transfer database. The native iOS app uses MusicKit authorization on the device and does not store the user's MusicKit token in the PlaylistXfer database.</p>
 
       <h2>Storage and retention</h2>
-      <p>Transfer reports may be stored temporarily so you can refresh and continue a review. The hosted MVP is configured for short-lived anonymous transfer storage, currently intended for about seven days.</p>
+      <p>Transfer reports are stored temporarily so you can refresh and continue a review. Anonymous transfer records expire after about seven days, while in-progress jobs expire sooner. Expired records are removed during normal service maintenance.</p>
 
       <h2>Third-party services</h2>
       <p>The app depends on Spotify public playlist surfaces, Apple Music/MusicKit, Cloudflare hosting, Cloudflare D1 storage, Render fallback hosting, Supabase fallback storage, and Google Analytics when analytics is enabled. Those services may process requests according to their own policies.</p>
@@ -44,7 +44,7 @@
       <p>We do not sell personal data. We do not ask for Spotify login in the current MVP. We do not intentionally store your Apple Music user token long term.</p>
 
       <h2>Contact</h2>
-      <p>For questions, open an issue or contact the project owner through the <a href="https://github.com/artifu/playlist-transfer">PlaylistXfer GitHub repository</a>.</p>
+      <p>For privacy questions or support, use the <a href="/contact">PlaylistXfer contact page</a>.</p>
     </article>
   </main>
 </body>

@@ -44,6 +44,10 @@ const SCHEMA_STATEMENTS = [
 ];
 
 let schemaReady = false;
+let lastCleanupAt = 0;
+
+const DEFAULT_TRANSFER_RETENTION_DAYS = 7;
+const CLEANUP_INTERVAL_MS = 15 * 60 * 1000;
 
 export function requireD1(env) {
   if (!env.PLAYLIST_TRANSFER_DB) {
@@ -67,6 +71,31 @@ function nowIso() {
 
 function addMinutesIso(minutes) {
   return new Date(Date.now() + minutes * 60 * 1000).toISOString();
+}
+
+function transferRetentionDays(env) {
+  const configured = Number(env.TRANSFER_API_TRANSFER_RETENTION_DAYS);
+  if (!Number.isFinite(configured)) return DEFAULT_TRANSFER_RETENTION_DAYS;
+  return Math.min(90, Math.max(1, Math.floor(configured)));
+}
+
+function transferRetentionCutoff(env) {
+  const retentionMs = transferRetentionDays(env) * 24 * 60 * 60 * 1000;
+  return new Date(Date.now() - retentionMs).toISOString();
+}
+
+async function cleanupExpiredRecords(env) {
+  const now = Date.now();
+  if (now - lastCleanupAt < CLEANUP_INTERVAL_MS) return;
+
+  await ensureSchema(env);
+  const db = requireD1(env);
+  await db.batch([
+    db.prepare("delete from transfers where updated_at < ?").bind(transferRetentionCutoff(env)),
+    db.prepare("delete from jobs where expires_at < ?").bind(new Date(now).toISOString()),
+    db.prepare("delete from apple_isrc_cache where expires_at < ?").bind(new Date(now).toISOString())
+  ]);
+  lastCleanupAt = now;
 }
 
 function clone(value) {
@@ -155,6 +184,7 @@ export async function saveTransfer(env, transfer) {
 }
 
 export async function createTransfer(env, { sessionId, input, analysisLimit, analysis }) {
+  await cleanupExpiredRecords(env);
   const transfer = {
     id: randomId(),
     sessionId,
@@ -175,8 +205,8 @@ export async function createTransfer(env, { sessionId, input, analysisLimit, ana
 export async function findTransfer(env, transferId, sessionId) {
   await ensureSchema(env);
   const row = await requireD1(env)
-    .prepare(`select * from transfers where id = ? and session_id = ? limit 1`)
-    .bind(transferId, sessionId)
+    .prepare(`select * from transfers where id = ? and session_id = ? and updated_at >= ? limit 1`)
+    .bind(transferId, sessionId, transferRetentionCutoff(env))
     .first();
 
   const transfer = transferFromRow(row);
@@ -186,8 +216,8 @@ export async function findTransfer(env, transferId, sessionId) {
 async function requireTransfer(env, transferId, sessionId) {
   await ensureSchema(env);
   const row = await requireD1(env)
-    .prepare(`select * from transfers where id = ? and session_id = ? limit 1`)
-    .bind(transferId, sessionId)
+    .prepare(`select * from transfers where id = ? and session_id = ? and updated_at >= ? limit 1`)
+    .bind(transferId, sessionId, transferRetentionCutoff(env))
     .first();
   const transfer = transferFromRow(row);
 
@@ -266,7 +296,7 @@ export async function markTransferCreated(env, transferId, sessionId, createdApp
 }
 
 export async function createJob(env, kind, sessionId = "") {
-  await ensureSchema(env);
+  await cleanupExpiredRecords(env);
   const job = {
     id: randomId(),
     sessionId,

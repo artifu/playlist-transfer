@@ -55,7 +55,16 @@ Implemented:
 
 Not implemented yet:
 
-- App Store signing/profile configuration
+- final App Store icon and product-page screenshots
+- App Store Connect record, privacy answers, and submission
+
+Release configuration:
+
+- version `1.0` (build `1`)
+- iOS 17 or newer
+- iPhone-only for the first App Store release
+- bundle id `com.artifu.playlistxfer`
+- share extension bundle id `com.artifu.playlistxfer.shareextension`
 
 ## Deep link import
 

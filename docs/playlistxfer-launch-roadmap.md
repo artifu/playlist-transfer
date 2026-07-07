@@ -1,6 +1,6 @@
 # PlaylistXfer Launch Roadmap
 
-Last reviewed: 2026-05-31
+Last reviewed: 2026-07-06
 
 This is the production launch runbook for moving the current PlaylistTransfer MVP to:
 
@@ -229,6 +229,28 @@ Then, after AdSense gives the publisher id and `ads.txt` line:
 - Add the AdSense verification/snippet carefully.
 - Keep the first page load lightweight.
 - Place the first ad/sponsor unit away from auth, progress, and the match report.
+
+Current status:
+
+- Trust/content pages and navigation are live.
+- The public site does not load an ad network script yet.
+- Remaining external input: AdSense approval, public `ca-pub-...` id, and the generated `ads.txt` line.
+- Preferred first placement: one responsive manual unit below supporting content or after a completed result, never adjacent to a transfer action.
+
+## Phase 5.5 - iOS App Store Readiness
+
+Owner: Codex + Arthur
+
+Status: release package prepared; final icon, screenshots, and submission deferred until last.
+
+- Ship version `1.0` build `1` as iPhone-only.
+- Use `com.artifu.playlistxfer` and `com.artifu.playlistxfer.shareextension`.
+- Complete App Store metadata, privacy answers, content-rights declaration, and age rating.
+- Validate the Release archive and run the clean-install TestFlight gate.
+- Use the prepared reviewer flow and public Spotify test playlist.
+- Capture screenshots only after the final icon and visual pass.
+
+See [app-store-release.md](/Users/arthur_t_m/Documents/PlaylistTransfer/docs/app-store-release.md).
 
 ## Phase 6 - Post-iOS AI and Agent Discovery
 
