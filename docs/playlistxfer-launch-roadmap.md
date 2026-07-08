@@ -233,8 +233,10 @@ Then, after AdSense gives the publisher id and `ads.txt` line:
 Current status:
 
 - Trust/content pages and navigation are live.
-- The public site does not load an ad network script yet.
-- Remaining external input: AdSense approval, public `ca-pub-...` id, and the generated `ads.txt` line.
+- AdSense account and site record exist for publisher `ca-pub-8103940626356369`.
+- The ownership-verification script and root `ads.txt` entry are deployed.
+- Auto Ads and manual ad units remain disabled while site approval is pending.
+- Remaining external step: Google site review and consent-message configuration.
 - Preferred first placement: one responsive manual unit below supporting content or after a completed result, never adjacent to a transfer action.
 
 ## Phase 5.5 - iOS App Store Readiness

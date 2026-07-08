@@ -127,9 +127,9 @@ The API writes them as structured JSON lines in the API logs with `logType: "pla
 
 The public page intentionally does not call the Transfer API on initial load. This keeps casual visits, SEO crawls, and social-preview traffic from waking the hosted API. The API wakes only after a user starts a transfer action or restores an existing transfer.
 
-## Sponsor Slot
+## Advertising
 
-The page includes a lightweight sponsor placeholder. It is intentionally static for now: no third-party ad script loads before we have privacy copy, approval, and performance guardrails in place.
+The site includes the AdSense ownership-verification script for publisher `ca-pub-8103940626356369` and publishes the matching root `ads.txt` entry. Auto Ads and manual ad units remain disabled until Google approves the site and the consent/placement pass is complete.
 
 ## Notes
 
