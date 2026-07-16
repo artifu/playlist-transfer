@@ -362,7 +362,7 @@ struct ImportView: View {
                         .buttonStyle(.plain)
                         .disabled(!viewModel.canUpdateCreatedPlaylist)
                     }
-                } else if let analysis = viewModel.analysis {
+                } else if viewModel.analysis != nil {
                     if !viewModel.isSingleTrackImport {
                         DestinationPlaylistNameInlineEditor(
                             playlistName: $viewModel.destinationPlaylistName,
