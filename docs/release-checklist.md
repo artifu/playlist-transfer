@@ -1,6 +1,6 @@
 # MVP Release Checklist
 
-Last reviewed: 2026-07-06
+Last reviewed: 2026-07-13
 
 Use this checklist before sharing a public PlaylistXfer link with testers, recruiters, or app-store reviewers.
 
@@ -8,12 +8,12 @@ For the production domain launch sequence, use [playlistxfer-launch-roadmap.md](
 
 ## Hosted Services
 
-- Cloudflare Pages API mode is decided for the release: `cloudflare-native` preferred, `render-proxy` acceptable as fallback.
-- Render API service is live at `https://playlist-transfer-api.onrender.com` if fallback is needed.
+- Cloudflare Pages API mode is `cloudflare-native` for the normal production path.
+- Render API service at `https://playlist-transfer-api.onrender.com` is fallback only and should not be required for normal production transfers.
 - Cloudflare Pages web service is live for `https://playlistxfer.com`.
 - `https://www.playlistxfer.com` redirects to `https://playlistxfer.com`.
 - `https://playlist.arthurmendes.com` remains available as staging or fallback.
-- Render web service at `https://playlist-transfer-web-esj4.onrender.com` remains available as fallback until we remove it.
+- Render web service at `https://playlist-transfer-web-esj4.onrender.com` is legacy fallback only.
 - `/health` returns `{"ok":true}` for the API.
 - `/health` on the Cloudflare Pages site returns `host: "cloudflare-pages"` and the expected `apiMode`.
 - `/privacy` and `/terms` load from the custom domain.
@@ -26,10 +26,7 @@ For the production domain launch sequence, use [playlistxfer-launch-roadmap.md](
 - Cloudflare-native mode: `PLAYLIST_TRANSFER_DB` D1 binding exists on the Pages project.
 - Cloudflare-native mode: `APPLE_MUSIC_DEVELOPER_TOKEN` is set on the Pages project.
 - Cloudflare-native mode: `APPLE_MUSIC_STOREFRONT=us` is set on the Pages project.
-- Render fallback mode: `TRANSFER_API_STORAGE_DRIVER=supabase-rest`
-- Render fallback mode: `SUPABASE_URL` is set.
-- Render fallback mode: `SUPABASE_SERVICE_ROLE_KEY` is set only on the API service.
-- Render fallback mode: `SUPABASE_TRANSFERS_TABLE=transfers`
+- Render/Supabase variables are fallback-only and are not required for the Cloudflare-native production path.
 - `APPLE_MUSIC_DEVELOPER_TOKEN` is set and current.
 - `APPLE_MUSIC_STOREFRONT=us`
 - Rate limiting is enabled.
@@ -38,7 +35,7 @@ For the production domain launch sequence, use [playlistxfer-launch-roadmap.md](
 
 ## Web Environment
 
-- Cloudflare Pages has `TRANSFER_API_URL=https://playlist-transfer-api.onrender.com`.
+- Cloudflare Pages may keep `TRANSFER_API_URL=https://playlist-transfer-api.onrender.com` as rollback config.
 - Cloudflare Pages has `PLAYLIST_TRANSFER_DB` D1 binding when using native mode.
 - Cloudflare Pages has `GA_MEASUREMENT_ID=G-XXXXXXXXXX` if Google Analytics should load.
 - Cloudflare Pages build output directory is `apps/web/public`.
@@ -64,24 +61,27 @@ Use [app-store-release.md](/Users/arthur_t_m/Documents/PlaylistTransfer/docs/app
 - Version is `1.0` and build is `1`.
 - The first release targets iPhone only.
 - Main and Share Extension bundle identifiers exist in Apple Developer.
-- Release archive passes Xcode validation.
+- Unsigned generic-device Release archive passes the local source/package preflight.
+- Archived app contains `PrivacyInfo.xcprivacy`, compiled icons, and the embedded Share Extension.
+- Signed archive passes `Validate App` in Xcode Organizer before upload.
 - App Privacy answers match the final native event and storage behavior.
 - App Store Privacy URL is `https://playlistxfer.com/privacy`.
 - Support URL is `https://playlistxfer.com/contact`.
 - A clean TestFlight install passes playlist, song, Share Extension, MusicKit authorization, candidate review, and creation tests.
-- Final icon and screenshots are added only after the final visual pass.
+- Current cream two-record icon assets are installed; final icon approval and final screenshots happen after the final visual pass.
 
 ## Web AdSense Readiness
 
 - `playlistxfer.com` is added to AdSense and ownership is verified.
 - AdSense reports the site as `Ready` before production ads are enabled.
-- Arthur provides the public `ca-pub-...` publisher id and generated `ads.txt` line; no account password is shared.
+- Public publisher id is `ca-pub-8103940626356369`; no account password is shared.
 - `/ads.txt` returns HTTP 200 from the root domain and contains the exact publisher id.
 - Privacy copy explains Google advertising/cookies before ad scripts are enabled.
 - A Google-certified consent message/CMP is configured for the EEA, UK, and Switzerland.
 - The first responsive ad unit is placed away from URL entry, Apple authorization, progress, review controls, and the create button.
 - Ad scripts load asynchronously and reserve layout space to avoid layout shift.
 - Google and AdSense crawlers are not blocked by Cloudflare or `robots.txt`.
+- Auto Ads stay disabled. Use manual placements only so ads never interrupt the transfer flow.
 
 ## Product Smoke Test
 
@@ -143,6 +143,6 @@ The web page should not wake the Transfer API on initial load. Open the page in 
 - Public Spotify ingestion depends on public web/embed surfaces and can break if Spotify changes them.
 - Apple Music matching is best-effort and storefront-sensitive.
 - Anonymous sessions are not user accounts.
-- Render free instances can spin down and make the first request slow when the site is in Render proxy mode.
-- Cloudflare-native mode avoids Render cold starts, but very large playlists still depend on Cloudflare Function limits and Spotify/Apple response times.
+- Render free instances can spin down and make the first request slow only when the site is deliberately in Render proxy fallback mode.
+- Cloudflare-native mode avoids Render cold starts, but very large playlists still depend on Spotify/Apple response times and Cloudflare execution limits.
 - The current analytics layer is operational telemetry for MVP testing, not a full product analytics warehouse.

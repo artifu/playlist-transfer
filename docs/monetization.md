@@ -1,6 +1,6 @@
 # Monetization
 
-Last reviewed: 2026-05-19
+Last reviewed: 2026-07-10
 
 ## Thesis
 
@@ -37,7 +37,15 @@ A better blend is:
 
 ## Ads strategy
 
-The MVP web page currently ships with a static sponsor placeholder rather than a third-party ad network script. This keeps the first public tests fast and privacy-light while preserving the layout space for future revenue.
+The MVP web page currently includes Google AdSense ownership verification and a root `ads.txt` file for publisher `ca-pub-8103940626356369`.
+
+AdSense policy for the MVP:
+
+- Keep Auto Ads disabled.
+- Use manual ad units only after Google approves the site.
+- Do not show ads in the critical transfer path.
+- Prefer one responsive placement on supporting content or after a completed result.
+- Keep the native iOS 1.0 app ad-free.
 
 Good places for ads:
 

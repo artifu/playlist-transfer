@@ -15,6 +15,7 @@ enum AppleMusicLibraryWriterError: LocalizedError {
     case developerTokenUnavailable(String)
     case noReadyTracks
     case noCatalogSongsFound
+    case playlistNotFound(String)
 
     var errorDescription: String? {
         switch self {
@@ -30,6 +31,8 @@ enum AppleMusicLibraryWriterError: LocalizedError {
             return "There are no confident Apple Music matches ready to transfer."
         case .noCatalogSongsFound:
             return "Apple Music could not load the matched catalog songs for this playlist."
+        case .playlistNotFound(let name):
+            return "PlaylistXfer could not find \"\(name)\" in your Apple Music library. It may have been deleted or renamed."
         }
     }
 }
@@ -127,6 +130,52 @@ struct AppleMusicLibraryWriter: Sendable {
         }
     }
 
+    func addTracks(
+        to createdPlaylist: CreatedAppleMusicPlaylist,
+        from analysis: TransferAnalysis,
+        itemIDsToTransfer: Set<Int>,
+        candidateOverrides: [Int: AppleSongCandidate] = [:],
+        progress: (@MainActor (String) -> Void)? = nil
+    ) async throws -> CreatedAppleMusicPlaylist {
+        do {
+            try await authorizeAppleMusic(progress: progress)
+
+            let songIDs = appleMusicSongIDs(
+                from: analysis,
+                itemIDsToTransfer: itemIDsToTransfer,
+                candidateOverrides: candidateOverrides
+            )
+            guard !songIDs.isEmpty else { throw AppleMusicLibraryWriterError.noReadyTracks }
+
+            await progress?("Loading \(songIDs.count) new Apple Music \(songIDs.count == 1 ? "song" : "songs")...")
+            let songs = try await catalogSongs(for: songIDs)
+            guard !songs.isEmpty else { throw AppleMusicLibraryWriterError.noCatalogSongsFound }
+
+            await progress?("Finding \(createdPlaylist.name) in your Apple Music library...")
+            var libraryPlaylist = try await findPlaylist(
+                id: createdPlaylist.id,
+                name: createdPlaylist.name
+            )
+
+            for (index, song) in songs.enumerated() {
+                await progress?("Adding new \(index + 1) of \(songs.count)...")
+                libraryPlaylist = try await MusicLibrary.shared.add(song, to: libraryPlaylist)
+            }
+
+            return CreatedAppleMusicPlaylist(
+                id: libraryPlaylist.id.rawValue,
+                name: libraryPlaylist.name,
+                url: libraryPlaylist.url ?? createdPlaylist.url,
+                trackCount: createdPlaylist.trackCount + songs.count
+            )
+        } catch let error as AppleMusicLibraryWriterError {
+            throw error
+        } catch {
+            print("[PlaylistXfer] MusicKit playlist update failed: \(error.localizedDescription)")
+            throw mapMusicKitError(error)
+        }
+    }
+
     static func destinationPlaylistName(from requestedName: String?, fallbackSourceName: String) -> String {
         let trimmedRequest = requestedName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         guard trimmedRequest.isEmpty else {
@@ -217,6 +266,31 @@ struct AppleMusicLibraryWriter: Sendable {
             description: "Songs matched from Spotify links with PlaylistXfer.",
             authorDisplayName: "PlaylistXfer"
         )
+    }
+
+    private func findPlaylist(id: String, name: String) async throws -> Playlist {
+        var idRequest = MusicLibraryRequest<Playlist>()
+        idRequest.filter(matching: \.id, equalTo: MusicItemID(id))
+        idRequest.limit = 1
+
+        if let playlist = try await idRequest.response().items.first {
+            return playlist
+        }
+
+        var nameRequest = MusicLibraryRequest<Playlist>()
+        nameRequest.filter(matching: \.name, equalTo: name)
+        nameRequest.limit = 25
+
+        let nameResponse = try await nameRequest.response()
+        if let playlist = nameResponse.items.first(where: {
+            $0.id.rawValue == id
+        }) ?? nameResponse.items.first(where: {
+            $0.name.compare(name, options: .caseInsensitive) == .orderedSame
+        }) {
+            return playlist
+        }
+
+        throw AppleMusicLibraryWriterError.playlistNotFound(name)
     }
 
     private func mapMusicKitError(_ error: Error) -> Error {

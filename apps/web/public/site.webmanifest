@@ -1,13 +1,19 @@
 {
   "name": "PlaylistXfer",
   "short_name": "PlaylistXfer",
-  "description": "Transfer public Spotify playlists to Apple Music after reviewing matches.",
+  "description": "Transfer public Spotify playlists and songs to Apple Music after reviewing matches.",
   "icons": [
     {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
       "src": "/favicon.svg",
-      "sizes": "64x64",
+      "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ],
   "display": "standalone",

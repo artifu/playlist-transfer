@@ -1,11 +1,14 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#endif
 
 struct ImportView: View {
     @Environment(\.openURL) private var openURL
     @ObservedObject var viewModel: TransferViewModel
     @FocusState private var playlistFieldFocused: Bool
     @FocusState private var destinationFieldFocused: Bool
+    @State private var isReadingClipboard = false
 
     var body: some View {
         ScrollViewReader { scrollProxy in
@@ -24,15 +27,6 @@ struct ImportView: View {
                     if let preview = viewModel.preview {
                         PlaylistPreviewCard(preview: preview)
                             .id("preview")
-                    }
-
-                    if viewModel.analysis != nil && viewModel.createdPlaylist == nil && !viewModel.isSingleTrackImport {
-                        DestinationPlaylistNameCard(
-                            playlistName: $viewModel.destinationPlaylistName,
-                            resetName: viewModel.resetDestinationPlaylistName,
-                            isFocused: $destinationFieldFocused
-                        )
-                        .id("destination")
                     }
 
                     if let analysis = viewModel.analysis {
@@ -78,7 +72,7 @@ struct ImportView: View {
                     playlistFieldFocused = false
                     destinationFieldFocused = false
                     withAnimation(.snappy(duration: 0.35)) {
-                        scrollProxy.scrollTo("destination", anchor: .top)
+                        scrollProxy.scrollTo("report", anchor: .top)
                     }
                 }
             }
@@ -90,10 +84,30 @@ struct ImportView: View {
                     scrollProxy.scrollTo("activity", anchor: .top)
                 }
             }
+            #if DEBUG
+            .onAppear {
+                guard let screenshotScrollTarget else { return }
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 450_000_000)
+                    scrollProxy.scrollTo(screenshotScrollTarget, anchor: .top)
+                }
+            }
+            #endif
             .animation(.snappy(duration: 0.25), value: viewModel.phase)
             .animation(.snappy(duration: 0.25), value: viewModel.activity)
         }
     }
+
+    #if DEBUG
+    private var screenshotScrollTarget: String? {
+        ProcessInfo.processInfo.arguments
+            .compactMap { argument -> String? in
+                guard argument.hasPrefix("--screenshot-scroll=") else { return nil }
+                return String(argument.dropFirst("--screenshot-scroll=".count))
+            }
+            .first
+    }
+    #endif
 
     private var hero: some View {
         VStack(alignment: .leading, spacing: 22) {
@@ -160,15 +174,16 @@ struct ImportView: View {
                     Button {
                         pasteSpotifyLink()
                     } label: {
-                        Label("Paste", systemImage: "doc.on.clipboard")
+                        Label(isReadingClipboard ? "Pasting" : "Paste", systemImage: "doc.on.clipboard")
                             .font(.caption.weight(.black))
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
-                            .foregroundStyle(AppTheme.spotify)
                             .background(AppTheme.spotify.opacity(0.12))
+                            .foregroundStyle(AppTheme.spotify)
                             .clipShape(Capsule())
                     }
                     .buttonStyle(.plain)
+                    .disabled(isReadingClipboard)
                     .accessibilityLabel("Paste Spotify link")
                 } else {
                     Button {
@@ -195,7 +210,7 @@ struct ImportView: View {
                 submitPreview()
             } label: {
                 ActionButtonLabel(
-                            title: viewModel.preview == nil ? "Preview Spotify link" : "Refresh Spotify link",
+                    title: viewModel.preview == nil ? "Preview Spotify link" : "Refresh Spotify link",
                     systemImage: "arrow.right",
                     background: viewModel.canPreview ? AppTheme.spotify : AppTheme.disabledFill,
                     foreground: viewModel.canPreview ? .white : AppTheme.inkMuted
@@ -222,10 +237,26 @@ struct ImportView: View {
     }
 
     private func pasteSpotifyLink() {
-        guard let clipboardText = UIPasteboard.general.string else { return }
-        viewModel.replaceSpotifyInput(with: clipboardText)
+        #if canImport(UIKit)
+        guard !isReadingClipboard else { return }
+        isReadingClipboard = true
         playlistFieldFocused = false
         destinationFieldFocused = false
+
+        Task {
+            let clipboardText = await ClipboardTextReader.readTrimmedString()
+            isReadingClipboard = false
+
+            guard let clipboardText, !clipboardText.isEmpty else {
+                playlistFieldFocused = true
+                return
+            }
+
+            viewModel.replaceSpotifyInput(with: clipboardText)
+        }
+        #else
+        playlistFieldFocused = true
+        #endif
     }
 
     private var shouldShowStatusCard: Bool {
@@ -292,28 +323,55 @@ struct ImportView: View {
                 }
 
                 if let createdPlaylist = viewModel.createdPlaylist {
-                    Text(viewModel.isSingleTrackImport ? "Song added" : "\(createdPlaylist.trackCount) tracks transferred")
+                    Text(viewModel.pendingSyncItems.isEmpty
+                        ? (viewModel.isSingleTrackImport ? "Song added" : "\(createdPlaylist.trackCount) tracks transferred")
+                        : "\(viewModel.pendingSyncItems.count) new \(viewModel.pendingSyncItems.count == 1 ? "match" : "matches") ready")
                         .font(.caption.weight(.black))
                         .tracking(1.8)
                         .foregroundStyle(AppTheme.inkMuted)
                         .textCase(.uppercase)
 
-                    Button {
-                        if let url = createdPlaylist.url {
-                            openURL(url)
+                    if viewModel.pendingSyncItems.isEmpty {
+                        Button {
+                            if let url = createdPlaylist.url {
+                                openURL(url)
+                            }
+                        } label: {
+                            ActionButtonLabel(
+                                title: "Open in Apple Music",
+                                systemImage: "music.note",
+                                background: createdPlaylist.url == nil ? AppTheme.disabledFill : AppTheme.spotify,
+                                foreground: createdPlaylist.url == nil ? AppTheme.inkMuted : .white
+                            )
                         }
-                    } label: {
-                        ActionButtonLabel(
-                            title: "Open in Apple Music",
-                            systemImage: "music.note",
-                            background: createdPlaylist.url == nil ? AppTheme.disabledFill : AppTheme.spotify,
-                            foreground: createdPlaylist.url == nil ? AppTheme.inkMuted : .white
+                        .buttonStyle(.plain)
+                        .disabled(createdPlaylist.url == nil)
+                    } else {
+                        Button {
+                            playlistFieldFocused = false
+                            destinationFieldFocused = false
+                            Task { await viewModel.updateCreatedAppleMusicPlaylist() }
+                        } label: {
+                            ActionButtonLabel(
+                                title: "Update Apple Music playlist",
+                                systemImage: "arrow.triangle.2.circlepath",
+                                background: viewModel.canUpdateCreatedPlaylist ? AppTheme.apple : AppTheme.disabledFill,
+                                foreground: viewModel.canUpdateCreatedPlaylist ? .white : AppTheme.inkMuted
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(!viewModel.canUpdateCreatedPlaylist)
+                    }
+                } else if let analysis = viewModel.analysis {
+                    if !viewModel.isSingleTrackImport {
+                        DestinationPlaylistNameInlineEditor(
+                            playlistName: $viewModel.destinationPlaylistName,
+                            resetName: viewModel.resetDestinationPlaylistName,
+                            isFocused: $destinationFieldFocused
                         )
                     }
-                    .buttonStyle(.plain)
-                    .disabled(createdPlaylist.url == nil)
-                } else if let analysis = viewModel.analysis {
-                    Text(viewModel.isSingleTrackImport ? "Song ready" : "\(analysis.summary.confidentMatchCount) ready tracks")
+
+                    Text(viewModel.isSingleTrackImport ? "Song ready" : "\(viewModel.readyItems.count) ready tracks")
                         .font(.caption.weight(.black))
                         .tracking(1.8)
                         .foregroundStyle(AppTheme.inkMuted)
@@ -367,6 +425,16 @@ struct ImportView: View {
         }
     }
 }
+
+#if canImport(UIKit)
+private enum ClipboardTextReader {
+    static func readTrimmedString() async -> String? {
+        await Task.detached(priority: .userInitiated) {
+            UIPasteboard.general.string?.trimmingCharacters(in: .whitespacesAndNewlines)
+        }.value
+    }
+}
+#endif
 
 private struct ActivityCard: View {
     let activity: TransferActivity
@@ -451,34 +519,12 @@ private struct BrandMark: View {
     let size: CGFloat
 
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: size * 0.22, style: .continuous)
-                .fill(AppTheme.ink)
-
-            ZStack {
-                RoundedRectangle(cornerRadius: size * 0.12, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [AppTheme.spotify.opacity(0.72), AppTheme.card, AppTheme.apple.opacity(0.82)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: size * 0.56, height: size * 0.36)
-                    .offset(x: size * 0.04)
-
-                Circle()
-                    .fill(AppTheme.ink)
-                    .frame(width: size * 0.20, height: size * 0.20)
-                    .offset(x: -size * 0.06)
-
-                RoundedRectangle(cornerRadius: size * 0.018, style: .continuous)
-                    .fill(AppTheme.ink)
-                    .frame(width: size * 0.11, height: size * 0.30)
-                    .offset(x: size * 0.16)
-            }
-        }
+        Image("BrandMark")
+            .resizable()
+            .interpolation(.high)
+            .scaledToFit()
         .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: size * 0.22, style: .continuous))
     }
 }
 
@@ -568,70 +614,63 @@ private struct PlaylistPreviewCard: View {
     }
 }
 
-private struct DestinationPlaylistNameCard: View {
+private struct DestinationPlaylistNameInlineEditor: View {
     @Binding var playlistName: String
     let resetName: () -> Void
     var isFocused: FocusState<Bool>.Binding
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 7) {
             Label("Apple Music playlist name", systemImage: "music.note")
-                .font(.caption)
-                .fontWeight(.black)
-                .tracking(1.6)
+                .font(.caption2.weight(.black))
+                .tracking(1.3)
                 .foregroundStyle(AppTheme.apple)
                 .textCase(.uppercase)
 
-            TextField("Playlist name", text: $playlistName)
-                .textInputAutocapitalization(.words)
-                .autocorrectionDisabled()
-                .submitLabel(.done)
-                .font(.headline.weight(.black))
-                .padding(14)
-                .background(AppTheme.card)
-                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .stroke(AppTheme.lineStrong, lineWidth: 1.5)
-                )
-                .focused(isFocused)
-                .onSubmit {
-                    isFocused.wrappedValue = false
-                }
-
-            HStack(alignment: .top, spacing: 10) {
-                Text("You can rename it before creation. Apple Music generates the playlist cover in your library.")
-                    .font(.caption)
-                    .foregroundStyle(AppTheme.inkMuted)
-
-                Spacer(minLength: 10)
+            HStack(spacing: 8) {
+                TextField("Playlist name", text: $playlistName)
+                    .textInputAutocapitalization(.words)
+                    .autocorrectionDisabled()
+                    .submitLabel(.done)
+                    .font(.subheadline.weight(.black))
+                    .lineLimit(1)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(AppTheme.card)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .stroke(AppTheme.apple.opacity(0.20), lineWidth: 1)
+                    )
+                    .focused(isFocused)
+                    .onSubmit {
+                        isFocused.wrappedValue = false
+                    }
 
                 Button {
                     resetName()
                     isFocused.wrappedValue = false
                 } label: {
                     Text("Reset")
-                        .font(.caption.weight(.black))
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
+                        .font(.caption2.weight(.black))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
                         .background(AppTheme.disabledFill)
                         .foregroundStyle(AppTheme.ink)
                         .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)
             }
+
+            Text("Final name before creation. Cover art is generated by Apple Music.")
+                .font(.caption2)
+                .foregroundStyle(AppTheme.inkMuted)
         }
-        .padding(16)
-        .background(
-            LinearGradient(
-                colors: [AppTheme.apple.opacity(0.10), AppTheme.card],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .padding(12)
+        .background(AppTheme.apple.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .stroke(AppTheme.apple.opacity(0.16), lineWidth: 1)
         )
     }
@@ -824,13 +863,13 @@ private struct TransferItemRow: View {
 
                 Spacer(minLength: 8)
 
-                Text(item.confidencePercent)
+                Text(confidenceLabel)
                     .font(.caption.weight(.bold).monospacedDigit())
                     .foregroundStyle(.secondary)
             }
 
             HStack {
-                Text(mode == .skipped ? "Skipped" : item.statusLabel)
+                Text(statusLabel)
                     .font(.caption.weight(.black))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 7)
@@ -929,7 +968,7 @@ private struct TransferItemRow: View {
                                 Button {
                                     selectCandidate(candidate)
                                 } label: {
-                                    Text("Use this match")
+                                    Label("Add this match", systemImage: "plus.circle.fill")
                                         .font(.caption.weight(.black))
                                         .padding(.horizontal, 12)
                                         .padding(.vertical, 8)
@@ -960,6 +999,18 @@ private struct TransferItemRow: View {
         mode == .review || mode == .ready || mode == .skipped
     }
 
+    private var statusLabel: String {
+        if mode == .skipped { return "Skipped" }
+        if mode == .ready && item.status != "matched" { return "Ready - Manual match" }
+        if mode == .ready { return "Ready" }
+        return item.statusLabel
+    }
+
+    private var confidenceLabel: String {
+        if mode == .ready && item.status != "matched" { return "Manual" }
+        return item.confidencePercent
+    }
+
     private var alternativeCandidates: [AppleSongCandidate]? {
         guard let candidates = item.candidates, candidates.count > 1 else { return nil }
         let highlightedID = selectedCandidate?.id ?? item.appleCandidate?.id
@@ -968,6 +1019,7 @@ private struct TransferItemRow: View {
 
     private var statusColor: Color {
         if mode == .skipped { return AppTheme.inkMuted }
+        if mode == .ready { return AppTheme.spotify }
         switch item.status {
         case "matched":
             return AppTheme.spotify

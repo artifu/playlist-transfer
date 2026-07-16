@@ -1,6 +1,6 @@
 # PlaylistXfer Launch Roadmap
 
-Last reviewed: 2026-07-06
+Last reviewed: 2026-07-13
 
 This is the production launch runbook for moving the current PlaylistTransfer MVP to:
 
@@ -8,14 +8,14 @@ This is the production launch runbook for moving the current PlaylistTransfer MV
 https://playlistxfer.com
 ```
 
-The goal is a fast, public, ad-ready web MVP with the static site on Cloudflare Pages. The API can run in Render proxy mode today, then switch to Cloudflare-native mode with D1 to remove Render cold starts from the transfer path.
+The goal is a fast, public, ad-ready web MVP with the static site and normal transfer API path on Cloudflare Pages. Render and Supabase are now fallback-only; the production path should not depend on either service being awake.
 
 ## Launch Decisions
 
 - Production domain: `https://playlistxfer.com`
 - Redirect domain: `https://www.playlistxfer.com` -> `https://playlistxfer.com`
 - Staging domain: `https://playlist.arthurmendes.com`
-- Backend API: Cloudflare Pages Functions with D1 preferred; `https://playlist-transfer-api.onrender.com` as fallback
+- Backend API: Cloudflare Pages Functions with D1; `https://playlist-transfer-api.onrender.com` as fallback only
 - Web host: Cloudflare Pages
 - Apple Music auth timing: ask only when the user creates the Apple Music playlist
 - Spotify auth: no Spotify login for MVP; use public playlist link ingestion
@@ -23,9 +23,9 @@ The goal is a fast, public, ad-ready web MVP with the static site on Cloudflare 
 ## Phase 0 - Already Done
 
 - Domain `playlistxfer.com` purchased through Cloudflare Registrar.
-- Render API is live.
-- Supabase storage is configured.
-- Cloudflare Pages API fallback is live and can proxy to Render.
+- Render API was validated and remains a rollback target only.
+- Supabase storage was validated as a fallback path but is not required for normal production operation.
+- Cloudflare Pages API is live in native mode with D1 for the production path.
 - Cloudflare Pages-compatible files exist in the repo:
   - `wrangler.toml`
   - `functions/api/[[path]].js`
@@ -34,7 +34,7 @@ The goal is a fast, public, ad-ready web MVP with the static site on Cloudflare 
   - `apps/web/public/_headers`
 - Cloudflare Pages clean URLs serve `/privacy` from `privacy.html` and `/terms` from `terms.html`.
 - The landing page does not call the API or load MusicKit on initial page load.
-- A static sponsor placeholder exists without loading a third-party ad script.
+- Google Analytics and AdSense verification are wired, with manual ad placement deferred until approval.
 
 ## Phase 1 - Cloudflare Pages Production Setup
 
@@ -51,7 +51,7 @@ Build command: none
 Build output directory: apps/web/public
 ```
 
-Set this Pages environment variable:
+Set this Pages environment variable only as rollback config:
 
 ```bash
 TRANSFER_API_URL=https://playlist-transfer-api.onrender.com
@@ -69,7 +69,7 @@ Expected behavior:
 - `https://playlistxfer.com` serves the app.
 - `https://www.playlistxfer.com` redirects to `https://playlistxfer.com`.
 - Static page views should not wake the Render API.
-- `/api/*` calls should use D1 native mode when configured, or proxy to the Render API only after user actions.
+- `/api/*` calls should use D1 native mode. Render proxy mode should be used only as rollback.
 
 Keep `playlist.arthurmendes.com` as staging until production smoke tests pass.
 
@@ -112,6 +112,8 @@ Validation:
 ## Phase 2.5 - Cloudflare-Native API Cutover
 
 Owner: Arthur + Codex
+
+Status: implemented for the normal production path.
 
 Goal: remove the Render free-tier cold start from normal transfers while keeping Render as a rollback path.
 
@@ -223,11 +225,27 @@ Before requesting AdSense approval, add trust/content pages so the site is not j
 - `Contact`
 - Stronger privacy explanation for Apple Music authorization and anonymous transfer logs
 
-Then, after AdSense gives the publisher id and `ads.txt` line:
+AdSense publisher id:
 
-- Add `ads.txt` at the site root.
-- Add the AdSense verification/snippet carefully.
-- Keep the first page load lightweight.
+```text
+ca-pub-8103940626356369
+```
+
+Current deployed verification:
+
+```text
+/ads.txt
+Google AdSense script in the public web shell
+```
+
+Ad policy for MVP:
+
+- Do not enable Auto Ads.
+- Use manual placements only.
+- Keep ads away from URL entry, Apple Music authorization, progress, review controls, and create actions.
+
+Then, after AdSense approves the site:
+
 - Place the first ad/sponsor unit away from auth, progress, and the match report.
 
 Current status:
@@ -243,16 +261,17 @@ Current status:
 
 Owner: Codex + Arthur
 
-Status: release package prepared; final icon, screenshots, and submission deferred until last.
+Status: release package and privacy manifest prepared; unsigned Release archive preflight passed; signed Organizer validation, final screenshots, TestFlight, and submission remain.
 
 - Ship version `1.0` build `1` as iPhone-only.
 - Use `com.artifu.playlistxfer` and `com.artifu.playlistxfer.shareextension`.
 - Complete App Store metadata, privacy answers, content-rights declaration, and age rating.
-- Validate the Release archive and run the clean-install TestFlight gate.
+- Run signed `Validate App`, upload the archive, and complete the clean-install TestFlight gate.
 - Use the prepared reviewer flow and public Spotify test playlist.
 - Capture screenshots only after the final icon and visual pass.
 
 See [app-store-release.md](/Users/arthur_t_m/Documents/PlaylistTransfer/docs/app-store-release.md).
+See [testflight-runbook.md](/Users/arthur_t_m/Documents/PlaylistTransfer/docs/testflight-runbook.md).
 
 ## Phase 6 - Post-iOS AI and Agent Discovery
 

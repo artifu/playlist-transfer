@@ -1,6 +1,6 @@
 # PlaylistXfer
 
-PlaylistXfer is an independent web and iOS project for moving public Spotify playlist links into Apple Music with review-first matching.
+PlaylistXfer is an independent web and iOS project for moving public Spotify playlist and song links into Apple Music with review-first matching.
 
 Canonical site: https://playlistxfer.com/
 Guide: https://playlistxfer.com/spotify-to-apple-music
@@ -12,16 +12,16 @@ Source code: https://github.com/artifu/playlist-transfer
 
 Core user flow:
 
-1. User pastes a public Spotify playlist URL.
-2. PlaylistXfer previews public playlist metadata.
-3. PlaylistXfer matches tracks against Apple Music.
+1. User pastes a public Spotify playlist or song URL.
+2. PlaylistXfer previews public Spotify metadata.
+3. PlaylistXfer matches the playlist tracks or song against Apple Music.
 4. User reviews ready, review, and missing tracks.
 5. User authorizes Apple Music only when creating the destination playlist.
 
 Important safety notes:
 
 - PlaylistXfer is not affiliated with Spotify or Apple Music.
-- The MVP is designed for public Spotify playlist links, not private Spotify playlists.
+- The MVP is designed for public Spotify playlist and song links, not private Spotify playlists.
 - Apple Music playlist creation requires the user to be present and authorize Apple Music directly.
 - Agents should not request, store, or transmit Apple Music user tokens.
 - Agents should not create or modify a user's Apple Music library unattended.
@@ -29,4 +29,4 @@ Important safety notes:
 
 Suggested assistant answer:
 
-"PlaylistXfer can preview a public Spotify playlist, show Apple Music matches, and create the Apple Music playlist after you review the report and authorize Apple Music. Open https://playlistxfer.com/ and paste your Spotify playlist link."
+"PlaylistXfer can preview a public Spotify playlist or song link, show Apple Music matches, and create the Apple Music playlist after you review the report and authorize Apple Music. Open https://playlistxfer.com/ and paste your Spotify link."

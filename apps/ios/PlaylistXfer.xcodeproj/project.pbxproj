@@ -15,6 +15,7 @@
 		A10000000000000000000006 /* ImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000006 /* ImportView.swift */; };
 		A10000000000000000000007 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000007 /* Assets.xcassets */; };
 		A10000000000000000000008 /* AppleMusicLibraryWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000009 /* AppleMusicLibraryWriter.swift */; };
+		A10000000000000000000009 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000011 /* PrivacyInfo.xcprivacy */; };
 		A20000000000000000000001 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000001 /* ShareViewController.swift */; };
 		A20000000000000000000002 /* PlaylistXferShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = B20000000000000000000003 /* PlaylistXferShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
@@ -54,6 +55,7 @@
 		B10000000000000000000008 /* PlaylistXfer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PlaylistXfer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B10000000000000000000009 /* AppleMusicLibraryWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleMusicLibraryWriter.swift; sourceTree = "<group>"; };
 		B10000000000000000000010 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B10000000000000000000011 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		B20000000000000000000001 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 		B20000000000000000000002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B20000000000000000000003 /* PlaylistXferShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PlaylistXferShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -92,6 +94,7 @@
 				B10000000000000000000001 /* PlaylistXferApp.swift */,
 				B10000000000000000000002 /* AppConfig.swift */,
 				B10000000000000000000010 /* Info.plist */,
+				B10000000000000000000011 /* PrivacyInfo.xcprivacy */,
 				D10000000000000000000003 /* Models */,
 				D10000000000000000000004 /* Networking */,
 				D10000000000000000000008 /* Services */,
@@ -242,6 +245,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A10000000000000000000007 /* Assets.xcassets in Resources */,
+				A10000000000000000000009 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -409,7 +413,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = A2V4NSM2AN;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = PlaylistXfer/Info.plist;
@@ -432,7 +436,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = A2V4NSM2AN;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = PlaylistXfer/Info.plist;
@@ -454,7 +458,7 @@
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = A2V4NSM2AN;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = PlaylistXferShareExtension/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -481,7 +485,7 @@
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = A2V4NSM2AN;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = PlaylistXferShareExtension/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;

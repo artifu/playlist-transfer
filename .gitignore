@@ -6,6 +6,7 @@ artifacts
 dist
 data/*.sqlite*
 DesignSuggestions/PlaylistTransfer.zip
+build/
 *.xcuserdata
 xcuserdata/
 *.xcworkspace/

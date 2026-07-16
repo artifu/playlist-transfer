@@ -38,9 +38,10 @@ final class TransferViewModel: ObservableObject {
     @Published private(set) var preview: PlaylistPreviewResponse?
     @Published private(set) var analysis: TransferAnalysis?
     @Published private(set) var createdPlaylist: CreatedAppleMusicPlaylist?
-    @Published private(set) var approvedReviewItemIDs: Set<Int> = []
+    @Published private(set) var approvedItemIDs: Set<Int> = []
     @Published private(set) var skippedItemIDs: Set<Int> = []
     @Published private(set) var selectedCandidatesByItemID: [Int: AppleSongCandidate] = [:]
+    @Published private(set) var transferredItemIDs: Set<Int> = []
     @Published private(set) var statusMessage = "Paste a public Spotify playlist or song link to begin."
     @Published private(set) var activity: TransferActivity?
 
@@ -54,6 +55,10 @@ final class TransferViewModel: ObservableObject {
     ) {
         self.api = api
         self.appleMusic = appleMusic
+
+        #if DEBUG
+        applyScreenshotScenarioFromLaunchArguments()
+        #endif
     }
 
     var canPreview: Bool {
@@ -66,6 +71,14 @@ final class TransferViewModel: ObservableObject {
 
     var canCreate: Bool {
         analysis != nil && !readyItems.isEmpty && createdPlaylist == nil && !isBusy
+    }
+
+    var pendingSyncItems: [TransferItem] {
+        readyItems.filter { !transferredItemIDs.contains($0.id) }
+    }
+
+    var canUpdateCreatedPlaylist: Bool {
+        analysis != nil && createdPlaylist != nil && !pendingSyncItems.isEmpty && !isBusy
     }
 
     var isSingleTrackImport: Bool {
@@ -81,11 +94,11 @@ final class TransferViewModel: ObservableObject {
     }
 
     var reviewItems: [TransferItem] {
-        analysis?.items.filter { $0.status == "needs_review" && !approvedReviewItemIDs.contains($0.id) && !skippedItemIDs.contains($0.id) } ?? []
+        analysis?.items.filter { $0.status == "needs_review" && !approvedItemIDs.contains($0.id) && !skippedItemIDs.contains($0.id) } ?? []
     }
 
     var missingItems: [TransferItem] {
-        analysis?.items.filter { $0.status == "unmatched" && !skippedItemIDs.contains($0.id) } ?? []
+        analysis?.items.filter { $0.status == "unmatched" && !approvedItemIDs.contains($0.id) && !skippedItemIDs.contains($0.id) } ?? []
     }
 
     var skippedItems: [TransferItem] {
@@ -101,6 +114,7 @@ final class TransferViewModel: ObservableObject {
         startOptimisticActivity(.preview)
         analysis = nil
         createdPlaylist = nil
+        transferredItemIDs = []
         resetDecisions()
         let startedAt = Date()
         trackEvent("preview_started")
@@ -152,6 +166,7 @@ final class TransferViewModel: ObservableObject {
             : "Matching this playlist against Apple Music..."
         startOptimisticActivity(.analysis)
         createdPlaylist = nil
+        transferredItemIDs = []
         resetDecisions()
         let startedAt = Date()
         trackEvent("analysis_started")
@@ -212,6 +227,7 @@ final class TransferViewModel: ObservableObject {
                 )
             }
             createdPlaylist = playlist
+            transferredItemIDs = itemIDsToTransfer
             stopActivity()
             phase = .created
             statusMessage = isSingleTrackImport
@@ -233,27 +249,68 @@ final class TransferViewModel: ObservableObject {
         }
     }
 
+    func updateCreatedAppleMusicPlaylist() async {
+        guard let analysis, let existingPlaylist = createdPlaylist, canUpdateCreatedPlaylist else { return }
+
+        let pendingItemIDs = Set(pendingSyncItems.map(\.id))
+        phase = .creating
+        statusMessage = "Preparing \(pendingItemIDs.count) new \(pendingItemIDs.count == 1 ? "match" : "matches")..."
+        startOptimisticActivity(.create)
+        let startedAt = Date()
+        trackEvent("transfer_update_started", properties: summaryProperties(analysis, extra: [
+            "readyCount": .int(pendingItemIDs.count)
+        ]))
+
+        do {
+            let progress: @MainActor (String) -> Void = { [weak self] message in
+                self?.statusMessage = message
+                self?.updateCreateActivity(message)
+            }
+            let updatedPlaylist = try await appleMusic.addTracks(
+                to: existingPlaylist,
+                from: analysis,
+                itemIDsToTransfer: pendingItemIDs,
+                candidateOverrides: selectedCandidatesByItemID,
+                progress: progress
+            )
+
+            transferredItemIDs.formUnion(pendingItemIDs)
+            createdPlaylist = updatedPlaylist
+            stopActivity()
+            phase = .created
+            statusMessage = pendingItemIDs.count == 1
+                ? "Added the new match to \(updatedPlaylist.name)."
+                : "Added \(pendingItemIDs.count) new matches to \(updatedPlaylist.name)."
+            trackEvent("transfer_update_succeeded", properties: summaryProperties(analysis, durationMs: elapsedMilliseconds(since: startedAt), extra: [
+                "readyCount": .int(pendingItemIDs.count)
+            ]))
+        } catch {
+            stopActivity()
+            trackEvent("transfer_update_failed", properties: summaryProperties(analysis, durationMs: elapsedMilliseconds(since: startedAt), extra: [
+                "errorCategory": .string("apple_music_update"),
+                "errorMessage": .string(errorMessage(error)),
+                "readyCount": .int(pendingItemIDs.count)
+            ]))
+            fail(error)
+        }
+    }
+
     func approveSuggestedMatch(_ item: TransferItem) {
         guard selectedCandidate(for: item) != nil else { return }
-        approvedReviewItemIDs.insert(item.id)
+        approvedItemIDs.insert(item.id)
         skippedItemIDs.remove(item.id)
-        createdPlaylist = nil
-        phase = .analysisReady
-        statusMessage = "Approved \"\(item.source.name)\". It will be included when you create the Apple Music playlist."
+        phase = createdPlaylist == nil ? .analysisReady : .created
+        statusMessage = decisionConfirmation(for: item, candidateName: selectedCandidate(for: item)?.name)
         trackReviewDecision("approve", item: item)
     }
 
     func selectCandidate(_ candidate: AppleSongCandidate, for item: TransferItem) {
         selectedCandidatesByItemID[item.id] = candidate
         skippedItemIDs.remove(item.id)
+        approvedItemIDs.insert(item.id)
 
-        if item.status == "needs_review" {
-            approvedReviewItemIDs.insert(item.id)
-        }
-
-        createdPlaylist = nil
-        phase = .analysisReady
-        statusMessage = "Selected \"\(candidate.name)\" for \"\(item.source.name)\"."
+        phase = createdPlaylist == nil ? .analysisReady : .created
+        statusMessage = decisionConfirmation(for: item, candidateName: candidate.name)
         trackReviewDecision("use-candidate", item: item, candidateIndex: candidateIndex(candidate, in: item))
     }
 
@@ -263,17 +320,17 @@ final class TransferViewModel: ObservableObject {
 
     func skipTrack(_ item: TransferItem) {
         skippedItemIDs.insert(item.id)
-        approvedReviewItemIDs.remove(item.id)
-        createdPlaylist = nil
-        phase = .analysisReady
-        statusMessage = "Skipped \"\(item.source.name)\". It will stay out of the Apple Music playlist."
+        approvedItemIDs.remove(item.id)
+        phase = createdPlaylist == nil ? .analysisReady : .created
+        statusMessage = transferredItemIDs.contains(item.id)
+            ? "\"\(item.source.name)\" was already transferred, so skipping it here will not remove it from Apple Music."
+            : "Skipped \"\(item.source.name)\". It will stay out of the Apple Music playlist."
         trackReviewDecision("skip", item: item)
     }
 
     func restoreTrack(_ item: TransferItem) {
         skippedItemIDs.remove(item.id)
-        createdPlaylist = nil
-        phase = .analysisReady
+        phase = createdPlaylist == nil ? .analysisReady : .created
         statusMessage = "Restored \"\(item.source.name)\" to the match report."
         trackReviewDecision("restore", item: item)
     }
@@ -283,11 +340,23 @@ final class TransferViewModel: ObservableObject {
         preview = nil
         analysis = nil
         createdPlaylist = nil
+        transferredItemIDs = []
         destinationPlaylistName = ""
         resetDecisions()
         stopActivity()
         phase = .idle
         statusMessage = "Paste a public Spotify playlist or song link to begin."
+    }
+
+    private func decisionConfirmation(for item: TransferItem, candidateName: String?) -> String {
+        let matchName = candidateName ?? item.source.name
+        if transferredItemIDs.contains(item.id) {
+            return "Selected \"\(matchName)\". The earlier match is already in Apple Music and will not be replaced automatically."
+        }
+        if createdPlaylist != nil {
+            return "Added \"\(matchName)\". Update the Apple Music playlist when you are ready."
+        }
+        return "Added \"\(matchName)\". It will be included when you create the Apple Music playlist."
     }
 
     func replaceSpotifyInput(with input: String) {
@@ -437,11 +506,11 @@ final class TransferViewModel: ObservableObject {
 
     private func shouldTransfer(_ item: TransferItem) -> Bool {
         guard !skippedItemIDs.contains(item.id) else { return false }
-        return item.status == "matched" || approvedReviewItemIDs.contains(item.id)
+        return item.status == "matched" || approvedItemIDs.contains(item.id)
     }
 
     private func resetDecisions() {
-        approvedReviewItemIDs = []
+        approvedItemIDs = []
         skippedItemIDs = []
         selectedCandidatesByItemID = [:]
     }
@@ -601,3 +670,220 @@ final class TransferViewModel: ObservableObject {
         statusMessage = message
     }
 }
+
+#if DEBUG
+extension TransferViewModel {
+    private func applyScreenshotScenarioFromLaunchArguments() {
+        guard let scenario = ProcessInfo.processInfo.arguments
+            .compactMap({ argument -> String? in
+                guard argument.hasPrefix("--screenshot-scenario=") else { return nil }
+                return String(argument.dropFirst("--screenshot-scenario=".count))
+            })
+            .first
+        else {
+            return
+        }
+
+        let fixture = ScreenshotFixture.make()
+        playlistInput = "https://open.spotify.com/playlist/playlistxfer-demo"
+        preview = fixture.preview
+        destinationPlaylistName = AppleMusicLibraryWriter.defaultPlaylistName(for: fixture.preview.playlist.name)
+
+        switch scenario {
+        case "preview":
+            phase = .previewReady
+            statusMessage = "Playlist loaded. Match it with Apple Music when you are ready."
+        case "matching":
+            phase = .analyzing
+            statusMessage = "Matching this playlist against Apple Music..."
+            activity = TransferActivity(
+                kind: .analysis,
+                eyebrow: activityEyebrow(for: .analysis),
+                title: "Matching with Apple Music",
+                detail: "18 of 46 tracks checked.",
+                progress: 43,
+                isEstimated: false
+            )
+        case "match":
+            analysis = fixture.analysis
+            phase = .analysisReady
+            statusMessage = "Apple Music match report ready. Create from ready tracks when you are comfortable."
+        case "created":
+            analysis = fixture.analysis
+            createdPlaylist = CreatedAppleMusicPlaylist(
+                id: "p.screenshot-playlist",
+                name: destinationPlaylistName,
+                url: URL(string: "https://music.apple.com/library/playlist/p.screenshot-playlist"),
+                trackCount: fixture.analysis.summary.confidentMatchCount
+            )
+            phase = .created
+            statusMessage = "Created \(destinationPlaylistName) with \(fixture.analysis.summary.confidentMatchCount) ready tracks."
+        default:
+            break
+        }
+    }
+}
+
+private enum ScreenshotFixture {
+    static func make() -> (preview: PlaylistPreviewResponse, analysis: TransferAnalysis) {
+        let tracks = [
+            spotifyTrack("The Nights", "Avicii", "The Days / Nights"),
+            spotifyTrack("On Top Of The World", "Imagine Dragons", "Night Visions"),
+            spotifyTrack("Heat Waves", "Glass Animals", "Dreamland"),
+            spotifyTrack("Samba Pa Ti", "Santana", "Abraxas"),
+            spotifyTrack("Little Wing", "Jimi Hendrix", "Hendrix In The West"),
+            spotifyTrack("Dreamers - Xaphoon Jones Remix", "Savoir Adore, Xaphoon Jones", "Dreamers"),
+            spotifyTrack("Don't Go Breaking My Heart", "Elton John, Kiki Dee", "Rock Of The Westies"),
+            spotifyTrack("Tiny Dancer", "Elton John", "Almost Famous")
+        ]
+
+        let playlist = SpotifyPlaylist(
+            id: "playlistxfer-demo",
+            name: "Weekend Drive",
+            kind: "playlist",
+            description: "A compact screenshot fixture for App Store captures.",
+            imageUrl: nil,
+            totalItems: 46,
+            source: "screenshot-fixture",
+            limitations: nil
+        )
+
+        let preview = PlaylistPreviewResponse(
+            playlist: playlist,
+            tracks: tracks
+        )
+
+        let analyzedPlaylist = AnalyzedPlaylist(
+            id: playlist.id,
+            name: playlist.name,
+            kind: playlist.kind,
+            imageUrl: playlist.imageUrl,
+            totalItems: playlist.totalItems,
+            originalTotalItems: playlist.totalItems,
+            analyzedTrackCount: 46,
+            partialAnalysis: false,
+            source: playlist.source,
+            limitations: nil
+        )
+
+        let reviewItem = transferItem(
+            index: 5,
+            status: "needs_review",
+            source: spotifyTrack("Breakfast In America - Live At Pavillon de Paris/1979", "Supertramp", "Paris"),
+            candidate: appleCandidate(
+                id: "apple-review-1",
+                name: "Even In the Quietest Moments (Live at Pavillon de Paris - 1979)",
+                artist: "Supertramp",
+                album: "Breakfast in America (Deluxe Edition) [2010 Remaster]"
+            ),
+            confidence: 0.55,
+            reason: "artist-only-fallback",
+            candidates: [
+                appleCandidate(
+                    id: "apple-review-1",
+                    name: "Even In the Quietest Moments (Live at Pavillon de Paris - 1979)",
+                    artist: "Supertramp",
+                    album: "Breakfast in America (Deluxe Edition) [2010 Remaster]"
+                ),
+                appleCandidate(
+                    id: "apple-review-2",
+                    name: "Downstream (Live at Pavillon de Paris - 1979)",
+                    artist: "Supertramp",
+                    album: "Breakfast in America (Deluxe Edition) [2010 Remaster]"
+                ),
+                appleCandidate(
+                    id: "apple-review-3",
+                    name: "The Logical Song (Live at Pavillon de Paris - 1979)",
+                    artist: "Supertramp",
+                    album: "Breakfast in America (Deluxe Edition) [2010 Remaster]"
+                )
+            ]
+        )
+
+        let readyItems = tracks.enumerated().map { offset, track in
+            transferItem(
+                index: offset + 1,
+                status: "matched",
+                source: track,
+                candidate: appleCandidate(
+                    id: "apple-ready-\(offset + 1)",
+                    name: track.name,
+                    artist: track.artistText,
+                    album: track.album ?? "Unknown album"
+                ),
+                confidence: 1,
+                reason: "isrc",
+                candidates: nil
+            )
+        }
+
+        let analysis = TransferAnalysis(
+            playlist: analyzedPlaylist,
+            summary: TransferSummary(
+                matchedCount: 45,
+                unmatchedCount: 0,
+                needsReviewCount: 1,
+                confidentMatchCount: 45,
+                matchRate: 1
+            ),
+            items: [reviewItem] + readyItems,
+            transferId: "screenshot-transfer",
+            transfer: nil,
+            createdApplePlaylistId: nil
+        )
+
+        return (preview, analysis)
+    }
+
+    private static func spotifyTrack(_ name: String, _ artists: String, _ album: String) -> SpotifyTrack {
+        SpotifyTrack(
+            spotifyTrackId: "spotify-\(name.lowercased().replacingOccurrences(of: " ", with: "-"))",
+            isrc: "SAMPLEISRC",
+            name: name,
+            artists: artists.components(separatedBy: ", "),
+            album: album,
+            albumImageUrl: nil,
+            durationMs: 210_000
+        )
+    }
+
+    private static func transferItem(
+        index: Int,
+        status: String,
+        source: SpotifyTrack,
+        candidate: AppleSongCandidate?,
+        confidence: Double?,
+        reason: String,
+        candidates: [AppleSongCandidate]?
+    ) -> TransferItem {
+        TransferItem(
+            index: index,
+            status: status,
+            source: source,
+            confidence: confidence,
+            reason: reason,
+            appleCandidate: candidate,
+            candidateCount: candidates?.count ?? (candidate == nil ? 0 : 1),
+            candidates: candidates
+        )
+    }
+
+    private static func appleCandidate(
+        id: String,
+        name: String,
+        artist: String,
+        album: String
+    ) -> AppleSongCandidate {
+        AppleSongCandidate(
+            id: id,
+            name: name,
+            artistName: artist,
+            albumName: album,
+            durationMs: 210_000,
+            isrc: "SAMPLEISRC",
+            url: URL(string: "https://music.apple.com/us/song/\(id)"),
+            artworkUrl: nil
+        )
+    }
+}
+#endif

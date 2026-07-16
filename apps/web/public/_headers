@@ -16,13 +16,22 @@
   Cache-Control: public, max-age=300
 
 /favicon.svg
-  Cache-Control: public, max-age=86400
+  Cache-Control: public, max-age=300, must-revalidate
+
+/apple-touch-icon.png
+  Cache-Control: public, max-age=300, must-revalidate
 
 /site.webmanifest
-  Cache-Control: public, max-age=86400
+  Cache-Control: public, max-age=300, must-revalidate
 
 /robots.txt
   Cache-Control: public, max-age=3600
 
 /sitemap.xml
+  Cache-Control: public, max-age=3600
+
+/ads.txt
+  Cache-Control: public, max-age=3600
+
+/llms.txt
   Cache-Control: public, max-age=3600

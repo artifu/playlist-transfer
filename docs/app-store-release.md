@@ -1,8 +1,8 @@
 # PlaylistXfer App Store Release
 
-Last reviewed: 2026-07-06
+Last reviewed: 2026-07-13
 
-This is the working release package for the first public iOS build. The final app icon and the final submission click are intentionally deferred until the other release work is complete.
+This is the working release package for the first public iOS build. The current cream two-record app icon is installed in the app bundle, but final visual sign-off and the final submission click are intentionally deferred until the other release work is complete.
 
 ## Release Decisions
 
@@ -97,6 +97,46 @@ Create your playlist when it looks right
 Share from Spotify straight to PlaylistXfer
 ```
 
+## Current Asset Inventory
+
+The approved brand source of truth is the cream two-record designer variant:
+
+```text
+DesignSuggestions/brand-assets/png/cream/icon-1024.png
+DesignSuggestions/brand-assets/png/cream/icon-180.png
+DesignSuggestions/brand-assets/svg/icon-appicon-square-cream.svg
+```
+
+Run this whenever the designer exports a new approved logo package:
+
+```bash
+npm run brand:sync
+npm run brand:check
+```
+
+The sync command updates:
+
+```text
+apps/ios/PlaylistXfer/Assets.xcassets/AppIcon.appiconset
+apps/ios/PlaylistXfer/Assets.xcassets/BrandMark.imageset
+apps/web/public/favicon.svg
+apps/web/public/apple-touch-icon.png
+```
+
+The installed icon uses the approved two-overlapping-records direction from `DesignSuggestions/brand-assets`. The warmer `png/cream` background is used for the current iOS and web builds; `png/paper` remains available as the lighter alternate. Avoid the older `appicon-readable` experiment for shipping unless the design direction changes again.
+
+Raw simulator screenshots for internal review are currently generated in:
+
+```text
+artifacts/ios-screenshots/01-home.png
+artifacts/ios-screenshots/02-preview.png
+artifacts/ios-screenshots/03-matching.png
+artifacts/ios-screenshots/04-match-report.png
+artifacts/ios-screenshots/05-created.png
+```
+
+These screenshots are useful for design review and App Store copy planning. Capture final App Store screenshots from the post-UAT build after the final logo/icon pass.
+
 ## App Privacy Data Inventory
 
 Use this inventory to answer App Store Connect's App Privacy questionnaire. Recheck it against the shipping build before publishing the answers.
@@ -132,6 +172,8 @@ Conservative App Store Connect draft:
 
 The identifier is not connected to a PlaylistXfer account or real-world identity. App Store Connect's wording can change, so confirm the linked/not-linked answer against the questionnaire shown during submission.
 
+The shipping app includes `PrivacyInfo.xcprivacy`. It declares no tracking and no collected-data entries in the manifest itself, plus the approved `CA92.1` required-reason entry for the app's own `UserDefaults` access. The App Store Connect privacy questionnaire must still describe the server-side data inventory above; the privacy manifest does not replace that questionnaire.
+
 ## App Review Notes Draft
 
 ```text
@@ -162,12 +204,15 @@ The app does not stream, download, or host audio. It processes public metadata f
 - Add Privacy, Support, and Marketing URLs.
 - Complete and publish App Privacy answers from the final data inventory.
 - Add final screenshots and final 1024px icon.
+- Confirm the archived app contains `PrivacyInfo.xcprivacy`.
 - Archive the Release build and run Xcode validation.
 - Upload build `1` to App Store Connect.
 - Run an internal TestFlight clean-install test.
 - Add the review notes and select the uploaded build.
 - Resolve export-compliance questions shown for the build.
 - Submit for review.
+
+See `docs/testflight-runbook.md` for the Xcode archive and internal TestFlight flow.
 
 ## Final TestFlight Gate
 
@@ -184,7 +229,17 @@ The app does not stream, download, or host audio. It processes public metadata f
 
 ## Deferred Until Last
 
-- Final logo and app icon export.
+- Final logo approval and any last app icon export.
 - Final screenshot capture after the icon/UI pass.
 - The actual Submit for Review action.
 
+## Local Release Verification
+
+Completed on 2026-07-13:
+
+- Release archive compilation passed for a generic iOS device.
+- Xcode's local store-oriented bundle validation step passed during the archive.
+- The archived app contains the current compiled icon assets and privacy manifest.
+- The Share Extension is embedded with its production bundle identifier.
+
+Still required in Xcode Organizer: create a signed archive, run `Validate App`, upload to App Store Connect, and complete the clean-install TestFlight gate.
