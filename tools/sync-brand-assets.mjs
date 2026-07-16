@@ -11,16 +11,20 @@ const checkOnly = process.argv.includes("--check");
 const brandSource = {
   faviconSvg: "DesignSuggestions/brand-assets/svg/icon-appicon-square-cream.svg",
   icon1024: "DesignSuggestions/brand-assets/png/cream/icon-1024.png",
+  icon512: "DesignSuggestions/brand-assets/png/cream/icon-512.png",
   icon180: "DesignSuggestions/brand-assets/png/cream/icon-180.png"
 };
 
 const exactCopies = [
   [brandSource.faviconSvg, "apps/web/public/favicon.svg"],
   [brandSource.icon180, "apps/web/public/apple-touch-icon.png"],
-  [brandSource.icon1024, "apps/ios/PlaylistXfer/Assets.xcassets/AppIcon.appiconset/Icon-1024.png"]
+  [brandSource.faviconSvg, "apps/web/public/playlistxfer-icon.svg"],
+  [brandSource.icon180, "apps/web/public/playlistxfer-icon-180.png"],
+  [brandSource.icon512, "apps/web/public/playlistxfer-icon-512.png"]
 ];
 
-const resizedPngs = [
+const appIconPngs = [
+  ["apps/ios/PlaylistXfer/Assets.xcassets/AppIcon.appiconset/Icon-1024.png", 1024],
   ["apps/ios/PlaylistXfer/Assets.xcassets/AppIcon.appiconset/Icon-20@1x.png", 20],
   ["apps/ios/PlaylistXfer/Assets.xcassets/AppIcon.appiconset/Icon-20@2x.png", 40],
   ["apps/ios/PlaylistXfer/Assets.xcassets/AppIcon.appiconset/Icon-20@3x.png", 60],
@@ -34,7 +38,11 @@ const resizedPngs = [
   ["apps/ios/PlaylistXfer/Assets.xcassets/AppIcon.appiconset/Icon-60@3x.png", 180],
   ["apps/ios/PlaylistXfer/Assets.xcassets/AppIcon.appiconset/Icon-76@1x.png", 76],
   ["apps/ios/PlaylistXfer/Assets.xcassets/AppIcon.appiconset/Icon-76@2x.png", 152],
-  ["apps/ios/PlaylistXfer/Assets.xcassets/AppIcon.appiconset/Icon-83.5@2x.png", 167],
+  ["apps/ios/PlaylistXfer/Assets.xcassets/AppIcon.appiconset/Icon-83.5@2x.png", 167]
+];
+
+const resizedPngs = [
+  ["apps/web/public/playlistxfer-icon-32.png", 32],
   ["apps/ios/PlaylistXfer/Assets.xcassets/BrandMark.imageset/BrandMark.png", 30],
   ["apps/ios/PlaylistXfer/Assets.xcassets/BrandMark.imageset/BrandMark@2x.png", 60],
   ["apps/ios/PlaylistXfer/Assets.xcassets/BrandMark.imageset/BrandMark@3x.png", 90]
@@ -54,13 +62,21 @@ async function ensureParent(filePath) {
 
 function resizePng(sourcePath, outputPath, size) {
   const result = spawnSync(
-    "sips",
-    ["-s", "format", "png", "-z", String(size), String(size), sourcePath, "--out", outputPath],
+    "ffmpeg",
+    [
+      "-loglevel", "error",
+      "-y",
+      "-i", sourcePath,
+      "-vf", `scale=${size}:${size}:flags=lanczos`,
+      "-frames:v", "1",
+      "-pix_fmt", "rgb24",
+      outputPath
+    ],
     { encoding: "utf8" }
   );
 
   if (result.status !== 0) {
-    throw new Error(`sips failed for ${outputPath}: ${result.stderr || result.stdout}`);
+    throw new Error(`ffmpeg failed for ${outputPath}: ${result.stderr || result.stdout}`);
   }
 }
 
@@ -71,6 +87,13 @@ async function buildExpectedAssets(destinationRoot) {
     const outputPath = path.join(destinationRoot, targetRelative);
     await ensureParent(outputPath);
     await copyFile(abs(sourceRelative), outputPath);
+    expected.push([targetRelative, outputPath]);
+  }
+
+  for (const [targetRelative, size] of appIconPngs) {
+    const outputPath = path.join(destinationRoot, targetRelative);
+    await ensureParent(outputPath);
+    resizePng(abs(brandSource.icon1024), outputPath, size);
     expected.push([targetRelative, outputPath]);
   }
 

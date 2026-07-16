@@ -4,13 +4,19 @@
   "description": "Transfer public Spotify playlists and songs to Apple Music after reviewing matches.",
   "icons": [
     {
-      "src": "/apple-touch-icon.png",
+      "src": "/playlistxfer-icon-180.png",
       "sizes": "180x180",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/favicon.svg",
+      "src": "/playlistxfer-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/playlistxfer-icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"
