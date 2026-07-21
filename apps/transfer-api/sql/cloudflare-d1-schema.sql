@@ -45,3 +45,17 @@ create table if not exists apple_isrc_cache (
 );
 
 create index if not exists idx_apple_isrc_cache_expires_at on apple_isrc_cache (expires_at);
+
+create table if not exists analytics_events (
+  id text primary key,
+  event text not null,
+  anonymous_session text,
+  properties_json text not null,
+  observed_at text not null
+);
+
+create index if not exists idx_analytics_events_observed_at
+  on analytics_events (observed_at);
+
+create index if not exists idx_analytics_events_event_observed_at
+  on analytics_events (event, observed_at);

@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { readJsonBody, sendJson } from "./http.mjs";
 
 const ALLOWED_EVENTS = new Set([
+  "transfer_form_started",
   "apple_connect_started",
   "apple_connect_succeeded",
   "apple_connect_failed",
@@ -26,6 +27,9 @@ const SAFE_PROPERTY_KEYS = new Set([
   "durationMs",
   "errorCategory",
   "errorMessage",
+  "funnelOutcome",
+  "funnelStage",
+  "funnelStep",
   "hasDeveloperToken",
   "host",
   "itemIndex",
@@ -38,6 +42,7 @@ const SAFE_PROPERTY_KEYS = new Set([
   "readyCount",
   "reviewAction",
   "reviewCount",
+  "sourceSurface",
   "totalTracks",
   "transferId",
   "withIsrcCount"

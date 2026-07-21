@@ -7,6 +7,7 @@ import {
   findTransfer,
   loadTransferReport,
   markTransferCreated,
+  saveAnalyticsEvent,
   serializeJob,
   updateJob
 } from "./d1-storage.js";
@@ -30,6 +31,7 @@ const ANALYSIS_CHUNK_SIZE = 16;
 const ANALYSIS_FALLBACK_CONCURRENCY = 4;
 
 const ALLOWED_EVENTS = new Set([
+  "transfer_form_started",
   "apple_connect_started",
   "apple_connect_succeeded",
   "apple_connect_failed",
@@ -54,6 +56,9 @@ const SAFE_EVENT_PROPERTY_KEYS = new Set([
   "durationMs",
   "errorCategory",
   "errorMessage",
+  "funnelOutcome",
+  "funnelStage",
+  "funnelStep",
   "hasDeveloperToken",
   "host",
   "itemIndex",
@@ -66,6 +71,7 @@ const SAFE_EVENT_PROPERTY_KEYS = new Set([
   "readyCount",
   "reviewAction",
   "reviewCount",
+  "sourceSurface",
   "totalTracks",
   "transferId",
   "withIsrcCount"
@@ -590,13 +596,20 @@ async function handleUsageEvent(env, request) {
   }
 
   const event = String(body.event ?? "unknown").trim();
-  console.log(JSON.stringify({
+  const payload = {
     logType: "playlist_transfer_event",
     event: ALLOWED_EVENTS.has(event) ? event : "unknown",
     anonymousSession: await sessionHash(sessionIdFromRequest(request), env.TRANSFER_API_ANALYTICS_SALT),
     observedAt: new Date().toISOString(),
     properties: ALLOWED_EVENTS.has(event) ? safeEventProperties(body.properties) : {}
-  }));
+  };
+
+  console.log(JSON.stringify(payload));
+  try {
+    await saveAnalyticsEvent(env, payload);
+  } catch (error) {
+    console.warn("analytics_event_persistence_failed", errorMessage(error));
+  }
 
   return noStoreJson(202, { ok: true });
 }

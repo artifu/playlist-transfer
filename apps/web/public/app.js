@@ -37,6 +37,7 @@ let toastTimer = null;
 let musicKitLoadPromise = null;
 let progressPulseTimer = null;
 let displayedProgress = 0;
+let formStartTracked = false;
 
 function esc(value) {
   return String(value ?? "")
@@ -1283,6 +1284,7 @@ function startAnotherTransfer() {
   state.analysis = null;
   state.analysisInput = null;
   clearStoredTransfer();
+  formStartTracked = false;
   fallbackGuide.hidden = true;
   resetProgress();
   renderStartState();
@@ -1305,8 +1307,16 @@ form.addEventListener("submit", (event) => {
   previewPlaylist();
 });
 
-input.addEventListener("input", () => {
+input.addEventListener("input", (event) => {
   const hasInput = Boolean(input.value.trim());
+  if (hasInput && !formStartTracked) {
+    formStartTracked = true;
+    trackEvent("transfer_form_started", {
+      sourceSurface: event.inputType === "insertFromPaste" ? "paste" : "typing"
+    });
+  } else if (!hasInput) {
+    formStartTracked = false;
+  }
   state.preview = null;
   state.previewInput = null;
   state.analysis = null;

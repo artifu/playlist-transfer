@@ -40,7 +40,16 @@ const SCHEMA_STATEMENTS = [
     created_at text not null,
     expires_at text not null
   )`,
-  `create index if not exists idx_apple_isrc_cache_expires_at on apple_isrc_cache (expires_at)`
+  `create index if not exists idx_apple_isrc_cache_expires_at on apple_isrc_cache (expires_at)`,
+  `create table if not exists analytics_events (
+    id text primary key,
+    event text not null,
+    anonymous_session text,
+    properties_json text not null,
+    observed_at text not null
+  )`,
+  `create index if not exists idx_analytics_events_observed_at on analytics_events (observed_at)`,
+  `create index if not exists idx_analytics_events_event_observed_at on analytics_events (event, observed_at)`
 ];
 
 let schemaReady = false;
@@ -48,6 +57,7 @@ let lastCleanupAt = 0;
 
 const DEFAULT_TRANSFER_RETENTION_DAYS = 7;
 const CLEANUP_INTERVAL_MS = 15 * 60 * 1000;
+const ANALYTICS_RETENTION_DAYS = 90;
 
 export function requireD1(env) {
   if (!env.PLAYLIST_TRANSFER_DB) {
@@ -93,9 +103,34 @@ async function cleanupExpiredRecords(env) {
   await db.batch([
     db.prepare("delete from transfers where updated_at < ?").bind(transferRetentionCutoff(env)),
     db.prepare("delete from jobs where expires_at < ?").bind(new Date(now).toISOString()),
-    db.prepare("delete from apple_isrc_cache where expires_at < ?").bind(new Date(now).toISOString())
+    db.prepare("delete from apple_isrc_cache where expires_at < ?").bind(new Date(now).toISOString()),
+    db.prepare("delete from analytics_events where observed_at < ?").bind(
+      new Date(now - ANALYTICS_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString()
+    )
   ]);
   lastCleanupAt = now;
+}
+
+export async function saveAnalyticsEvent(env, payload) {
+  await ensureSchema(env);
+  await requireD1(env)
+    .prepare(
+      `insert into analytics_events (
+        id,
+        event,
+        anonymous_session,
+        properties_json,
+        observed_at
+      ) values (?, ?, ?, ?, ?)`
+    )
+    .bind(
+      randomId(),
+      payload.event,
+      payload.anonymousSession,
+      JSON.stringify(payload.properties || {}),
+      payload.observedAt
+    )
+    .run();
 }
 
 function clone(value) {
