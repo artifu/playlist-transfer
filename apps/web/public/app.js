@@ -122,9 +122,10 @@ function renderStartState({ hasInput = false } = {}) {
       <p>We will detect whether it is a playlist or song, then find the Apple Music match.</p>
     `
     : `
-      <p class="eyebrow">Preview first</p>
-      <h2>See the matches before anything moves.</h2>
-      <p>Load a Spotify playlist or song, check the Apple Music match, and move only what you trust.</p>
+      <p class="eyebrow">Spotify → Apple Music</p>
+      <h2>Transfer your Spotify playlists with confidence.</h2>
+      <p>Preview every match, fix anything that looks wrong, then create your Apple Music playlist.</p>
+      <button class="primary-action landing-start-action" type="button" data-start-transfer="true" data-analytics-cta="homepage_empty_state">Start your transfer</button>
     `;
 }
 
@@ -1325,7 +1326,7 @@ input.addEventListener("input", (event) => {
   fallbackGuide.hidden = true;
   resetProgress();
   renderStartState({ hasInput });
-  setStatus(hasInput ? "New link ready. Tap the arrow to preview it." : "Paste a playlist or song link to begin.");
+  setStatus(hasInput ? "New link ready. Select Preview to continue." : "Paste a playlist or song link to begin.");
   refreshActions();
 });
 
@@ -1335,6 +1336,13 @@ createButton.addEventListener("click", createPlaylist);
 connectAppleButton.addEventListener("click", toggleAppleMusicConnection);
 
 results.addEventListener("click", async (event) => {
+  const startTransfer = event.target instanceof Element ? event.target.closest("[data-start-transfer]") : null;
+  if (startTransfer) {
+    input.scrollIntoView({ behavior: "smooth", block: "center" });
+    input.focus({ preventScroll: true });
+    return;
+  }
+
   const restoreTransfer = event.target instanceof Element ? event.target.closest("[data-restore-transfer]") : null;
   if (restoreTransfer) {
     await restoreStoredTransfer();

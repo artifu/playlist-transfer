@@ -63,10 +63,10 @@
       <form id="transfer-form" class="transfer-form">
         <div class="input-card">
           <span class="service-pill spotify">S</span>
-          <label class="input-label" for="playlist-input">Spotify playlist or song URL</label>
+          <label class="input-label" for="playlist-input">Spotify link</label>
           <div class="input-row">
-            <input id="playlist-input" name="playlist" type="url" inputmode="url" placeholder="Paste a Spotify playlist or song link" autocomplete="off" />
-            <button class="inline-preview-action" id="preview-button" type="button" aria-label="Preview Spotify link">→</button>
+            <input id="playlist-input" name="playlist" type="url" inputmode="url" placeholder="Paste link" autocomplete="off" />
+            <button class="inline-preview-action" id="preview-button" type="button">Preview</button>
           </div>
         </div>
 
@@ -120,17 +120,18 @@
 
     <section class="result-panel" aria-live="polite">
       <div class="result-empty" id="results">
-        <p class="eyebrow">Preview first</p>
-        <h2>See the matches before anything moves.</h2>
-        <p>Load a Spotify playlist or song, check the Apple Music match, and move only what you trust.</p>
+        <p class="eyebrow">Spotify → Apple Music</p>
+        <h2>Transfer your Spotify playlists with confidence.</h2>
+        <p>Preview every match, fix anything that looks wrong, then create your Apple Music playlist.</p>
+        <button class="primary-action landing-start-action" type="button" data-start-transfer="true" data-analytics-cta="homepage_empty_state">Start your transfer</button>
       </div>
 
       <section class="fallback-guide" id="fallback-guide" hidden>
-        <h3>If a Spotify link will not load</h3>
+        <h3>Having trouble loading a Spotify playlist?</h3>
         <ol>
-          <li>Open the playlist in Spotify.</li>
-          <li>Copy the tracks into a public playlist you can share.</li>
-          <li>Paste the new Spotify playlist link here.</li>
+          <li>Make sure the playlist is public.</li>
+          <li>In Spotify, select <strong>Share → Copy link to playlist</strong>.</li>
+          <li>Paste the link here and try again.</li>
         </ol>
       </section>
     </section>
