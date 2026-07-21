@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8103940626356369" crossorigin="anonymous"></script>
-  <title>PlaylistXfer - Move Spotify playlists and songs to Apple Music</title>
-  <meta name="description" content="Paste a public Spotify playlist or song link, review the Apple Music matches, and move only the tracks you trust." />
+  <title>Transfer Spotify Playlists to Apple Music - PlaylistXfer</title>
+  <meta name="description" content="Paste a public Spotify playlist or song link, preview every Apple Music match, and transfer only when everything looks right." />
   <meta name="application-name" content="PlaylistXfer" />
   <meta name="apple-mobile-web-app-title" content="PlaylistXfer" />
   <meta name="robots" content="index,follow" />
@@ -13,12 +13,12 @@
   <link rel="canonical" href="https://playlistxfer.com/" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://playlistxfer.com/" />
-  <meta property="og:title" content="PlaylistXfer - Move Spotify playlists and songs to Apple Music" />
-  <meta property="og:description" content="Paste a Spotify playlist or song link, review its Apple Music match, then move it cleanly." />
+  <meta property="og:title" content="Transfer Spotify Playlists to Apple Music - PlaylistXfer" />
+  <meta property="og:description" content="Preview every Apple Music match before you transfer your Spotify playlist." />
   <meta property="og:image" content="https://playlistxfer.com/playlistxfer-icon-512.png" />
   <meta name="twitter:card" content="summary" />
-  <meta name="twitter:title" content="PlaylistXfer - Move Spotify playlists and songs to Apple Music" />
-  <meta name="twitter:description" content="Paste a Spotify playlist or song link, review its Apple Music match, then move it cleanly." />
+  <meta name="twitter:title" content="Transfer Spotify Playlists to Apple Music - PlaylistXfer" />
+  <meta name="twitter:description" content="Preview every Apple Music match before you transfer your Spotify playlist." />
   <meta name="twitter:image" content="https://playlistxfer.com/playlistxfer-icon-512.png" />
   <script type="application/ld+json">
     {
@@ -27,7 +27,7 @@
       "name": "PlaylistXfer",
       "applicationCategory": "MusicApplication",
       "operatingSystem": "Web, iOS",
-      "description": "PlaylistXfer accepts public Spotify playlist and song links, finds their Apple Music matches, and moves only the tracks the user approves.",
+      "description": "PlaylistXfer accepts public Spotify playlist and song links, previews their Apple Music matches, and transfers only the tracks the user approves.",
       "url": "https://playlistxfer.com/",
       "image": "https://playlistxfer.com/playlistxfer-icon-512.png",
       "offers": {
@@ -52,12 +52,12 @@
         <img src="/playlistxfer-icon.svg" alt="" class="brand-mark" />
         <div>
           <p class="eyebrow">Spotify to Apple Music</p>
-          <h1 class="brand-title"><span>Playlist</span><span>Xfer</span></h1>
+          <div class="brand-title" aria-label="PlaylistXfer"><span>Playlist</span><span>Xfer</span></div>
         </div>
       </div>
 
       <p class="hero-copy">
-        Paste a public Spotify playlist or song. PlaylistXfer finds the Apple Music matches and asks for access only when you are ready to move them.
+        Paste a public Spotify playlist or song. Preview its Apple Music matches, then connect only when you are ready to create the playlist.
       </p>
 
       <form id="transfer-form" class="transfer-form">
@@ -121,9 +121,45 @@
     <section class="result-panel" aria-live="polite">
       <div class="result-empty" id="results">
         <p class="eyebrow">Spotify → Apple Music</p>
-        <h2>Transfer your Spotify playlists with confidence.</h2>
+        <h1 class="landing-title">Transfer Spotify playlists to Apple Music <span class="seamless-phrase">— seamlessly.</span></h1>
         <p>Preview every match, fix anything that looks wrong, then create your Apple Music playlist.</p>
-        <button class="primary-action landing-start-action" type="button" data-start-transfer="true" data-analytics-cta="homepage_empty_state">Start your transfer</button>
+        <button class="primary-action landing-start-action" type="button" data-start-transfer="true" data-analytics-cta="homepage_empty_state">Preview my playlist</button>
+
+        <div class="landing-secondary">
+          <ul class="trust-points" aria-label="PlaylistXfer benefits">
+            <li>No Spotify login required</li>
+            <li>Review every match</li>
+            <li>Apple Music access only at the final step</li>
+          </ul>
+
+          <div class="landing-proof-grid">
+            <section class="example-preview" aria-labelledby="example-preview-title">
+              <div class="support-card-heading">
+                <div>
+                  <p class="eyebrow">Example preview</p>
+                  <h2 id="example-preview-title">Know what will transfer.</h2>
+                </div>
+                <span class="example-count">3 tracks</span>
+              </div>
+              <div class="example-track ready"><span aria-hidden="true">✓</span><strong>Exact match</strong><small>Ready to transfer</small></div>
+              <div class="example-track review"><span aria-hidden="true">!</span><strong>Review suggested</strong><small>Choose the right version</small></div>
+              <div class="example-track missing"><span aria-hidden="true">×</span><strong>No match found</strong><small>Skipped automatically</small></div>
+            </section>
+
+            <aside class="app-store-card" aria-label="PlaylistXfer iPhone app">
+              <img src="/playlistxfer-icon.svg" alt="" />
+              <div>
+                <p class="eyebrow">PlaylistXfer for iPhone</p>
+                <h2>Take your transfers with you.</h2>
+                <p>The native app is being prepared for the App Store.</p>
+              </div>
+              <span class="app-store-placeholder">App Store link coming soon</span>
+            </aside>
+          </div>
+
+          <!-- Reserved for one responsive manual ad after AdSense approval and consent setup. -->
+          <aside class="landing-ad-slot" data-ad-placement="landing-support" aria-label="Advertisement" hidden></aside>
+        </div>
       </div>
 
       <section class="fallback-guide" id="fallback-guide" hidden>
