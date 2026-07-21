@@ -113,50 +113,6 @@ function analyzedScopeText(data) {
   return `${analyzed} readable tracks`;
 }
 
-function landingContentHtml() {
-  return `
-    <p class="eyebrow">Spotify → Apple Music</p>
-    <h1 class="landing-title">Transfer Spotify playlists to Apple Music <span class="seamless-phrase">— seamlessly.</span></h1>
-    <p>Preview every match, fix anything that looks wrong, then create your Apple Music playlist.</p>
-    <button class="primary-action landing-start-action" type="button" data-start-transfer="true" data-analytics-cta="homepage_empty_state">Preview my playlist</button>
-
-    <div class="landing-secondary">
-      <ul class="trust-points" aria-label="PlaylistXfer benefits">
-        <li>No Spotify login required</li>
-        <li>Review every match</li>
-        <li>Apple Music access only at the final step</li>
-      </ul>
-
-      <div class="landing-proof-grid">
-        <section class="example-preview" aria-labelledby="example-preview-title">
-          <div class="support-card-heading">
-            <div>
-              <p class="eyebrow">Example preview</p>
-              <h2 id="example-preview-title">Know what will transfer.</h2>
-            </div>
-            <span class="example-count">3 tracks</span>
-          </div>
-          <div class="example-track ready"><span aria-hidden="true">✓</span><strong>Exact match</strong><small>Ready to transfer</small></div>
-          <div class="example-track review"><span aria-hidden="true">!</span><strong>Review suggested</strong><small>Choose the right version</small></div>
-          <div class="example-track missing"><span aria-hidden="true">×</span><strong>No match found</strong><small>Skipped automatically</small></div>
-        </section>
-
-        <aside class="app-store-card" aria-label="PlaylistXfer iPhone app">
-          <img src="/playlistxfer-icon.svg" alt="" />
-          <div>
-            <p class="eyebrow">PlaylistXfer for iPhone</p>
-            <h2>Take your transfers with you.</h2>
-            <p>The native app is being prepared for the App Store.</p>
-          </div>
-          <span class="app-store-placeholder">App Store link coming soon</span>
-        </aside>
-      </div>
-
-      <aside class="landing-ad-slot" data-ad-placement="landing-support" aria-label="Advertisement" hidden></aside>
-    </div>
-  `;
-}
-
 function renderStartState({ hasInput = false } = {}) {
   results.className = "result-empty";
   results.innerHTML = hasInput
@@ -165,7 +121,12 @@ function renderStartState({ hasInput = false } = {}) {
       <h2>Preview this link first.</h2>
       <p>We will detect whether it is a playlist or song, then find the Apple Music match.</p>
     `
-    : landingContentHtml();
+    : `
+      <p class="eyebrow">Spotify → Apple Music</p>
+      <h2>Transfer your Spotify playlists with confidence.</h2>
+      <p>Preview every match, fix anything that looks wrong, then create your Apple Music playlist.</p>
+      <button class="primary-action landing-start-action" type="button" data-start-transfer="true" data-analytics-cta="homepage_empty_state">Start your transfer</button>
+    `;
 }
 
 function renderStoredTransferPrompt() {
