@@ -8,7 +8,7 @@ This is the working release package for the first public iOS build. The current 
 
 - Product name: `PlaylistXfer`
 - Version: `1.0`
-- Build: `1`
+- Build: `13`
 - Minimum OS: iOS 17
 - Devices: iPhone only for version 1.0
 - Primary category: Music
@@ -223,7 +223,7 @@ The app does not stream, download, or host audio. It processes public metadata f
 - Add final screenshots and final 1024px icon.
 - Confirm the archived app contains `PrivacyInfo.xcprivacy`.
 - Archive the Release build and run Xcode validation.
-- Upload build `1` to App Store Connect.
+- Upload build `13` to App Store Connect.
 - Run an internal TestFlight clean-install test.
 - Add the review notes and select the uploaded build.
 - Resolve export-compliance questions shown for the build.
