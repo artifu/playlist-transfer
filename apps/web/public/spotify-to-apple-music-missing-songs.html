@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8103940626356369" crossorigin="anonymous"></script>
+  <title>Why Songs Go Missing When Moving Spotify to Apple Music</title>
+  <meta name="description" content="Learn why Spotify songs can be missing in Apple Music transfers and how to handle local files, alternate editions, storefront differences, and ambiguous matches." />
+  <meta name="robots" content="index,follow" />
+  <meta name="theme-color" content="#fffaf0" />
+  <link rel="canonical" href="https://playlistxfer.com/spotify-to-apple-music-missing-songs" />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://playlistxfer.com/spotify-to-apple-music-missing-songs" />
+  <meta property="og:title" content="Why Songs Go Missing When Moving Spotify to Apple Music" />
+  <meta property="og:description" content="A practical guide to local files, regional availability, alternate versions, metadata conflicts, and safe transfer decisions." />
+  <meta property="og:image" content="https://playlistxfer.com/playlistxfer-icon-512.png" />
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "TechArticle",
+      "headline": "Why songs go missing when moving Spotify to Apple Music",
+      "description": "A troubleshooting guide for songs that are unavailable, ambiguous, or represented differently across Spotify and Apple Music.",
+      "dateModified": "2026-07-22",
+      "author": {
+        "@type": "Organization",
+        "name": "PlaylistXfer"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "PlaylistXfer"
+      },
+      "mainEntityOfPage": "https://playlistxfer.com/spotify-to-apple-music-missing-songs"
+    }
+  </script>
+  <link rel="icon" href="/playlistxfer-icon.svg" type="image/svg+xml" sizes="any" />
+  <link rel="icon" href="/playlistxfer-icon-32.png" type="image/png" sizes="32x32" />
+  <link rel="stylesheet" href="/styles.css?v=20260722-content" />
+  <script defer src="/config.js"></script>
+  <script defer src="/analytics.js"></script>
+</head>
+<body>
+  <main class="legal-page content-page guide-page">
+    <nav class="article-nav" aria-label="Primary">
+      <a class="legal-back" href="/guides">&larr; All guides</a>
+      <div>
+        <a href="/guides">Guides</a>
+        <a href="/how-it-works">How it works</a>
+        <a href="/faq">FAQ</a>
+      </div>
+    </nav>
+
+    <article class="legal-document guide-article">
+      <p class="eyebrow">Troubleshooting guide · 7 minute read</p>
+      <h1>Why songs go missing during a transfer.</h1>
+      <p class="guide-deck">A missing result does not always mean the song is absent from Apple Music. It means PlaylistXfer could not find a candidate that was safe enough to select automatically.</p>
+      <p class="guide-byline">PlaylistXfer editorial · Last reviewed July 22, 2026</p>
+
+      <div class="guide-callout">
+        <strong>Missing is a safety decision</strong>
+        <p>When catalog evidence is weak or contradictory, PlaylistXfer leaves the track out. That is more honest than filling the playlist with a live take, cover, clean edit, or unrelated recording.</p>
+      </div>
+
+      <nav class="guide-toc" aria-label="On this page">
+        <strong>On this page</strong>
+        <a href="#common-causes">Common causes</a>
+        <a href="#status-meaning">What each status means</a>
+        <a href="#version-check">Check alternate versions</a>
+        <a href="#recovery">Recovery workflow</a>
+        <a href="#not-transferable">What cannot transfer directly</a>
+      </nav>
+
+      <section class="guide-section" id="common-causes">
+        <h2>Six common reasons a track is not ready</h2>
+        <div class="signal-stack">
+          <div class="signal-row">
+            <span>1</span>
+            <div>
+              <strong>Local files</strong>
+              <p>Spotify can play audio stored on your own device. That file is not a Spotify catalog recording, so a catalog-to-catalog transfer cannot copy it into Apple Music automatically.</p>
+            </div>
+          </div>
+          <div class="signal-row">
+            <span>2</span>
+            <div>
+              <strong>Different regional availability</strong>
+              <p>Music rights vary by country. A recording available to your Spotify account may not appear in the Apple Music storefront used for the destination account.</p>
+            </div>
+          </div>
+          <div class="signal-row">
+            <span>3</span>
+            <div>
+              <strong>A release was replaced</strong>
+              <p>Labels sometimes remove an album and publish a new catalog edition. The same song may return with a different catalog ID, album title, artwork, or date.</p>
+            </div>
+          </div>
+          <div class="signal-row">
+            <span>4</span>
+            <div>
+              <strong>Only another version is available</strong>
+              <p>Apple Music may have a remaster, compilation appearance, clean edit, or live performance while the exact Spotify edition is unavailable.</p>
+            </div>
+          </div>
+          <div class="signal-row">
+            <span>5</span>
+            <div>
+              <strong>Metadata is incomplete or ambiguous</strong>
+              <p>Generic titles, inconsistent featured-artist credits, and missing recording identifiers can produce several equally plausible candidates.</p>
+            </div>
+          </div>
+          <div class="signal-row">
+            <span>6</span>
+            <div>
+              <strong>The item is not a standard music track</strong>
+              <p>Podcast episodes, audiobooks, video items, and other Spotify-specific media are not equivalent to Apple Music catalog songs.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="guide-section" id="status-meaning">
+        <h2>First, read the status correctly</h2>
+        <div class="status-explainer">
+          <div class="ready">
+            <strong>Ready</strong>
+            <p>A strong Apple Music candidate exists and can be included without another decision.</p>
+          </div>
+          <div class="review">
+            <strong>Review</strong>
+            <p>One or more plausible candidates exist, but the version or metadata needs your judgment.</p>
+          </div>
+          <div class="missing">
+            <strong>Missing</strong>
+            <p>No candidate crossed the current confidence threshold. Nothing is substituted silently.</p>
+          </div>
+        </div>
+        <p>Review and missing are different. A review row gives you a candidate to inspect. A missing row says the catalog search did not produce a safe choice under the current conditions.</p>
+      </section>
+
+      <section class="guide-section" id="version-check">
+        <h2>When another edition may be acceptable</h2>
+        <div class="guide-table-wrap">
+          <table class="guide-table">
+            <thead>
+              <tr>
+                <th>Available candidate</th>
+                <th>Main risk</th>
+                <th>What to verify</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Compilation appearance</td>
+                <td>Different album artwork and date</td>
+                <td>Artist, ISRC when available, and duration</td>
+              </tr>
+              <tr>
+                <td>Remastered release</td>
+                <td>Different mastering</td>
+                <td>Remaster year, edition label, and runtime</td>
+              </tr>
+              <tr>
+                <td>Clean edit</td>
+                <td>Lyrics differ from the source</td>
+                <td>Content rating and title suffix</td>
+              </tr>
+              <tr>
+                <td>Radio edit</td>
+                <td>Shortened arrangement</td>
+                <td>Duration and release name</td>
+              </tr>
+              <tr>
+                <td>Live version</td>
+                <td>Different performance</td>
+                <td>Venue, “live” label, album, and duration</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="guide-section" id="recovery">
+        <h2>A safe recovery workflow</h2>
+        <ol class="guide-checklist">
+          <li><strong>Open the source track in Spotify.</strong> Confirm its complete title, artist credit, album, and version markers.</li>
+          <li><strong>Search Apple Music manually.</strong> Try the artist plus the core title, then inspect albums and alternate editions instead of choosing the first result.</li>
+          <li><strong>Compare duration and version labels.</strong> A close duration supports a match; a large difference deserves caution.</li>
+          <li><strong>Choose based on your playlist’s purpose.</strong> A compilation copy may be fine for casual listening, while a carefully sequenced album playlist may need the exact edition.</li>
+          <li><strong>Skip if the evidence is weak.</strong> Finish the transfer, then add the correct track manually if it becomes available.</li>
+        </ol>
+        <div class="guide-note">
+          <strong>Do not chase a 100% result.</strong>
+          <p>A smaller accurate playlist is easier to repair than a complete-looking playlist containing wrong versions that go unnoticed.</p>
+        </div>
+      </section>
+
+      <section class="guide-section" id="not-transferable">
+        <h2>Items that need a different workflow</h2>
+        <p>Local files cannot become Apple Music catalog entries through PlaylistXfer. If you own the audio file, use Apple’s supported library or sync workflow separately. Podcasts and other non-song items also require their destination service rather than an Apple Music playlist.</p>
+        <p>PlaylistXfer transfers catalog references, not audio. It never downloads a Spotify track and uploads it elsewhere.</p>
+      </section>
+
+      <section class="guide-section source-section">
+        <h2>Official references</h2>
+        <ul class="source-list">
+          <li><a href="https://support.spotify.com/na-en/article/local-files/">Spotify Support: local files</a></li>
+          <li><a href="https://developer.apple.com/documentation/applemusicapi/">Apple Music API overview and storefront catalog behavior</a></li>
+          <li><a href="https://developer.apple.com/documentation/applemusicapi/search">Apple Music API catalog search</a></li>
+        </ul>
+      </section>
+
+      <aside class="related-guides" aria-labelledby="related-missing-guides">
+        <h2 id="related-missing-guides">Continue reading</h2>
+        <a href="/how-playlist-matching-works">How playlist matching actually works →</a>
+        <a href="/spotify-playlist-not-loading">Troubleshoot a Spotify playlist that will not load →</a>
+      </aside>
+
+      <div class="content-cta">
+        <a class="button-link" href="/" data-analytics-cta="missing_songs_guide">Preview a Spotify link</a>
+        <a class="soft-link" href="/guides">Browse all guides</a>
+      </div>
+    </article>
+  </main>
+</body>
+</html>

@@ -14,48 +14,182 @@
   <meta property="og:title" content="How PlaylistXfer Works" />
   <meta property="og:description" content="Preview first, match every track, review uncertain results, then create a clean Apple Music playlist." />
   <meta property="og:image" content="https://playlistxfer.com/playlistxfer-icon-512.png" />
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "TechArticle",
+      "headline": "How PlaylistXfer works",
+      "description": "A detailed explanation of public Spotify preview, Apple Music matching, human review, authorization, playlist creation, and temporary transfer data.",
+      "dateModified": "2026-07-22",
+      "author": {
+        "@type": "Organization",
+        "name": "PlaylistXfer"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "PlaylistXfer"
+      },
+      "mainEntityOfPage": "https://playlistxfer.com/how-it-works"
+    }
+  </script>
   <link rel="icon" href="/playlistxfer-icon.svg" type="image/svg+xml" sizes="any" />
   <link rel="icon" href="/playlistxfer-icon-32.png" type="image/png" sizes="32x32" />
-  <link rel="stylesheet" href="/styles.css?v=20260721" />
+  <link rel="stylesheet" href="/styles.css?v=20260722-content" />
   <script defer src="/config.js"></script>
   <script defer src="/analytics.js"></script>
 </head>
 <body>
-  <main class="legal-page content-page">
-    <a class="legal-back" href="/">&larr; Back to PlaylistXfer</a>
-    <article class="legal-document">
-      <p class="eyebrow">How it works</p>
-      <h1>Preview first. Match carefully. Create only after review.</h1>
-      <p class="legal-updated">The product rule is simple: nothing moves into Apple Music until you approve the transfer.</p>
+  <main class="legal-page content-page guide-page">
+    <nav class="article-nav" aria-label="Primary">
+      <a class="legal-back" href="/guides">&larr; All guides</a>
+      <div>
+        <a href="/guides">Guides</a>
+        <a href="/how-it-works" aria-current="page">How it works</a>
+        <a href="/faq">FAQ</a>
+      </div>
+    </nav>
 
-      <section class="content-grid">
+    <article class="legal-document guide-article">
+      <p class="eyebrow">Product architecture · 8 minute read</p>
+      <h1>Preview first. Match carefully. Create only after review.</h1>
+      <p class="guide-deck">PlaylistXfer separates reading, analysis, review, authorization, and creation so you can see the result before granting write access.</p>
+      <p class="guide-byline">PlaylistXfer editorial · Last reviewed July 22, 2026</p>
+
+      <section class="content-grid process-overview">
         <div>
           <h2>1. Public Spotify preview</h2>
-          <p>PlaylistXfer reads public Spotify playlist metadata without asking for your Spotify login in the MVP flow. If Spotify blocks a public link, the app shows a recovery path instead of pretending the transfer worked.</p>
+          <p>PlaylistXfer checks the submitted URL and reads metadata that Spotify exposes through the public link. No Spotify login is requested.</p>
         </div>
         <div>
           <h2>2. Apple Music matching</h2>
-          <p>The match report uses track identifiers and metadata signals. Strong matches are marked ready. Fuzzy matches are kept in review. Missing tracks stay out of the final playlist.</p>
+          <p>Each source row is compared with the destination storefront using identifiers and metadata. The output is a report, not yet a playlist.</p>
         </div>
         <div>
-          <h2>3. Late Apple authorization</h2>
-          <p>Apple Music access is requested only when you create the destination playlist. That keeps browsing and analysis lightweight and avoids asking for account access before it is needed.</p>
+          <h2>3. Human review</h2>
+          <p>Strong matches are ready. Ambiguous candidates wait for a decision. Missing rows stay excluded instead of receiving a weak substitute.</p>
         </div>
         <div>
-          <h2>4. Clean transfer receipt</h2>
-          <p>After creation, PlaylistXfer shows what moved, what stayed in review, and what did not move. The goal is a trustworthy receipt, not a mystery transfer.</p>
+          <h2>4. Authorized creation</h2>
+          <p>Only then does PlaylistXfer request Apple Music access, create the playlist, add approved tracks, and return a receipt.</p>
         </div>
       </section>
 
-      <h2>Why not require Spotify login?</h2>
-      <p>The MVP focuses on public Spotify playlist links because they are easier for users to share and test. Private playlist support may come later if the product needs it, but it would require Spotify account authorization.</p>
+      <nav class="guide-toc" aria-label="On this page">
+        <strong>Detailed flow</strong>
+        <a href="#preview">Preview</a>
+        <a href="#matching">Matching</a>
+        <a href="#review">Review</a>
+        <a href="#authorization">Authorization</a>
+        <a href="#creation">Creation and receipt</a>
+        <a href="#data">Data boundaries</a>
+      </nav>
 
-      <h2>What happens to review rows?</h2>
-      <p>Review rows are not transferred by default. You can approve a suggested match, choose another candidate when available, or skip the track.</p>
+      <section class="guide-section" id="preview">
+        <h2>Stage 1: validate and preview the Spotify source</h2>
+        <p>The first step determines whether the pasted value identifies a supported Spotify playlist or track. For a playlist, the preview verifies the title, owner, artwork, size, and initial track metadata before any expensive matching work begins.</p>
+        <p>This stage is intentionally read-only. PlaylistXfer does not request Spotify credentials and cannot edit the source. If a link depends on your signed-in Spotify session, the preview may fail even though it opens normally for you.</p>
+        <div class="guide-note">
+          <strong>Why this separation helps:</strong>
+          <p>A wrong or inaccessible link fails early, before Apple Music is involved and before the user waits for a full match analysis.</p>
+        </div>
+      </section>
+
+      <section class="guide-section" id="matching">
+        <h2>Stage 2: build an Apple Music match report</h2>
+        <p>PlaylistXfer searches the Apple Music storefront associated with the destination context. It prefers recording-level evidence such as ISRC when available, then considers title, artist, album, duration, and edition markers.</p>
+        <p>An ISRC is strong evidence, but it is not the same thing as a unique Apple Music song ID. Apple documents that an ISRC lookup can return multiple catalog songs, often because one recording appears on several releases. The matcher still needs album and duration context to choose a useful candidate.</p>
+        <p>Analysis runs in batches for larger playlists. Progress reflects source rows analyzed, not a promise that every track will have a destination match.</p>
+      </section>
+
+      <section class="guide-section" id="review">
+        <h2>Stage 3: turn confidence into explicit decisions</h2>
+        <div class="status-explainer">
+          <div class="ready">
+            <strong>Ready</strong>
+            <p>The evidence is strong enough for automatic inclusion.</p>
+          </div>
+          <div class="review">
+            <strong>Review</strong>
+            <p>A candidate exists, but a person should inspect the version.</p>
+          </div>
+          <div class="missing">
+            <strong>Missing</strong>
+            <p>No candidate passed the safety threshold.</p>
+          </div>
+        </div>
+        <p>Review rows are not transferred by default. You can approve a suggested candidate or skip the row. The product is deliberately conservative because a confident-looking wrong version is harder to catch after hundreds of songs have moved.</p>
+      </section>
+
+      <section class="guide-section" id="authorization">
+        <h2>Stage 4: ask for Apple Music access at the last responsible moment</h2>
+        <p>Preview and matching do not need permission to change your Apple Music library. PlaylistXfer waits until you choose to create the destination playlist, then uses MusicKit authorization so the write is connected to your Apple Music account.</p>
+        <p>This late-authorization design makes the permission request easier to understand: it appears next to the action that needs it. If you leave during preview or review, no Apple Music playlist is created.</p>
+      </section>
+
+      <section class="guide-section" id="creation">
+        <h2>Stage 5: create the playlist and report the outcome</h2>
+        <p>PlaylistXfer creates a new Apple Music library playlist, then adds the ready and explicitly approved catalog tracks in source order. Skipped and missing rows are not silently replaced.</p>
+        <p>The receipt distinguishes the successful additions from rows that stayed out. If Apple Music rejects an individual catalog item or the write is interrupted, the result should remain visible instead of presenting a blanket success message.</p>
+      </section>
+
+      <section class="guide-section" id="data">
+        <h2>What data crosses each boundary</h2>
+        <div class="guide-table-wrap">
+          <table class="guide-table">
+            <thead>
+              <tr>
+                <th>Stage</th>
+                <th>Data used</th>
+                <th>What is not needed</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Spotify preview</td>
+                <td>Submitted public URL and public metadata</td>
+                <td>Spotify password or account authorization</td>
+              </tr>
+              <tr>
+                <td>Matching</td>
+                <td>Track metadata, catalog candidates, and safe confidence signals</td>
+                <td>Apple Music write permission</td>
+              </tr>
+              <tr>
+                <td>Review</td>
+                <td>Temporary transfer report and your decisions</td>
+                <td>Email or profile information</td>
+              </tr>
+              <tr>
+                <td>Creation</td>
+                <td>Apple Music authorization and approved catalog IDs</td>
+                <td>Spotify account control</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Temporary reports let a review survive a refresh and normally expire after about seven days; in-progress jobs expire sooner. Operational analytics are designed around counts, durations, outcomes, and error categories—not tokens, emails, or full Spotify URLs.</p>
+      </section>
+
+      <section class="guide-section source-section">
+        <h2>Official references</h2>
+        <ul class="source-list">
+          <li><a href="https://developer.apple.com/documentation/applemusicapi/search">Apple Music API catalog search</a></li>
+          <li><a href="https://developer.apple.com/documentation/applemusicapi/user-authentication-for-musickit">Apple: user authentication for MusicKit</a></li>
+          <li><a href="https://developer.apple.com/documentation/applemusicapi/create-a-new-library-playlist">Apple Music API: create a library playlist</a></li>
+          <li><a href="https://developer.apple.com/documentation/applemusicapi/add-tracks-to-a-library-playlist">Apple Music API: add tracks to a library playlist</a></li>
+        </ul>
+      </section>
+
+      <aside class="related-guides" aria-labelledby="related-how-guides">
+        <h2 id="related-how-guides">Continue reading</h2>
+        <a href="/how-playlist-matching-works">How playlist matching actually works →</a>
+        <a href="/spotify-to-apple-music">Complete transfer guide →</a>
+        <a href="/privacy">Privacy and retention details →</a>
+      </aside>
 
       <div class="content-cta">
         <a class="button-link" href="/" data-analytics-cta="how_it_works">Try PlaylistXfer</a>
-        <a class="soft-link" href="/faq">Read the FAQ</a>
+        <a class="soft-link" href="/guides">Browse all guides</a>
       </div>
     </article>
   </main>

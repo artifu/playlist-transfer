@@ -3,7 +3,6 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8103940626356369" crossorigin="anonymous"></script>
   <title>About PlaylistXfer - Public Spotify to Apple Music Transfers</title>
   <meta name="description" content="PlaylistXfer is an independent review-first playlist transfer tool for moving public Spotify playlists into Apple Music." />
   <meta name="robots" content="index,follow" />
@@ -16,32 +15,61 @@
   <meta property="og:image" content="https://playlistxfer.com/playlistxfer-icon-512.png" />
   <link rel="icon" href="/playlistxfer-icon.svg" type="image/svg+xml" sizes="any" />
   <link rel="icon" href="/playlistxfer-icon-32.png" type="image/png" sizes="32x32" />
-  <link rel="stylesheet" href="/styles.css?v=20260721" />
+  <link rel="stylesheet" href="/styles.css?v=20260722-content" />
   <script defer src="/config.js"></script>
   <script defer src="/analytics.js"></script>
 </head>
 <body>
   <main class="legal-page content-page">
-    <a class="legal-back" href="/">&larr; Back to PlaylistXfer</a>
+    <nav class="article-nav" aria-label="Primary">
+      <a class="legal-back" href="/">&larr; Back to PlaylistXfer</a>
+      <div>
+        <a href="/guides">Guides</a>
+        <a href="/how-it-works">How it works</a>
+        <a href="/faq">FAQ</a>
+      </div>
+    </nav>
     <article class="legal-document">
       <p class="eyebrow">About</p>
       <h1>A playlist transfer tool built around trust.</h1>
-      <p class="legal-updated">PlaylistXfer started as a technical spike for one real problem: moving Spotify playlists into Apple Music without paying for a black-box transfer.</p>
+      <p class="legal-updated">Independent, review-first, and focused on one transfer direction.</p>
 
-      <p>PlaylistXfer is intentionally review-first. The product shows what it found, what it matched, and what it could not safely move before asking for Apple Music permission.</p>
+      <p>PlaylistXfer started with one practical problem: moving Spotify playlists into Apple Music without accepting a black-box result. The first prototype proved that catalog matching was possible; it also made the harder problem obvious. Two services can describe the same recording differently, and a plausible search result is not always the song a listener intended.</p>
 
-      <h2>What makes it different</h2>
-      <p>The core idea is not just transfer speed. It is transfer confidence. Public playlist preview, match groups, candidate review, and a final receipt all exist so the user can see what happened.</p>
+      <p>The product is therefore intentionally review-first. It shows what Spotify link it could read, what Apple Music candidates it found, and what it could not safely match before asking for permission to create anything.</p>
+
+      <h2>Three product principles</h2>
+      <div class="content-grid">
+        <div>
+          <h2>Evidence before automation</h2>
+          <p>Recording identifiers and catalog metadata improve confidence, but alternate releases still need context. Ambiguous rows wait for review.</p>
+        </div>
+        <div>
+          <h2>Permission near the action</h2>
+          <p>Spotify preview and Apple Music analysis happen before Apple Music write access is requested.</p>
+        </div>
+        <div>
+          <h2>Visible failure</h2>
+          <p>Missing tracks, provider errors, and skipped rows belong in the result. A transfer receipt should not hide them behind a success percentage.</p>
+        </div>
+        <div>
+          <h2>Narrow scope</h2>
+          <p>The current web product focuses on public Spotify playlist and track links moving into Apple Music. It does not promise every service pair.</p>
+        </div>
+      </div>
 
       <h2>Current status</h2>
-      <p>The web MVP is live, and the iOS app is in active development. The product currently focuses on Spotify to Apple Music and public Spotify playlist links.</p>
+      <p>The web MVP supports public Spotify playlist and song previews, Apple Music match analysis, candidate review, and authorized playlist creation. The iOS app is in active development. Private Spotify account access, other streaming destinations, and local-file migration are outside the current scope.</p>
+
+      <h2>Why the guides are part of the product</h2>
+      <p>A useful transfer tool should explain its limits. The <a href="/guides">PlaylistXfer guides</a> document playlist visibility, catalog matching, missing tracks, and troubleshooting with links to first-party Spotify and Apple references. They are written for people making an actual transfer, not as filler around the form.</p>
 
       <h2>Open project</h2>
-      <p>The project is documented publicly for people who want to understand or replicate the transfer flow. You can follow development on the <a href="https://github.com/artifu/playlist-transfer">PlaylistXfer GitHub repository</a>.</p>
+      <p>The source and product decisions are documented publicly for people who want to inspect or reproduce the flow. Follow development, report reproducible problems, or review the implementation in the <a href="https://github.com/artifu/playlist-transfer">PlaylistXfer GitHub repository</a>.</p>
 
       <div class="content-cta">
         <a class="button-link" href="/" data-analytics-cta="about">Try the web MVP</a>
-        <a class="soft-link" href="/spotify-to-apple-music">Read the guide</a>
+        <a class="soft-link" href="/guides">Read the guides</a>
       </div>
     </article>
   </main>

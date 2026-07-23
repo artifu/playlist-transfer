@@ -21,6 +21,11 @@
       "name": "How to transfer a Spotify playlist to Apple Music",
       "description": "Use PlaylistXfer to preview a public Spotify playlist, match tracks against Apple Music, review the report, and create a new Apple Music playlist.",
       "totalTime": "PT5M",
+      "dateModified": "2026-07-22",
+      "author": {
+        "@type": "Organization",
+        "name": "PlaylistXfer"
+      },
       "tool": [
         {
           "@type": "HowToTool",
@@ -53,42 +58,167 @@
   </script>
   <link rel="icon" href="/playlistxfer-icon.svg" type="image/svg+xml" sizes="any" />
   <link rel="icon" href="/playlistxfer-icon-32.png" type="image/png" sizes="32x32" />
-  <link rel="stylesheet" href="/styles.css?v=20260721" />
+  <link rel="stylesheet" href="/styles.css?v=20260722-content" />
   <script defer src="/config.js"></script>
   <script defer src="/analytics.js"></script>
 </head>
 <body>
-  <main class="legal-page content-page">
-    <a class="legal-back" href="/">&larr; Back to PlaylistXfer</a>
-    <article class="legal-document">
-      <p class="eyebrow">Spotify to Apple Music guide</p>
+  <main class="legal-page content-page guide-page">
+    <nav class="article-nav" aria-label="Primary">
+      <a class="legal-back" href="/guides">&larr; All guides</a>
+      <div>
+        <a href="/guides">Guides</a>
+        <a href="/how-it-works">How it works</a>
+        <a href="/faq">FAQ</a>
+      </div>
+    </nav>
+
+    <article class="legal-document guide-article">
+      <p class="eyebrow">Complete transfer guide · 9 minute read</p>
       <h1>Transfer a Spotify playlist to Apple Music without blind guessing.</h1>
-      <p class="legal-updated">PlaylistXfer is built for public Spotify playlist links and review-first Apple Music transfers.</p>
+      <p class="guide-deck">Preview the source, inspect uncertain matches, and connect Apple Music only when the destination playlist is ready to be created.</p>
+      <p class="guide-byline">PlaylistXfer editorial · Last reviewed July 22, 2026</p>
 
-      <p>Most playlist transfer tools ask you to trust the result before you see it. PlaylistXfer does the opposite: it previews the Spotify playlist, builds an Apple Music match report, and only creates the playlist after you review what will move.</p>
-
-      <div class="content-cta">
-        <a class="button-link" href="/" data-analytics-cta="spotify_guide">Start a transfer</a>
-        <a class="soft-link" href="/how-it-works">See how matching works</a>
+      <div class="guide-callout">
+        <strong>What this guide covers</strong>
+        <p>The current web flow accepts a public Spotify playlist or track link. It does not need your Spotify login. It searches Apple Music, groups results by confidence, and asks for Apple Music access only at the final creation step.</p>
       </div>
 
-      <h2>Quick steps</h2>
-      <ol class="content-steps">
-        <li><strong>Copy a public Spotify playlist link.</strong> Open the playlist in Spotify and use Share to copy the playlist URL.</li>
-        <li><strong>Paste it into PlaylistXfer.</strong> The preview step checks that the public link can be read before any Apple Music permission is requested.</li>
-        <li><strong>Match against Apple Music.</strong> PlaylistXfer compares track metadata, including ISRC when available, title, artist, album, and duration signals.</li>
-        <li><strong>Review anything uncertain.</strong> Ready tracks can move automatically, but review and missing tracks stay out unless you approve them.</li>
-        <li><strong>Create the playlist.</strong> Apple Music access is requested at the end, when you are ready to write the playlist to your library.</li>
-      </ol>
+      <nav class="guide-toc" aria-label="On this page">
+        <strong>On this page</strong>
+        <a href="#before-starting">Before you start</a>
+        <a href="#transfer-steps">Transfer steps</a>
+        <a href="#review">Review the matches</a>
+        <a href="#created">What gets created</a>
+        <a href="#troubleshooting">Troubleshooting</a>
+        <a href="#privacy">Permissions and privacy</a>
+      </nav>
 
-      <h2>What works best</h2>
-      <p>Public Spotify playlists with standard released tracks usually transfer best. Local files, podcasts, unavailable region-specific tracks, duplicate live versions, and unofficial uploads may need review or may not transfer.</p>
+      <section class="guide-section" id="before-starting">
+        <h2>Before you start</h2>
+        <ul class="guide-checklist">
+          <li><strong>Use a normal playlist link.</strong> In Spotify, open the playlist and choose Share → Copy link to playlist.</li>
+          <li><strong>Confirm signed-out access.</strong> Open the link in a private browser window. If the title and tracks are not visible there, the public-link flow may not be able to read it.</li>
+          <li><strong>Expect catalog differences.</strong> Local files, podcasts, regional releases, and removed editions may not have a direct Apple Music equivalent.</li>
+          <li><strong>Use the destination Apple Music account.</strong> Connect the account where you want the new playlist to appear.</li>
+          <li><strong>Leave time for review.</strong> A large or version-heavy playlist can require a few manual decisions.</li>
+        </ul>
+        <p>PlaylistXfer does not modify the Spotify source. The result is a new Apple Music playlist built from the Apple Music catalog items you approve.</p>
+      </section>
 
-      <h2>Why review matters</h2>
-      <p>A playlist can contain many versions of the same song: remasters, live cuts, radio edits, covers, regional releases, and compilations. A transparent match report helps avoid moving the wrong version into Apple Music.</p>
+      <section class="guide-section" id="transfer-steps">
+        <h2>The transfer, step by step</h2>
+        <ol class="content-steps">
+          <li><strong>Paste a public Spotify playlist or track URL.</strong> PlaylistXfer validates the URL type before sending it to the preview service.</li>
+          <li><strong>Preview the source.</strong> Check the playlist name, owner, artwork, and first tracks. This confirms that the link resolves to the item you intended.</li>
+          <li><strong>Choose the analysis scope.</strong> Full playlist is the normal option. Faster 50- or 150-track modes are dry-run tools and only the analyzed rows can be created.</li>
+          <li><strong>Match with Apple Music.</strong> PlaylistXfer uses recording identifiers when available, then title, artist, album, duration, and storefront context to find candidates.</li>
+          <li><strong>Review uncertain rows.</strong> Approve an acceptable candidate or skip it. Missing tracks remain excluded rather than receiving a forced substitute.</li>
+          <li><strong>Connect Apple Music.</strong> Authorization happens late, after the read-only preview and analysis are complete.</li>
+          <li><strong>Create and inspect the receipt.</strong> PlaylistXfer creates a new playlist and reports what moved, what was skipped, and what could not be added.</li>
+        </ol>
+      </section>
 
-      <h2>Not affiliated with Spotify or Apple</h2>
-      <p>PlaylistXfer is an independent tool. Spotify and Apple Music names are used only to describe the source and destination services.</p>
+      <section class="guide-section" id="review">
+        <h2>How to read the match report</h2>
+        <div class="status-explainer">
+          <div class="ready">
+            <strong>Ready</strong>
+            <p>Strong evidence connects the Spotify source with an Apple Music catalog song.</p>
+          </div>
+          <div class="review">
+            <strong>Review</strong>
+            <p>A likely candidate exists, but version, artist, album, or duration needs your judgment.</p>
+          </div>
+          <div class="missing">
+            <strong>Missing</strong>
+            <p>No result is safe enough to include automatically. The track stays out.</p>
+          </div>
+        </div>
+        <p>Focus on version words such as live, acoustic, remix, remaster, radio edit, clean, and explicit. Compare duration when titles look identical. A compilation appearance may use different artwork while still pointing to the same recording.</p>
+        <div class="guide-note">
+          <strong>Accuracy beats completeness.</strong>
+          <p>Skipping one uncertain song is usually better than placing a convincing but wrong version into a playlist you may not audit again.</p>
+        </div>
+      </section>
+
+      <section class="guide-section" id="created">
+        <h2>What is—and is not—copied</h2>
+        <div class="guide-table-wrap">
+          <table class="guide-table">
+            <thead>
+              <tr>
+                <th>Playlist element</th>
+                <th>Current behavior</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Matched songs</td>
+                <td>Added as Apple Music catalog tracks after approval</td>
+              </tr>
+              <tr>
+                <td>Track order</td>
+                <td>Preserved for the analyzed and approved tracks</td>
+              </tr>
+              <tr>
+                <td>Duplicates</td>
+                <td>Can remain when they are separate source rows</td>
+              </tr>
+              <tr>
+                <td>Skipped or missing songs</td>
+                <td>Not added; they can be handled manually later</td>
+              </tr>
+              <tr>
+                <td>Local audio files and podcasts</td>
+                <td>Not uploaded or converted</td>
+              </tr>
+              <tr>
+                <td>Spotify likes, follows, and listening history</td>
+                <td>Never copied or modified</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="guide-section" id="troubleshooting">
+        <h2>If something does not work</h2>
+        <p><strong>The playlist will not preview:</strong> copy a fresh playlist URL and test it signed out. Private, expired, personalized, or non-playlist links are common causes.</p>
+        <p><strong>Many songs are missing:</strong> check whether the playlist contains local files, podcasts, regional editions, or obscure versions. Also confirm that the Apple Music storefront matches the destination account’s country.</p>
+        <p><strong>Matching succeeds but creation fails:</strong> reconnect Apple Music, confirm that the subscription and library access are active, then retry the creation step. Do not restart analysis unless the report itself is wrong.</p>
+        <p><strong>A wrong version is suggested:</strong> skip it if no acceptable candidate appears. Finish the transfer and add the correct song manually.</p>
+      </section>
+
+      <section class="guide-section" id="privacy">
+        <h2>Permissions and privacy</h2>
+        <p>The public-link preview does not ask for Spotify credentials. Apple Music access is requested only when writing the destination playlist. The web flow sends the Music User Token for that authorized write operation and is not designed to store it in the transfer database.</p>
+        <p>Transfer reports are temporary so a review can survive a refresh. Operational events use safe counts and status categories rather than Apple Music tokens, emails, or full Spotify URLs. See the <a href="/privacy">Privacy Policy</a> for the current retention and service details.</p>
+      </section>
+
+      <section class="guide-section source-section">
+        <h2>Official references</h2>
+        <ul class="source-list">
+          <li><a href="https://support.spotify.com/br-pt/article/playlist-privacy-and-access/">Spotify Support: playlist privacy and access</a></li>
+          <li><a href="https://support.spotify.com/na-en/article/local-files/">Spotify Support: local files</a></li>
+          <li><a href="https://developer.apple.com/documentation/applemusicapi/search">Apple Music API catalog search</a></li>
+          <li><a href="https://developer.apple.com/documentation/applemusicapi/create-a-new-library-playlist">Apple Music API: create a library playlist</a></li>
+        </ul>
+      </section>
+
+      <aside class="related-guides" aria-labelledby="related-transfer-guides">
+        <h2 id="related-transfer-guides">Continue reading</h2>
+        <a href="/how-playlist-matching-works">How playlist matching actually works →</a>
+        <a href="/spotify-to-apple-music-missing-songs">Why songs go missing during a transfer →</a>
+        <a href="/public-vs-private-spotify-playlists">Public vs private Spotify playlists →</a>
+      </aside>
+
+      <div class="content-cta">
+        <a class="button-link" href="/" data-analytics-cta="spotify_guide">Start with a preview</a>
+        <a class="soft-link" href="/guides">Browse all guides</a>
+      </div>
+
+      <p class="guide-disclosure">PlaylistXfer is independent and is not affiliated with, endorsed by, or sponsored by Spotify or Apple. Service names describe interoperability only.</p>
     </article>
   </main>
 </body>

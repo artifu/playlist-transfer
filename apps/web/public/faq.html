@@ -3,7 +3,6 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8103940626356369" crossorigin="anonymous"></script>
   <title>PlaylistXfer FAQ - Spotify to Apple Music Playlist Transfer</title>
   <meta name="description" content="Answers about PlaylistXfer, public Spotify playlist links, Apple Music matching, Apple Music authorization, privacy, and transfer limits." />
   <meta name="robots" content="index,follow" />
@@ -24,7 +23,7 @@
           "name": "Does PlaylistXfer require a Spotify login?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "The MVP is designed around public Spotify playlist links and does not ask for Spotify login. Private Spotify playlists may require Spotify authorization in a future version."
+            "text": "The current web flow uses public Spotify playlist and track links and does not ask for Spotify login. A link must expose enough information outside the owner's signed-in session."
           }
         },
         {
@@ -56,45 +55,85 @@
   </script>
   <link rel="icon" href="/playlistxfer-icon.svg" type="image/svg+xml" sizes="any" />
   <link rel="icon" href="/playlistxfer-icon-32.png" type="image/png" sizes="32x32" />
-  <link rel="stylesheet" href="/styles.css?v=20260721" />
+  <link rel="stylesheet" href="/styles.css?v=20260722-content" />
   <script defer src="/config.js"></script>
   <script defer src="/analytics.js"></script>
 </head>
 <body>
-  <main class="legal-page content-page">
-    <a class="legal-back" href="/">&larr; Back to PlaylistXfer</a>
-    <article class="legal-document">
+  <main class="legal-page content-page guide-page">
+    <nav class="article-nav" aria-label="Primary">
+      <a class="legal-back" href="/">&larr; Back to PlaylistXfer</a>
+      <div>
+        <a href="/guides">Guides</a>
+        <a href="/how-it-works">How it works</a>
+        <a href="/faq" aria-current="page">FAQ</a>
+      </div>
+    </nav>
+
+    <article class="legal-document guide-article">
       <p class="eyebrow">FAQ</p>
       <h1>Questions before you move a playlist.</h1>
-      <p class="legal-updated">Short answers for the current public-link MVP.</p>
+      <p class="guide-deck">Straight answers about access, matching, playlist creation, privacy, limitations, and what to do when a result needs review.</p>
+      <p class="guide-byline">PlaylistXfer editorial · Last reviewed July 22, 2026</p>
 
       <h2>Does PlaylistXfer require a Spotify login?</h2>
-      <p>No for the current MVP. PlaylistXfer is built around public Spotify playlist links, so you can paste a share link without connecting a Spotify account.</p>
+      <p>No. The current web flow is built around public Spotify playlist and track links. PlaylistXfer reads the information available from that link without asking for Spotify credentials or permission to modify the source account.</p>
 
       <h2>Can it transfer private Spotify playlists?</h2>
-      <p>Not in the public-link MVP. Private playlist support would require Spotify authorization and a different product flow.</p>
+      <p>Not reliably. A link that works only inside your signed-in Spotify session cannot be read by the anonymous public-link flow. Test the link in a private browser window; if the playlist is not visible there, use a different public playlist or change visibility only if you own it and are comfortable doing so. Read the <a href="/public-vs-private-spotify-playlists">playlist visibility guide</a> for details.</p>
 
       <h2>When do I connect Apple Music?</h2>
-      <p>At the create step. You can preview and match first, then authorize Apple Music only when you are ready to write the destination playlist.</p>
+      <p>At the create step. Preview and matching are read-only analysis stages. Apple Music authorization is requested only when you choose to write the destination playlist to your library.</p>
 
       <h2>Does it add songs to my library or download them?</h2>
-      <p>It creates a playlist from Apple Music catalog tracks. It does not download audio files, and it is not intended to upload local music.</p>
+      <p>PlaylistXfer creates a playlist using Apple Music catalog tracks. It does not download audio from Spotify, upload local files, convert media, or copy playback history.</p>
 
       <h2>Why are some tracks marked review or missing?</h2>
-      <p>Apple Music can have different versions of the same track. PlaylistXfer keeps fuzzy results out of the final playlist unless you approve them.</p>
+      <p><strong>Review</strong> means a plausible Apple Music candidate exists but the version or metadata is ambiguous. <strong>Missing</strong> means no candidate was safe enough to select. PlaylistXfer keeps both out of the final playlist unless you explicitly approve a review candidate. See <a href="/how-playlist-matching-works">how matching works</a>.</p>
 
       <h2>How many tracks can I transfer?</h2>
-      <p>The web MVP analyzes the full playlist by default, up to the current product limit shown in the transfer scope control. Larger playlists can take longer because matching runs in batches.</p>
+      <p>The web app analyzes the full playlist by default, up to the current limit shown in the transfer scope control. The 50- and 150-track options are faster test modes; only tracks included in that analysis can be created in the destination playlist.</p>
+
+      <h2>Will the track order stay the same?</h2>
+      <p>Approved tracks are added in source order. A skipped or missing row creates a gap in the content, not a reordering of the remaining tracks. Very large playlist writes can still be affected by a provider error, so check the final receipt.</p>
+
+      <h2>What happens to duplicate songs?</h2>
+      <p>When the source contains the same track more than once as separate playlist rows, those rows may remain separate in the destination. PlaylistXfer does not silently deduplicate a sequence that may be intentional.</p>
+
+      <h2>Are the playlist description, cover image, and followers copied?</h2>
+      <p>No. The transfer focuses on matched catalog tracks and their order. Spotify followers, collaborative membership, likes, listening history, and other service-specific relationships are not copied. Destination title and description behavior may evolve, but source artwork is not uploaded automatically.</p>
+
+      <h2>Can local files or podcasts transfer?</h2>
+      <p>Not as Apple Music catalog songs. Local files exist on your device rather than in Spotify’s catalog, and podcasts are a different media type. If you own a local audio file, use Apple’s supported library or sync workflow separately.</p>
+
+      <h2>Why can a song exist on both services and still be missing?</h2>
+      <p>Availability can differ by country, and the services may carry different editions. A label can also replace a release with a new catalog entry. If title, artist, duration, or identifier evidence conflicts, PlaylistXfer may leave the row missing instead of guessing. The <a href="/spotify-to-apple-music-missing-songs">missing songs guide</a> covers the common cases.</p>
+
+      <h2>Does PlaylistXfer change my Spotify playlist?</h2>
+      <p>No. The current public-link flow cannot edit, delete, reorder, follow, or unfollow Spotify content. It reads source metadata and creates a separate Apple Music playlist after authorization.</p>
+
+      <h2>How long is a transfer report kept?</h2>
+      <p>Reports are stored temporarily so you can refresh and continue a review. Anonymous transfer records normally expire after about seven days, while in-progress jobs expire sooner. See the <a href="/privacy">Privacy Policy</a> for the current details.</p>
+
+      <h2>Does the site use analytics or advertising?</h2>
+      <p>The website may use Google Analytics for aggregate traffic and safe product-funnel events. Advertising, when enabled, is limited to substantive editorial guides—not the URL form, authorization, progress, review, creation, error, legal, or contact screens. Consent choices are offered where required.</p>
 
       <h2>Is PlaylistXfer affiliated with Spotify or Apple Music?</h2>
       <p>No. PlaylistXfer is independent and uses those names only to describe the source and destination services.</p>
 
       <h2>What if the public Spotify link fails?</h2>
-      <p>Try a normal public playlist you own or can edit, then paste that link. Spotify public surfaces can change, so the app includes a fallback guide when a link cannot be read.</p>
+      <p>Copy a fresh link from Spotify’s Share menu and test it in a signed-out private window. If another known-public playlist works, the problem is likely specific to the first link. If every public link fails with a Transfer API message, the PlaylistXfer service may be temporarily unavailable. Follow the <a href="/spotify-playlist-not-loading">full troubleshooting checklist</a>.</p>
+
+      <aside class="related-guides" aria-labelledby="faq-related-guides">
+        <h2 id="faq-related-guides">Detailed answers</h2>
+        <a href="/spotify-to-apple-music">Complete transfer guide →</a>
+        <a href="/how-playlist-matching-works">Matching and confidence explained →</a>
+        <a href="/public-vs-private-spotify-playlists">Spotify playlist visibility explained →</a>
+      </aside>
 
       <div class="content-cta">
         <a class="button-link" href="/" data-analytics-cta="faq">Start a transfer</a>
-        <a class="soft-link" href="/privacy">Privacy details</a>
+        <a class="soft-link" href="/guides">Browse all guides</a>
       </div>
     </article>
   </main>

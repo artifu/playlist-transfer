@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8103940626356369" crossorigin="anonymous"></script>
+  <title>Spotify Playlist Link Not Loading? Troubleshooting Guide</title>
+  <meta name="description" content="Fix a Spotify playlist link that will not load in PlaylistXfer by checking the URL type, signed-out access, playlist visibility, link expiry, and temporary service errors." />
+  <meta name="robots" content="index,follow" />
+  <meta name="theme-color" content="#fffaf0" />
+  <link rel="canonical" href="https://playlistxfer.com/spotify-playlist-not-loading" />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://playlistxfer.com/spotify-playlist-not-loading" />
+  <meta property="og:title" content="Spotify Playlist Link Not Loading?" />
+  <meta property="og:description" content="A diagnostic checklist for wrong URLs, private playlists, expired links, personalized mixes, and temporary provider failures." />
+  <meta property="og:image" content="https://playlistxfer.com/playlistxfer-icon-512.png" />
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "TechArticle",
+      "headline": "Spotify playlist link not loading: a troubleshooting guide",
+      "description": "A step-by-step checklist for diagnosing Spotify playlist links that cannot be previewed by PlaylistXfer.",
+      "dateModified": "2026-07-22",
+      "author": {
+        "@type": "Organization",
+        "name": "PlaylistXfer"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "PlaylistXfer"
+      },
+      "mainEntityOfPage": "https://playlistxfer.com/spotify-playlist-not-loading"
+    }
+  </script>
+  <link rel="icon" href="/playlistxfer-icon.svg" type="image/svg+xml" sizes="any" />
+  <link rel="icon" href="/playlistxfer-icon-32.png" type="image/png" sizes="32x32" />
+  <link rel="stylesheet" href="/styles.css?v=20260722-content" />
+  <script defer src="/config.js"></script>
+  <script defer src="/analytics.js"></script>
+</head>
+<body>
+  <main class="legal-page content-page guide-page">
+    <nav class="article-nav" aria-label="Primary">
+      <a class="legal-back" href="/guides">&larr; All guides</a>
+      <div>
+        <a href="/guides">Guides</a>
+        <a href="/how-it-works">How it works</a>
+        <a href="/faq">FAQ</a>
+      </div>
+    </nav>
+
+    <article class="legal-document guide-article">
+      <p class="eyebrow">Troubleshooting guide · 5 minute read</p>
+      <h1>Spotify playlist link not loading?</h1>
+      <p class="guide-deck">Start with the URL and access test. Most preview failures happen before matching begins, so changing Apple Music settings will not fix them.</p>
+      <p class="guide-byline">PlaylistXfer editorial · Last reviewed July 22, 2026</p>
+
+      <div class="guide-callout">
+        <strong>Fastest diagnosis</strong>
+        <p>Open the playlist link in a signed-out private window. If Spotify does not show the playlist there, PlaylistXfer probably cannot read it through the public-link flow.</p>
+      </div>
+
+      <nav class="guide-toc" aria-label="On this page">
+        <strong>On this page</strong>
+        <a href="#url-check">Check the URL</a>
+        <a href="#access-check">Check public access</a>
+        <a href="#error-types">Understand the failure</a>
+        <a href="#retry">Retry safely</a>
+        <a href="#report">Report a reproducible issue</a>
+      </nav>
+
+      <section class="guide-section" id="url-check">
+        <h2>1. Confirm that the link identifies a playlist or track</h2>
+        <p>PlaylistXfer accepts normal Spotify playlist and track links. A playlist URL generally contains <code>open.spotify.com/playlist/</code>; a single song contains <code>open.spotify.com/track/</code>.</p>
+        <div class="guide-table-wrap">
+          <table class="guide-table">
+            <thead>
+              <tr>
+                <th>Link type</th>
+                <th>Expected result</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Playlist or track</td>
+                <td>Supported by the current preview flow</td>
+              </tr>
+              <tr>
+                <td>Album, artist, profile, search, or queue</td>
+                <td>Not a playlist transfer source</td>
+              </tr>
+              <tr>
+                <td>Personalized home or mix page</td>
+                <td>May depend on your Spotify session and may not expose a stable public playlist</td>
+              </tr>
+              <tr>
+                <td>Old shared-private link</td>
+                <td>May be restricted or expired</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>When in doubt, return to the playlist inside Spotify and use Share → Copy link to playlist. That avoids copying a surrounding browser page.</p>
+      </section>
+
+      <section class="guide-section" id="access-check">
+        <h2>2. Test access outside your account</h2>
+        <ol class="guide-checklist">
+          <li><strong>Open a private or incognito window.</strong> Do not sign into Spotify.</li>
+          <li><strong>Paste the exact link.</strong> Wait for the playlist page to finish loading.</li>
+          <li><strong>Look for the title and track list.</strong> A login wall, access request, empty page, or redirect indicates the link is not publicly readable.</li>
+          <li><strong>Copy a fresh link if needed.</strong> Spotify says some shared links can expire, so a new link may behave differently.</li>
+        </ol>
+        <p>If you own the playlist, review its visibility settings. If you do not own it, you may need a different public playlist rather than trying to bypass the owner’s access choice.</p>
+      </section>
+
+      <section class="guide-section" id="error-types">
+        <h2>3. Separate link problems from service problems</h2>
+        <div class="signal-stack">
+          <div class="signal-row">
+            <span>A</span>
+            <div>
+              <strong>“Enter a valid Spotify playlist or track URL”</strong>
+              <p>The pasted value is empty, malformed, or points to another Spotify page type. Copy a fresh playlist or track link.</p>
+            </div>
+          </div>
+          <div class="signal-row">
+            <span>B</span>
+            <div>
+              <strong>The link opens for you but not signed out</strong>
+              <p>Your Spotify session has access that PlaylistXfer does not. Change visibility only if you own the playlist and are comfortable making it readable.</p>
+            </div>
+          </div>
+          <div class="signal-row">
+            <span>C</span>
+            <div>
+              <strong>“Transfer API did not respond”</strong>
+              <p>The PlaylistXfer service is temporarily unavailable or misconfigured. Keep the URL, wait briefly, and retry rather than changing the playlist.</p>
+            </div>
+          </div>
+          <div class="signal-row">
+            <span>D</span>
+            <div>
+              <strong>Preview works but matching fails</strong>
+              <p>The Spotify link was read successfully. The problem is now in the Apple Music matching stage, not the source URL.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="guide-section" id="retry">
+        <h2>4. Retry without creating duplicate work</h2>
+        <ol class="guide-checklist">
+          <li>Keep one browser tab and paste a freshly copied link.</li>
+          <li>Preview again before starting Apple Music matching.</li>
+          <li>If the error names the Transfer API, wait a minute and retry once.</li>
+          <li>If the same public link repeatedly fails, test a different known-public playlist. This separates a link-specific problem from a system-wide outage.</li>
+          <li>Do not authorize Apple Music to solve a preview error. Authorization is only relevant at the final creation step.</li>
+        </ol>
+      </section>
+
+      <section class="guide-section" id="report">
+        <h2>5. Report an issue without sharing secrets</h2>
+        <p>A useful report includes the step that failed, the exact visible error, browser and device, approximate time, and whether the link passed the signed-out test. A public playlist URL can help reproduce the issue, but do not post a private link if its content is sensitive.</p>
+        <p>Never include Apple Music tokens, cookies, account emails, passwords, or browser storage values. PlaylistXfer support does not need them to diagnose a public preview failure.</p>
+        <div class="guide-note">
+          <strong>Before reporting:</strong>
+          <p>Try one other public playlist. “This link fails but another works” is far more diagnostic than “nothing works.”</p>
+        </div>
+      </section>
+
+      <section class="guide-section source-section">
+        <h2>Official reference</h2>
+        <ul class="source-list">
+          <li><a href="https://support.spotify.com/br-pt/article/playlist-privacy-and-access/">Spotify Support: playlist privacy and access</a></li>
+        </ul>
+      </section>
+
+      <aside class="related-guides" aria-labelledby="related-loading-guides">
+        <h2 id="related-loading-guides">Continue reading</h2>
+        <a href="/public-vs-private-spotify-playlists">Public vs private Spotify playlists →</a>
+        <a href="/spotify-to-apple-music-missing-songs">Why songs go missing after preview →</a>
+      </aside>
+
+      <div class="content-cta">
+        <a class="button-link" href="/" data-analytics-cta="loading_guide">Try the link again</a>
+        <a class="soft-link" href="/contact">Report a persistent issue</a>
+      </div>
+    </article>
+  </main>
+</body>
+</html>

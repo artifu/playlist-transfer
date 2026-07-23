@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8103940626356369" crossorigin="anonymous"></script>
+  <title>Public vs Private Spotify Playlists for Transfers - PlaylistXfer</title>
+  <meta name="description" content="Understand Spotify playlist visibility, shared-link access, and how to test whether PlaylistXfer can read a playlist without a Spotify login." />
+  <meta name="robots" content="index,follow" />
+  <meta name="theme-color" content="#fffaf0" />
+  <link rel="canonical" href="https://playlistxfer.com/public-vs-private-spotify-playlists" />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://playlistxfer.com/public-vs-private-spotify-playlists" />
+  <meta property="og:title" content="Public vs Private Spotify Playlists for Transfers" />
+  <meta property="og:description" content="A clear guide to playlist visibility, shared links, incognito testing, and privacy during a transfer." />
+  <meta property="og:image" content="https://playlistxfer.com/playlistxfer-icon-512.png" />
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "TechArticle",
+      "headline": "Public vs private Spotify playlists for transfers",
+      "description": "A guide to Spotify playlist visibility, link access, and testing a playlist before using a public-link transfer tool.",
+      "dateModified": "2026-07-22",
+      "author": {
+        "@type": "Organization",
+        "name": "PlaylistXfer"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "PlaylistXfer"
+      },
+      "mainEntityOfPage": "https://playlistxfer.com/public-vs-private-spotify-playlists"
+    }
+  </script>
+  <link rel="icon" href="/playlistxfer-icon.svg" type="image/svg+xml" sizes="any" />
+  <link rel="icon" href="/playlistxfer-icon-32.png" type="image/png" sizes="32x32" />
+  <link rel="stylesheet" href="/styles.css?v=20260722-content" />
+  <script defer src="/config.js"></script>
+  <script defer src="/analytics.js"></script>
+</head>
+<body>
+  <main class="legal-page content-page guide-page">
+    <nav class="article-nav" aria-label="Primary">
+      <a class="legal-back" href="/guides">&larr; All guides</a>
+      <div>
+        <a href="/guides">Guides</a>
+        <a href="/how-it-works">How it works</a>
+        <a href="/faq">FAQ</a>
+      </div>
+    </nav>
+
+    <article class="legal-document guide-article">
+      <p class="eyebrow">Spotify access guide · 6 minute read</p>
+      <h1>Public, private, and shared Spotify playlists.</h1>
+      <p class="guide-deck">A copied link is not always readable outside your Spotify session. The reliable test is whether the playlist opens for a signed-out visitor.</p>
+      <p class="guide-byline">PlaylistXfer editorial · Last reviewed July 22, 2026</p>
+
+      <div class="guide-callout">
+        <strong>PlaylistXfer’s current boundary</strong>
+        <p>The web transfer flow does not ask for a Spotify login. It can only preview a playlist when Spotify exposes enough information through the submitted link.</p>
+      </div>
+
+      <nav class="guide-toc" aria-label="On this page">
+        <strong>On this page</strong>
+        <a href="#visibility">Visibility and access</a>
+        <a href="#incognito-test">The signed-out test</a>
+        <a href="#copy-link">Copy the right link</a>
+        <a href="#temporary-public">Temporary public access</a>
+        <a href="#privacy">Privacy boundaries</a>
+      </nav>
+
+      <section class="guide-section" id="visibility">
+        <h2>Visibility, profile display, and link access are related—but not identical</h2>
+        <p>Spotify gives playlist owners controls over who can find or access a playlist. A playlist can also be shown or removed from a profile. Those settings affect discovery, but the practical question for PlaylistXfer is simpler: can a visitor who is not signed into your Spotify account open the link and see the playlist?</p>
+        <p>A private or invitation-based link may work for you because your browser already has a Spotify session. It can still fail for a service that has no access to that account. Spotify also notes that some shared private links can expire, so an old link may stop working even if it opened previously.</p>
+      </section>
+
+      <section class="guide-section" id="incognito-test">
+        <h2>The one-minute signed-out test</h2>
+        <ol class="guide-checklist">
+          <li><strong>Copy the playlist link in Spotify.</strong> Use the playlist’s Share menu, not the browser address of a search or profile page.</li>
+          <li><strong>Open a private or incognito browser window.</strong> Make sure that window is not signed into Spotify.</li>
+          <li><strong>Paste the link.</strong> Confirm that the playlist title and tracks are visible without joining a collaboration or requesting access.</li>
+          <li><strong>Use that same URL in PlaylistXfer.</strong> If the signed-out test fails, the transfer preview is likely to fail too.</li>
+        </ol>
+        <div class="guide-note">
+          <strong>Why incognito matters:</strong>
+          <p>Your normal browser can hide access problems by reusing an existing Spotify login, cookies, or an earlier invitation.</p>
+        </div>
+      </section>
+
+      <section class="guide-section" id="copy-link">
+        <h2>Copy the playlist URL, not a neighboring page</h2>
+        <p>A normal Spotify playlist URL contains <code>open.spotify.com/playlist/</code> followed by the playlist identifier. PlaylistXfer also accepts standard Spotify track links for single-song transfers.</p>
+        <p>Profile, artist, album, search, queue, and personalized home-page URLs do not identify a transferable playlist. Short redirect links and copied links with tracking parameters may work, but the normal Share → Copy link to playlist action is the clearest starting point.</p>
+      </section>
+
+      <section class="guide-section" id="temporary-public">
+        <h2>If you temporarily change visibility</h2>
+        <p>If the playlist is yours and you are comfortable doing so, you can make it publicly accessible long enough to run the transfer. Repeat the signed-out test, transfer and review the tracks, then restore your preferred Spotify visibility setting.</p>
+        <p>Changing visibility does not grant PlaylistXfer control of the source playlist. The current flow reads public metadata and creates a separate playlist in Apple Music only after you authorize Apple Music.</p>
+        <div class="guide-callout compact">
+          <strong>Do not expose a playlist you do not want shared.</strong>
+          <p>If the title, description, artwork, or track selection is sensitive, use a different workflow rather than making it public for convenience.</p>
+        </div>
+      </section>
+
+      <section class="guide-section" id="privacy">
+        <h2>What the public-link flow does and does not do</h2>
+        <div class="guide-table-wrap">
+          <table class="guide-table">
+            <thead>
+              <tr>
+                <th>Action</th>
+                <th>Current PlaylistXfer behavior</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Spotify login</td>
+                <td>Not requested in the public-link web flow</td>
+              </tr>
+              <tr>
+                <td>Read source playlist</td>
+                <td>Reads metadata available from the submitted link</td>
+              </tr>
+              <tr>
+                <td>Edit Spotify playlist</td>
+                <td>Never edits, deletes, or rearranges the source</td>
+              </tr>
+              <tr>
+                <td>Connect Apple Music</td>
+                <td>Requested only when you are ready to create the destination playlist</td>
+              </tr>
+              <tr>
+                <td>Transfer report</td>
+                <td>Stored temporarily so the review can continue, subject to the privacy policy</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="guide-section source-section">
+        <h2>Official reference</h2>
+        <ul class="source-list">
+          <li><a href="https://support.spotify.com/br-pt/article/playlist-privacy-and-access/">Spotify Support: playlist privacy and access</a></li>
+        </ul>
+        <p>Spotify can change its sharing controls and terminology. Use the official support page above when the labels in your app differ from this guide.</p>
+      </section>
+
+      <aside class="related-guides" aria-labelledby="related-privacy-guides">
+        <h2 id="related-privacy-guides">Continue reading</h2>
+        <a href="/spotify-playlist-not-loading">Troubleshoot a playlist that will not load →</a>
+        <a href="/spotify-to-apple-music">Complete Spotify to Apple Music transfer guide →</a>
+      </aside>
+
+      <div class="content-cta">
+        <a class="button-link" href="/" data-analytics-cta="playlist_privacy_guide">Test a Spotify link</a>
+        <a class="soft-link" href="/privacy">Read our privacy policy</a>
+      </div>
+    </article>
+  </main>
+</body>
+</html>

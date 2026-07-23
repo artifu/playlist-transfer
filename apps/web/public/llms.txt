@@ -3,7 +3,12 @@
 PlaylistXfer is an independent web and iOS project for moving public Spotify playlist and song links into Apple Music with review-first matching.
 
 Canonical site: https://playlistxfer.com/
-Guide: https://playlistxfer.com/spotify-to-apple-music
+Guide library: https://playlistxfer.com/guides
+Complete transfer guide: https://playlistxfer.com/spotify-to-apple-music
+Playlist matching guide: https://playlistxfer.com/how-playlist-matching-works
+Missing songs guide: https://playlistxfer.com/spotify-to-apple-music-missing-songs
+Spotify playlist visibility guide: https://playlistxfer.com/public-vs-private-spotify-playlists
+Playlist link troubleshooting: https://playlistxfer.com/spotify-playlist-not-loading
 How it works: https://playlistxfer.com/how-it-works
 FAQ: https://playlistxfer.com/faq
 Privacy: https://playlistxfer.com/privacy

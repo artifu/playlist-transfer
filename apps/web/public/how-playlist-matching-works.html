@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8103940626356369" crossorigin="anonymous"></script>
+  <title>How Spotify to Apple Music Matching Works - PlaylistXfer</title>
+  <meta name="description" content="Understand how PlaylistXfer uses ISRC, title, artist, album, duration, storefront, and review decisions to match Spotify tracks with Apple Music." />
+  <meta name="robots" content="index,follow" />
+  <meta name="theme-color" content="#fffaf0" />
+  <link rel="canonical" href="https://playlistxfer.com/how-playlist-matching-works" />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://playlistxfer.com/how-playlist-matching-works" />
+  <meta property="og:title" content="How Spotify to Apple Music Matching Works" />
+  <meta property="og:description" content="A practical explanation of identifiers, metadata signals, alternate editions, confidence, and human review." />
+  <meta property="og:image" content="https://playlistxfer.com/playlistxfer-icon-512.png" />
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "TechArticle",
+      "headline": "How Spotify to Apple Music playlist matching works",
+      "description": "A practical explanation of the signals PlaylistXfer uses to compare Spotify tracks with Apple Music catalog songs.",
+      "dateModified": "2026-07-22",
+      "author": {
+        "@type": "Organization",
+        "name": "PlaylistXfer"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "PlaylistXfer"
+      },
+      "mainEntityOfPage": "https://playlistxfer.com/how-playlist-matching-works"
+    }
+  </script>
+  <link rel="icon" href="/playlistxfer-icon.svg" type="image/svg+xml" sizes="any" />
+  <link rel="icon" href="/playlistxfer-icon-32.png" type="image/png" sizes="32x32" />
+  <link rel="stylesheet" href="/styles.css?v=20260722-content" />
+  <script defer src="/config.js"></script>
+  <script defer src="/analytics.js"></script>
+</head>
+<body>
+  <main class="legal-page content-page guide-page">
+    <nav class="article-nav" aria-label="Primary">
+      <a class="legal-back" href="/guides">&larr; All guides</a>
+      <div>
+        <a href="/guides">Guides</a>
+        <a href="/how-it-works">How it works</a>
+        <a href="/faq">FAQ</a>
+      </div>
+    </nav>
+
+    <article class="legal-document guide-article">
+      <p class="eyebrow">Matching guide · 8 minute read</p>
+      <h1>How playlist matching actually works.</h1>
+      <p class="guide-deck">A song title is a clue, not proof. Reliable transfers combine recording identifiers, metadata, catalog context, and a human decision when the evidence conflicts.</p>
+      <p class="guide-byline">PlaylistXfer editorial · Last reviewed July 22, 2026</p>
+
+      <div class="guide-callout">
+        <strong>The short version</strong>
+        <p>PlaylistXfer first looks for strong recording-level evidence. When that is not enough, it compares descriptive metadata. Confident results are marked ready; ambiguous results wait for review; unsupported tracks remain missing.</p>
+      </div>
+
+      <nav class="guide-toc" aria-label="On this page">
+        <strong>On this page</strong>
+        <a href="#why-matching-is-hard">Why matching is hard</a>
+        <a href="#signals">Signals used in matching</a>
+        <a href="#isrc">What ISRC can and cannot prove</a>
+        <a href="#alternate-versions">Alternate versions</a>
+        <a href="#confidence">Ready, review, and missing</a>
+        <a href="#review-checklist">Review checklist</a>
+      </nav>
+
+      <section class="guide-section" id="why-matching-is-hard">
+        <h2>Why matching is harder than comparing names</h2>
+        <p>Streaming catalogs are assembled independently. The same recording may appear on an original album, a deluxe release, a compilation, and a remastered reissue. Those entries can share a recording identifier while carrying different album names, release dates, artwork, or catalog IDs.</p>
+        <p>The opposite problem also occurs: two tracks can have nearly identical titles and artists while representing different recordings. Live performances, radio edits, clean versions, acoustic sessions, remixes, and re-recordings are meaningful differences even when a simple text search ranks them together.</p>
+        <p>That is why PlaylistXfer does not treat the first search result as automatically correct. A transfer should prefer evidence over convenience.</p>
+      </section>
+
+      <section class="guide-section" id="signals">
+        <h2>The matching signals, from strongest to weakest</h2>
+        <div class="signal-stack">
+          <div class="signal-row">
+            <span>1</span>
+            <div>
+              <strong>Recording identifier</strong>
+              <p>An ISRC can connect catalog entries that represent the same underlying recording. It is usually the strongest available starting point.</p>
+            </div>
+          </div>
+          <div class="signal-row">
+            <span>2</span>
+            <div>
+              <strong>Title and primary artist</strong>
+              <p>Normalized title and artist text helps verify the recording or find candidates when an identifier is absent.</p>
+            </div>
+          </div>
+          <div class="signal-row">
+            <span>3</span>
+            <div>
+              <strong>Album and edition context</strong>
+              <p>The album name can distinguish an original release from a live album, soundtrack, deluxe edition, or compilation.</p>
+            </div>
+          </div>
+          <div class="signal-row">
+            <span>4</span>
+            <div>
+              <strong>Duration</strong>
+              <p>A large duration difference is a warning sign. A few seconds may be normal; a two-minute gap often indicates another version.</p>
+            </div>
+          </div>
+          <div class="signal-row">
+            <span>5</span>
+            <div>
+              <strong>Storefront availability</strong>
+              <p>Apple Music results are territory-specific. A recording available in one storefront may be absent or represented by another edition elsewhere.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="guide-section" id="isrc">
+        <h2>What ISRC can and cannot prove</h2>
+        <p>The International Standard Recording Code identifies a particular sound recording. When both services expose the same ISRC, that is strong evidence that the audio recording matches.</p>
+        <p>It is not a unique Apple Music catalog ID. Apple documents that one ISRC query can return more than one song. Those results may be the same recording attached to different albums or releases. PlaylistXfer therefore uses album and duration context to choose among multiple candidates instead of assuming that every ISRC hit is interchangeable.</p>
+        <div class="guide-note">
+          <strong>Practical takeaway:</strong>
+          <p>Matching ISRC values increase confidence, but the displayed album can still differ from Spotify. Review the edition when album context matters to you.</p>
+        </div>
+      </section>
+
+      <section class="guide-section" id="alternate-versions">
+        <h2>Alternate versions that deserve a closer look</h2>
+        <div class="guide-table-wrap">
+          <table class="guide-table">
+            <thead>
+              <tr>
+                <th>Candidate</th>
+                <th>What to compare</th>
+                <th>Typical decision</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Remaster</td>
+                <td>Release year, album edition, duration</td>
+                <td>Approve if the remaster is acceptable; otherwise look for the original.</td>
+              </tr>
+              <tr>
+                <td>Live recording</td>
+                <td>“Live” markers, venue, duration, album</td>
+                <td>Do not substitute for a studio track unless that is intentional.</td>
+              </tr>
+              <tr>
+                <td>Clean or explicit edit</td>
+                <td>Content rating and title suffix</td>
+                <td>Keep the source version when possible.</td>
+              </tr>
+              <tr>
+                <td>Radio or single edit</td>
+                <td>Duration and release title</td>
+                <td>Check that the shortened arrangement is acceptable.</td>
+              </tr>
+              <tr>
+                <td>Compilation appearance</td>
+                <td>ISRC, artist, duration, compilation name</td>
+                <td>Usually safe when the recording matches, even if the album artwork differs.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="guide-section" id="confidence">
+        <h2>What ready, review, and missing mean</h2>
+        <div class="status-explainer">
+          <div class="ready">
+            <strong>Ready</strong>
+            <p>The evidence is strong enough to include the Apple Music candidate automatically.</p>
+          </div>
+          <div class="review">
+            <strong>Review</strong>
+            <p>A plausible candidate exists, but one or more signals are ambiguous. Nothing moves until you approve or skip it.</p>
+          </div>
+          <div class="missing">
+            <strong>Missing</strong>
+            <p>No candidate met the current confidence threshold. The track stays out rather than forcing a weak replacement.</p>
+          </div>
+        </div>
+        <p>A high ready percentage is useful, but accuracy matters more than a perfect-looking number. A cautious missing result is better than silently adding the wrong song.</p>
+      </section>
+
+      <section class="guide-section" id="review-checklist">
+        <h2>A 20-second review checklist</h2>
+        <ol class="guide-checklist">
+          <li><strong>Read the full title.</strong> Look for live, remix, remaster, acoustic, edit, clean, or explicit markers.</li>
+          <li><strong>Check the artist credit.</strong> Featured artists and similarly named performers can change the result.</li>
+          <li><strong>Compare duration.</strong> A large difference often reveals another arrangement.</li>
+          <li><strong>Use album context.</strong> Decide whether a compilation appearance is acceptable or whether you want the original release.</li>
+          <li><strong>Skip when uncertain.</strong> You can add a missing track manually in Apple Music later; a forced wrong match is harder to notice.</li>
+        </ol>
+      </section>
+
+      <section class="guide-section source-section">
+        <h2>Official references</h2>
+        <ul class="source-list">
+          <li><a href="https://developer.apple.com/documentation/applemusicapi/get-multiple-catalog-songs-by-isrc">Apple Music API: fetch catalog songs by ISRC</a></li>
+          <li><a href="https://developer.apple.com/documentation/applemusicapi/search">Apple Music API catalog search</a></li>
+          <li><a href="https://developer.apple.com/documentation/applemusicapi/">Apple Music API overview and storefront behavior</a></li>
+        </ul>
+      </section>
+
+      <aside class="related-guides" aria-labelledby="related-matching-guides">
+        <h2 id="related-matching-guides">Continue reading</h2>
+        <a href="/spotify-to-apple-music-missing-songs">Why songs go missing during a transfer →</a>
+        <a href="/spotify-to-apple-music">Complete Spotify to Apple Music transfer guide →</a>
+      </aside>
+
+      <div class="content-cta">
+        <a class="button-link" href="/" data-analytics-cta="matching_guide">Preview a Spotify link</a>
+        <a class="soft-link" href="/guides">Browse all guides</a>
+      </div>
+    </article>
+  </main>
+</body>
+</html>

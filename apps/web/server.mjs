@@ -50,9 +50,14 @@ function safePublicPath(pathname) {
     ["/about", "/about.html"],
     ["/contact", "/contact.html"],
     ["/faq", "/faq.html"],
+    ["/guides", "/guides.html"],
     ["/how-it-works", "/how-it-works.html"],
+    ["/how-playlist-matching-works", "/how-playlist-matching-works.html"],
     ["/privacy", "/privacy.html"],
+    ["/public-vs-private-spotify-playlists", "/public-vs-private-spotify-playlists.html"],
+    ["/spotify-playlist-not-loading", "/spotify-playlist-not-loading.html"],
     ["/spotify-to-apple-music", "/spotify-to-apple-music.html"],
+    ["/spotify-to-apple-music-missing-songs", "/spotify-to-apple-music-missing-songs.html"],
     ["/terms", "/terms.html"]
   ]).get(cleanPathname) ?? cleanPathname;
   const requestedPath = decodeURIComponent(routedPathname);
