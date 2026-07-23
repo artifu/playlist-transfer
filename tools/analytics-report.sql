@@ -106,6 +106,20 @@ where observed_at >= datetime('now', '-90 days')
   and json_extract(properties_json, '$.host') = 'ios';
 
 select
+  'ios_duplicate_prevention_28d' as report,
+  coalesce(json_extract(properties_json, '$.duplicateDestination'), 'unknown') as destination,
+  count(*) as prevention_events,
+  sum(cast(json_extract(properties_json, '$.duplicateCount') as integer)) as duplicate_tracks_skipped,
+  sum(cast(json_extract(properties_json, '$.addedCount') as integer)) as tracks_added_in_same_actions,
+  count(distinct anonymous_session) as anonymous_devices
+from analytics_events
+where observed_at >= datetime('now', '-28 days')
+  and event = 'duplicate_prevented'
+  and json_extract(properties_json, '$.host') = 'ios'
+group by destination
+order by duplicate_tracks_skipped desc;
+
+select
   'ios_manual_match_usage_28d' as report,
   count(case when event = 'manual_match_search_started' then 1 end) as searches,
   count(case when event = 'match_feedback_selected'

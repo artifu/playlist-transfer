@@ -339,7 +339,11 @@ struct ImportView: View {
 
                 if let createdPlaylist = viewModel.createdPlaylist {
                     Text(viewModel.pendingSyncItems.isEmpty
-                        ? (viewModel.isSingleTrackImport ? "Song added" : "\(createdPlaylist.trackCount) tracks transferred")
+                        ? (viewModel.isSingleTrackImport
+                            ? (viewModel.lastWriteOutcome?.skippedDuplicateCount == 1
+                                ? "Already in Apple Music"
+                                : "Song added")
+                            : "\(createdPlaylist.trackCount) tracks transferred")
                         : "\(viewModel.pendingSyncItems.count) new \(viewModel.pendingSyncItems.count == 1 ? "match" : "matches") ready")
                         .font(.caption.weight(.black))
                         .tracking(1.8)

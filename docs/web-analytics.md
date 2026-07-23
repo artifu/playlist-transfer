@@ -88,6 +88,7 @@ The report in `tools/analytics-report.sql` includes:
 - day-1 and day-7 anonymous-device return counts
 - 90-day crash, hang, CPU-exception, and disk-write-exception totals
 - manual-match search adoption and exact correction choices
+- aggregate duplicate-prevention actions by Inbox, new playlist, and existing playlist
 
 Manual-match quality feedback records the Spotify track/ISRC identifier, the Apple
 catalog identifier suggested by the algorithm, the identifier ultimately chosen,

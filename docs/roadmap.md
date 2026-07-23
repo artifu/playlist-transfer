@@ -119,9 +119,12 @@ Definition of done:
 
 - Manual candidate search for review rows. Implemented in the native app, with privacy-minimized quality feedback.
 - Saved transfer history. Implemented locally on-device with open, refresh, individual delete, and clear-all controls.
+- Duplicate protection for repeated Inbox imports and existing-playlist updates. Implemented using Apple catalog IDs and ISRCs; duplicate checks stay on-device and only aggregate counts are logged.
 - Better confidence scoring and match cache.
-- Optional duplicate prevention for repeated single-song Inbox imports.
-- Support private Spotify playlists where allowed.
+- Smart Refresh for public Spotify playlists without Spotify OAuth: detect additions/removals from saved links, present a clear diff, and update Apple Music only after explicit confirmation.
+- Optional Spotify login for private playlists, Liked Songs, albums, and whole-library selection. Keep the public-link path available without login.
+- Full unattended synchronization only after Smart Refresh proves useful. Removal, ordering, user edits, background reliability, and conflict behavior need explicit product rules.
+- Multi-playlist batch transfer is deprioritized until usage shows stronger demand.
 - Freemium usage limits.
 - Analytics and crash reporting.
 - One-time pass or low-cost purchase flow.

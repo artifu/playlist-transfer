@@ -77,6 +77,17 @@ test("analytics policy accepts local history usage without storing history conte
   assert.ok(!SAFE_ANALYTICS_PROPERTY_KEYS.includes("historyPlaylistName"));
 });
 
+test("analytics policy accepts aggregate duplicate prevention telemetry", () => {
+  assert.ok(ANALYTICS_EVENT_NAMES.includes("duplicate_prevented"));
+
+  for (const property of ["duplicateCount", "addedCount", "duplicateDestination"]) {
+    assert.ok(SAFE_ANALYTICS_PROPERTY_KEYS.includes(property), `${property} should be allowlisted`);
+  }
+
+  assert.ok(!SAFE_ANALYTICS_PROPERTY_KEYS.includes("duplicateTrackName"));
+  assert.ok(!SAFE_ANALYTICS_PROPERTY_KEYS.includes("appleLibraryPlaylistContents"));
+});
+
 test("analytics policy accepts only aggregate lifecycle and diagnostics fields", () => {
   const requiredProperties = [
     "appVersion",

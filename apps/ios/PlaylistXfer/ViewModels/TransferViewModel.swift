@@ -42,6 +42,7 @@ final class TransferViewModel: ObservableObject {
     @Published private(set) var skippedItemIDs: Set<Int> = []
     @Published private(set) var selectedCandidatesByItemID: [Int: AppleSongCandidate] = [:]
     @Published private(set) var transferredItemIDs: Set<Int> = []
+    @Published private(set) var lastWriteOutcome: AppleMusicPlaylistWriteOutcome?
     @Published private(set) var statusMessage = "Paste a public Spotify playlist or song link to begin."
     @Published private(set) var activity: TransferActivity?
     @Published private(set) var historyEntries: [TransferHistoryEntry] = []
@@ -150,6 +151,7 @@ final class TransferViewModel: ObservableObject {
         analysis = nil
         createdPlaylist = nil
         transferredItemIDs = []
+        lastWriteOutcome = nil
         resetDecisions()
         let startedAt = Date()
         trackEvent("transfer_form_started")
@@ -206,6 +208,7 @@ final class TransferViewModel: ObservableObject {
         startOptimisticActivity(.analysis)
         createdPlaylist = nil
         transferredItemIDs = []
+        lastWriteOutcome = nil
         resetDecisions()
         let startedAt = Date()
         trackEvent("analysis_started")
@@ -251,7 +254,7 @@ final class TransferViewModel: ObservableObject {
                 self?.statusMessage = message
                 self?.updateCreateActivity(message)
             }
-            let playlist = if isSingleTrackImport {
+            let outcome = if isSingleTrackImport {
                 try await appleMusic.addTrackToInbox(
                     from: analysis,
                     itemIDsToTransfer: itemIDsToTransfer,
@@ -267,18 +270,33 @@ final class TransferViewModel: ObservableObject {
                     progress: progress
                 )
             }
+            let playlist = outcome.playlist
             createdPlaylist = playlist
+            lastWriteOutcome = outcome
             transferredItemIDs = itemIDsToTransfer
             stopActivity()
             phase = .created
-            statusMessage = isSingleTrackImport
-                ? "Added the song to \(playlist.name)."
-                : "Created \(playlist.name) with \(playlist.trackCount) ready tracks."
+            if outcome.addedTrackCount == 0 && outcome.skippedDuplicateCount > 0 {
+                statusMessage = "Already in \(playlist.name) — nothing added."
+            } else if isSingleTrackImport {
+                statusMessage = "Added the song to \(playlist.name)."
+            } else if outcome.skippedDuplicateCount > 0 {
+                statusMessage = "Created \(playlist.name) with \(outcome.addedTrackCount) tracks. Skipped \(outcome.skippedDuplicateCount) duplicate \(outcome.skippedDuplicateCount == 1 ? "match" : "matches")."
+            } else {
+                statusMessage = "Created \(playlist.name) with \(playlist.trackCount) ready tracks."
+            }
             saveHistory(status: .completed)
             trackEvent("transfer_create_succeeded", properties: summaryProperties(analysis, durationMs: elapsedMilliseconds(since: startedAt), extra: [
                 "appleConnected": .bool(true),
-                "readyCount": .int(playlist.trackCount)
+                "readyCount": .int(playlist.trackCount),
+                "addedCount": .int(outcome.addedTrackCount),
+                "duplicateCount": .int(outcome.skippedDuplicateCount)
             ]))
+            trackPreventedDuplicates(
+                outcome.skippedDuplicateCount,
+                addedCount: outcome.addedTrackCount,
+                destination: isSingleTrackImport ? "inbox" : "new_playlist"
+            )
         } catch {
             stopActivity()
             saveHistory(status: .failed, errorMessage: errorMessage(error))
@@ -309,25 +327,40 @@ final class TransferViewModel: ObservableObject {
                 self?.statusMessage = message
                 self?.updateCreateActivity(message)
             }
-            let updatedPlaylist = try await appleMusic.addTracks(
+            let outcome = try await appleMusic.addTracks(
                 to: existingPlaylist,
                 from: analysis,
                 itemIDsToTransfer: pendingItemIDs,
                 candidateOverrides: selectedCandidatesByItemID,
                 progress: progress
             )
+            let updatedPlaylist = outcome.playlist
 
             transferredItemIDs.formUnion(pendingItemIDs)
             createdPlaylist = updatedPlaylist
+            lastWriteOutcome = outcome
             stopActivity()
             phase = .created
-            statusMessage = pendingItemIDs.count == 1
-                ? "Added the new match to \(updatedPlaylist.name)."
-                : "Added \(pendingItemIDs.count) new matches to \(updatedPlaylist.name)."
+            if outcome.addedTrackCount == 0 && outcome.skippedDuplicateCount > 0 {
+                statusMessage = "Already in \(updatedPlaylist.name) — nothing added."
+            } else if outcome.skippedDuplicateCount > 0 {
+                statusMessage = "Added \(outcome.addedTrackCount) new \(outcome.addedTrackCount == 1 ? "match" : "matches") to \(updatedPlaylist.name). Skipped \(outcome.skippedDuplicateCount) already there."
+            } else if outcome.addedTrackCount == 1 {
+                statusMessage = "Added the new match to \(updatedPlaylist.name)."
+            } else {
+                statusMessage = "Added \(outcome.addedTrackCount) new matches to \(updatedPlaylist.name)."
+            }
             saveHistory(status: .completed)
             trackEvent("transfer_update_succeeded", properties: summaryProperties(analysis, durationMs: elapsedMilliseconds(since: startedAt), extra: [
-                "readyCount": .int(pendingItemIDs.count)
+                "readyCount": .int(pendingItemIDs.count),
+                "addedCount": .int(outcome.addedTrackCount),
+                "duplicateCount": .int(outcome.skippedDuplicateCount)
             ]))
+            trackPreventedDuplicates(
+                outcome.skippedDuplicateCount,
+                addedCount: outcome.addedTrackCount,
+                destination: "existing_playlist"
+            )
         } catch {
             stopActivity()
             saveHistory(status: .failed, errorMessage: errorMessage(error))
@@ -452,6 +485,7 @@ final class TransferViewModel: ObservableObject {
         analysis = nil
         createdPlaylist = nil
         transferredItemIDs = []
+        lastWriteOutcome = nil
         destinationPlaylistName = ""
         resetDecisions()
         stopActivity()
@@ -472,6 +506,7 @@ final class TransferViewModel: ObservableObject {
         selectedCandidatesByItemID = entry.selectedCandidatesByItemID
         transferredItemIDs = entry.transferredItemIDs
         createdPlaylist = entry.createdPlaylist
+        lastWriteOutcome = nil
 
         if entry.createdPlaylist != nil {
             phase = .created
@@ -756,6 +791,20 @@ final class TransferViewModel: ObservableObject {
         Task {
             await api.recordUsageEvent(event, properties: enrichedProperties)
         }
+    }
+
+    private func trackPreventedDuplicates(
+        _ duplicateCount: Int,
+        addedCount: Int,
+        destination: String
+    ) {
+        guard duplicateCount > 0 else { return }
+
+        trackEvent("duplicate_prevented", properties: summaryProperties(analysis, extra: [
+            "duplicateCount": .int(duplicateCount),
+            "addedCount": .int(addedCount),
+            "duplicateDestination": .string(destination)
+        ]))
     }
 
     private func trackHistoryEvent(

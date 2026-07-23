@@ -8,6 +8,12 @@ struct CreatedAppleMusicPlaylist: Codable, Equatable, Sendable {
     let trackCount: Int
 }
 
+struct AppleMusicPlaylistWriteOutcome: Equatable, Sendable {
+    let playlist: CreatedAppleMusicPlaylist
+    let addedTrackCount: Int
+    let skippedDuplicateCount: Int
+}
+
 enum AppleMusicLibraryWriterError: LocalizedError {
     case authorizationDenied(MusicAuthorization.Status)
     case catalogSubscriptionUnavailable
@@ -46,15 +52,16 @@ struct AppleMusicLibraryWriter: Sendable {
         candidateOverrides: [Int: AppleSongCandidate] = [:],
         playlistName requestedPlaylistName: String? = nil,
         progress: (@MainActor (String) -> Void)? = nil
-    ) async throws -> CreatedAppleMusicPlaylist {
+    ) async throws -> AppleMusicPlaylistWriteOutcome {
         do {
             try await authorizeAppleMusic(progress: progress)
 
-            let songIDs = appleMusicSongIDs(
+            let requestedSongIDs = appleMusicSongIDs(
                 from: analysis,
                 itemIDsToTransfer: itemIDsToTransfer,
                 candidateOverrides: candidateOverrides
             )
+            let songIDs = uniqueMusicItemIDs(requestedSongIDs)
             guard !songIDs.isEmpty else { throw AppleMusicLibraryWriterError.noReadyTracks }
 
             await progress?("Loading \(songIDs.count) matched Apple Music songs...")
@@ -77,11 +84,15 @@ struct AppleMusicLibraryWriter: Sendable {
                 items: songs
             )
 
-            return CreatedAppleMusicPlaylist(
-                id: playlist.id.rawValue,
-                name: playlist.name,
-                url: playlist.url,
-                trackCount: songs.count
+            return AppleMusicPlaylistWriteOutcome(
+                playlist: CreatedAppleMusicPlaylist(
+                    id: playlist.id.rawValue,
+                    name: playlist.name,
+                    url: playlist.url,
+                    trackCount: songs.count
+                ),
+                addedTrackCount: songs.count,
+                skippedDuplicateCount: requestedSongIDs.count - songIDs.count
             )
         } catch let error as AppleMusicLibraryWriterError {
             throw error
@@ -96,7 +107,7 @@ struct AppleMusicLibraryWriter: Sendable {
         itemIDsToTransfer: Set<Int>? = nil,
         candidateOverrides: [Int: AppleSongCandidate] = [:],
         progress: (@MainActor (String) -> Void)? = nil
-    ) async throws -> CreatedAppleMusicPlaylist {
+    ) async throws -> AppleMusicPlaylistWriteOutcome {
         do {
             try await authorizeAppleMusic(progress: progress)
 
@@ -114,13 +125,32 @@ struct AppleMusicLibraryWriter: Sendable {
 
             await progress?("Adding the song to \(Self.inboxPlaylistName)...")
             let inbox = try await findOrCreateInbox()
+            let existingTracks = try await tracks(in: inbox)
+
+            if contains(song, in: existingTracks) {
+                return AppleMusicPlaylistWriteOutcome(
+                    playlist: CreatedAppleMusicPlaylist(
+                        id: inbox.id.rawValue,
+                        name: inbox.name,
+                        url: inbox.url,
+                        trackCount: existingTracks.count
+                    ),
+                    addedTrackCount: 0,
+                    skippedDuplicateCount: 1
+                )
+            }
+
             let updatedInbox = try await MusicLibrary.shared.add(song, to: inbox)
 
-            return CreatedAppleMusicPlaylist(
-                id: updatedInbox.id.rawValue,
-                name: updatedInbox.name,
-                url: updatedInbox.url,
-                trackCount: 1
+            return AppleMusicPlaylistWriteOutcome(
+                playlist: CreatedAppleMusicPlaylist(
+                    id: updatedInbox.id.rawValue,
+                    name: updatedInbox.name,
+                    url: updatedInbox.url,
+                    trackCount: existingTracks.count + 1
+                ),
+                addedTrackCount: 1,
+                skippedDuplicateCount: 0
             )
         } catch let error as AppleMusicLibraryWriterError {
             throw error
@@ -136,15 +166,16 @@ struct AppleMusicLibraryWriter: Sendable {
         itemIDsToTransfer: Set<Int>,
         candidateOverrides: [Int: AppleSongCandidate] = [:],
         progress: (@MainActor (String) -> Void)? = nil
-    ) async throws -> CreatedAppleMusicPlaylist {
+    ) async throws -> AppleMusicPlaylistWriteOutcome {
         do {
             try await authorizeAppleMusic(progress: progress)
 
-            let songIDs = appleMusicSongIDs(
+            let requestedSongIDs = appleMusicSongIDs(
                 from: analysis,
                 itemIDsToTransfer: itemIDsToTransfer,
                 candidateOverrides: candidateOverrides
             )
+            let songIDs = uniqueMusicItemIDs(requestedSongIDs)
             guard !songIDs.isEmpty else { throw AppleMusicLibraryWriterError.noReadyTracks }
 
             await progress?("Loading \(songIDs.count) new Apple Music \(songIDs.count == 1 ? "song" : "songs")...")
@@ -156,17 +187,26 @@ struct AppleMusicLibraryWriter: Sendable {
                 id: createdPlaylist.id,
                 name: createdPlaylist.name
             )
+            var existingTracks = try await tracks(in: libraryPlaylist)
+            let newSongs = songs.filter { !contains($0, in: existingTracks) }
+            let skippedDuplicateCount = (requestedSongIDs.count - songIDs.count)
+                + (songs.count - newSongs.count)
 
-            for (index, song) in songs.enumerated() {
-                await progress?("Adding new \(index + 1) of \(songs.count)...")
+            for (index, song) in newSongs.enumerated() {
+                await progress?("Adding new \(index + 1) of \(newSongs.count)...")
                 libraryPlaylist = try await MusicLibrary.shared.add(song, to: libraryPlaylist)
+                existingTracks.append(.song(song))
             }
 
-            return CreatedAppleMusicPlaylist(
-                id: libraryPlaylist.id.rawValue,
-                name: libraryPlaylist.name,
-                url: libraryPlaylist.url ?? createdPlaylist.url,
-                trackCount: createdPlaylist.trackCount + songs.count
+            return AppleMusicPlaylistWriteOutcome(
+                playlist: CreatedAppleMusicPlaylist(
+                    id: libraryPlaylist.id.rawValue,
+                    name: libraryPlaylist.name,
+                    url: libraryPlaylist.url ?? createdPlaylist.url,
+                    trackCount: existingTracks.count
+                ),
+                addedTrackCount: newSongs.count,
+                skippedDuplicateCount: skippedDuplicateCount
             )
         } catch let error as AppleMusicLibraryWriterError {
             throw error
@@ -223,6 +263,11 @@ struct AppleMusicLibraryWriter: Sendable {
 
             return MusicItemID(appleSongID)
         }
+    }
+
+    private func uniqueMusicItemIDs(_ ids: [MusicItemID]) -> [MusicItemID] {
+        var seen: Set<String> = []
+        return ids.filter { seen.insert($0.rawValue).inserted }
     }
 
     private func authorizeAppleMusic(
@@ -291,6 +336,39 @@ struct AppleMusicLibraryWriter: Sendable {
         }
 
         throw AppleMusicLibraryWriterError.playlistNotFound(name)
+    }
+
+    private func tracks(in playlist: Playlist) async throws -> [Track] {
+        let detailedPlaylist = try await playlist.with(.tracks)
+        guard var collection = detailedPlaylist.tracks else { return [] }
+
+        while collection.hasNextBatch,
+              let nextBatch = try await collection.nextBatch(limit: 100) {
+            collection += nextBatch
+        }
+
+        return Array(collection)
+    }
+
+    private func contains(_ song: Song, in tracks: [Track]) -> Bool {
+        let catalogID = song.id.rawValue
+        let isrc = normalizedISRC(song.isrc)
+
+        return tracks.contains { track in
+            if track.id.rawValue == catalogID {
+                return true
+            }
+
+            guard let isrc else { return false }
+            return normalizedISRC(track.isrc) == isrc
+        }
+    }
+
+    private func normalizedISRC(_ value: String?) -> String? {
+        let normalized = value?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .uppercased()
+        return normalized?.isEmpty == false ? normalized : nil
     }
 
     private func mapMusicKitError(_ error: Error) -> Error {
