@@ -118,7 +118,7 @@ Definition of done:
 ## Phase 4: Product Polish
 
 - Manual candidate search for review rows. Implemented in the native app, with privacy-minimized quality feedback.
-- Saved transfer history if users ask for it.
+- Saved transfer history. Implemented locally on-device with open, refresh, individual delete, and clear-all controls.
 - Better confidence scoring and match cache.
 - Optional duplicate prevention for repeated single-song Inbox imports.
 - Support private Spotify playlists where allowed.

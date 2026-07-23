@@ -138,3 +138,22 @@ where observed_at >= datetime('now', '-90 days')
   and event = 'match_feedback_selected'
   and json_extract(properties_json, '$.selectionChanged') = 1
 order by observed_at desc;
+
+select
+  'ios_local_history_usage_28d' as report,
+  event,
+  count(*) as events,
+  count(distinct anonymous_session) as anonymous_devices
+from analytics_events
+where observed_at >= datetime('now', '-28 days')
+  and event in (
+    'history_opened',
+    'history_retry_started',
+    'history_retry_succeeded',
+    'history_retry_failed',
+    'history_deleted',
+    'history_cleared'
+  )
+  and json_extract(properties_json, '$.host') = 'ios'
+group by event
+order by events desc;

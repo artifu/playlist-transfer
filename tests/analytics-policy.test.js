@@ -55,6 +55,28 @@ test("analytics policy accepts manual match quality feedback without free-form q
   assert.ok(!SAFE_ANALYTICS_PROPERTY_KEYS.includes("artistName"));
 });
 
+test("analytics policy accepts local history usage without storing history contents", () => {
+  const requiredEvents = [
+    "history_opened",
+    "history_retry_started",
+    "history_retry_succeeded",
+    "history_retry_failed",
+    "history_deleted",
+    "history_cleared"
+  ];
+
+  for (const event of requiredEvents) {
+    assert.ok(ANALYTICS_EVENT_NAMES.includes(event), `${event} should be allowlisted`);
+  }
+
+  for (const property of ["historyStatus", "historyEntryAgeDays", "historyCount"]) {
+    assert.ok(SAFE_ANALYTICS_PROPERTY_KEYS.includes(property), `${property} should be allowlisted`);
+  }
+
+  assert.ok(!SAFE_ANALYTICS_PROPERTY_KEYS.includes("historyInput"));
+  assert.ok(!SAFE_ANALYTICS_PROPERTY_KEYS.includes("historyPlaylistName"));
+});
+
 test("analytics policy accepts only aggregate lifecycle and diagnostics fields", () => {
   const requiredProperties = [
     "appVersion",

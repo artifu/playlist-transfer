@@ -1,11 +1,11 @@
 import Foundation
 
-struct PlaylistPreviewResponse: Decodable, Sendable {
+struct PlaylistPreviewResponse: Codable, Sendable {
     let playlist: SpotifyPlaylist
     let tracks: [SpotifyTrack]
 }
 
-struct SpotifyPlaylist: Decodable, Identifiable, Sendable {
+struct SpotifyPlaylist: Codable, Identifiable, Sendable {
     let id: String
     let name: String
     let kind: String?
@@ -16,7 +16,7 @@ struct SpotifyPlaylist: Decodable, Identifiable, Sendable {
     let limitations: [String]?
 }
 
-struct SpotifyTrack: Decodable, Identifiable, Sendable {
+struct SpotifyTrack: Codable, Identifiable, Sendable {
     let spotifyTrackId: String?
     let isrc: String?
     let name: String
@@ -54,7 +54,7 @@ struct TransferJob<Result: Decodable & Sendable>: Decodable, Sendable {
     }
 }
 
-struct TransferAnalysis: Decodable, Sendable {
+struct TransferAnalysis: Codable, Sendable {
     let playlist: AnalyzedPlaylist
     let summary: TransferSummary
     let items: [TransferItem]
@@ -63,7 +63,7 @@ struct TransferAnalysis: Decodable, Sendable {
     let createdApplePlaylistId: String?
 }
 
-struct TransferRecord: Decodable, Sendable {
+struct TransferRecord: Codable, Sendable {
     let id: String
     let status: String
     let input: String
@@ -73,7 +73,7 @@ struct TransferRecord: Decodable, Sendable {
     let createdApplePlaylistId: String?
 }
 
-struct AnalyzedPlaylist: Decodable, Identifiable, Sendable {
+struct AnalyzedPlaylist: Codable, Identifiable, Sendable {
     let id: String
     let name: String
     let kind: String?
@@ -86,7 +86,7 @@ struct AnalyzedPlaylist: Decodable, Identifiable, Sendable {
     let limitations: [String]?
 }
 
-struct TransferSummary: Decodable, Sendable {
+struct TransferSummary: Codable, Sendable {
     let matchedCount: Int
     let unmatchedCount: Int
     let needsReviewCount: Int
@@ -94,7 +94,7 @@ struct TransferSummary: Decodable, Sendable {
     let matchRate: Double
 }
 
-struct TransferItem: Decodable, Identifiable, Sendable {
+struct TransferItem: Codable, Identifiable, Sendable {
     let index: Int
     let status: String
     let source: SpotifyTrack
@@ -125,7 +125,7 @@ struct TransferItem: Decodable, Identifiable, Sendable {
     }
 }
 
-struct AppleSongCandidate: Decodable, Sendable {
+struct AppleSongCandidate: Codable, Sendable {
     let id: String
     let name: String
     let artistName: String

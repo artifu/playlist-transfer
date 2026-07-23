@@ -16,6 +16,7 @@
 		A10000000000000000000007 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000007 /* Assets.xcassets */; };
 		A10000000000000000000008 /* AppleMusicLibraryWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000009 /* AppleMusicLibraryWriter.swift */; };
 		A10000000000000000000009 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000011 /* PrivacyInfo.xcprivacy */; };
+		A10000000000000000000010 /* TransferHistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000012 /* TransferHistoryStore.swift */; };
 		A20000000000000000000001 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000001 /* ShareViewController.swift */; };
 		A20000000000000000000002 /* PlaylistXferShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = B20000000000000000000003 /* PlaylistXferShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
@@ -56,6 +57,7 @@
 		B10000000000000000000009 /* AppleMusicLibraryWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleMusicLibraryWriter.swift; sourceTree = "<group>"; };
 		B10000000000000000000010 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B10000000000000000000011 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		B10000000000000000000012 /* TransferHistoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferHistoryStore.swift; sourceTree = "<group>"; };
 		B20000000000000000000001 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 		B20000000000000000000002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B20000000000000000000003 /* PlaylistXferShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PlaylistXferShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -150,6 +152,7 @@
 			isa = PBXGroup;
 			children = (
 				B10000000000000000000009 /* AppleMusicLibraryWriter.swift */,
+				B10000000000000000000012 /* TransferHistoryStore.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -269,6 +272,7 @@
 				A10000000000000000000004 /* TransferAPIClient.swift in Sources */,
 				A10000000000000000000005 /* TransferViewModel.swift in Sources */,
 				A10000000000000000000008 /* AppleMusicLibraryWriter.swift in Sources */,
+				A10000000000000000000010 /* TransferHistoryStore.swift in Sources */,
 				A10000000000000000000006 /* ImportView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

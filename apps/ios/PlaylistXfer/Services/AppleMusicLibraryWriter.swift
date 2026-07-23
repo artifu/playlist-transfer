@@ -1,7 +1,7 @@
 import Foundation
 import MusicKit
 
-struct CreatedAppleMusicPlaylist: Equatable, Sendable {
+struct CreatedAppleMusicPlaylist: Codable, Equatable, Sendable {
     let id: String
     let name: String
     let url: URL?

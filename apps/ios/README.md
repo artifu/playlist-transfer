@@ -132,11 +132,14 @@ These events reuse the same anonymous session header as the web app and are inte
 - Apple Music match analysis start, success, and failure
 - review decisions such as approve, candidate selection, skip, and restore
 - manual Apple Music catalog searches and exact-match selection
+- local recent-transfer history with saved reports, explicit refresh, and deletion controls
 - Apple Music playlist creation start, success, and failure
 - updates to an already-created playlist
 - aggregate MetricKit diagnostic counts for crashes, hangs, CPU exceptions, and disk-write exceptions
 
-The native app sends safe fields only: host, app path, app/build version, first-launch flag, input source, playlist id, transfer id, aggregate track counts, match rate, duration, aggregate diagnostic counts, error category/message, and catalog identifiers needed to compare the algorithm's suggestion with a user's selected match. Free-form Apple Music search text, track/artist names, MetricKit stack traces, Apple Music user tokens, emails, full Spotify playlist URLs, authorization payloads, and raw user library data are not logged.
+Recent transfer snapshots are stored only in the app's protected Application Support directory, capped at 30 entries, and can be deleted individually or cleared together. Refreshing a saved transfer re-runs preview and matching but never writes to Apple Music automatically.
+
+The native app sends safe fields only: host, app path, app/build version, first-launch flag, input source, playlist id, transfer id, aggregate track counts, match rate, duration, aggregate diagnostic counts, error category/message, catalog identifiers needed to compare the algorithm's suggestion with a user's selected match, and aggregate history actions. Saved history contents, free-form Apple Music search text, track/artist names, MetricKit stack traces, Apple Music user tokens, emails, full Spotify playlist URLs, authorization payloads, and raw user library data are not logged.
 
 Google Analytics or Firebase Analytics can be added later if we want App Store funnel dashboards in GA4. That follow-up requires a Firebase app, `GoogleService-Info.plist`, and a Swift Package dependency, so this MVP keeps analytics lightweight and dependency-free.
 

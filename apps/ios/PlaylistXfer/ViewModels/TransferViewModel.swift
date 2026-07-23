@@ -44,21 +44,27 @@ final class TransferViewModel: ObservableObject {
     @Published private(set) var transferredItemIDs: Set<Int> = []
     @Published private(set) var statusMessage = "Paste a public Spotify playlist or song link to begin."
     @Published private(set) var activity: TransferActivity?
+    @Published private(set) var historyEntries: [TransferHistoryEntry] = []
 
     private let api: TransferAPIClient
     private let appleMusic: AppleMusicLibraryWriter
+    private let historyStore: TransferHistoryStore
     private var progressPulseTask: Task<Void, Never>?
     private var currentSourceSurface: String?
     private var lastActiveTelemetryAt: Date?
+    private var activeHistoryEntryID: UUID?
 
     private static let hasLaunchedKey = "playlistxfer.analytics.has-launched"
 
     init(
         api: TransferAPIClient = TransferAPIClient(),
-        appleMusic: AppleMusicLibraryWriter = AppleMusicLibraryWriter()
+        appleMusic: AppleMusicLibraryWriter = AppleMusicLibraryWriter(),
+        historyStore: TransferHistoryStore = TransferHistoryStore()
     ) {
         self.api = api
         self.appleMusic = appleMusic
+        self.historyStore = historyStore
+        self.historyEntries = historyStore.entries
 
         #if DEBUG
         applyScreenshotScenarioFromLaunchArguments()
@@ -140,6 +146,7 @@ final class TransferViewModel: ObservableObject {
         phase = .previewing
         statusMessage = "Reading public Spotify link..."
         startOptimisticActivity(.preview)
+        preview = nil
         analysis = nil
         createdPlaylist = nil
         transferredItemIDs = []
@@ -158,6 +165,7 @@ final class TransferViewModel: ObservableObject {
             statusMessage = preview?.playlist.kind == "track"
                 ? "Song loaded. Find its Apple Music match when you are ready."
                 : "Playlist loaded. Match it with Apple Music when you are ready."
+            saveHistory(status: .previewed)
             trackEvent("preview_succeeded", properties: previewProperties(preview, durationMs: elapsedMilliseconds(since: startedAt)))
         } catch {
             stopActivity()
@@ -211,9 +219,11 @@ final class TransferViewModel: ObservableObject {
             statusMessage = isSingleTrackImport
                 ? "Apple Music match ready. Add the song when it looks right."
                 : "Apple Music match report ready. Create from ready tracks when you are comfortable."
+            saveHistory(status: .ready)
             trackEvent("analysis_succeeded", properties: summaryProperties(analysis, durationMs: elapsedMilliseconds(since: startedAt)))
         } catch {
             stopActivity()
+            saveHistory(status: .failed, errorMessage: errorMessage(error))
             trackEvent("analysis_failed", properties: [
                 "durationMs": .int(elapsedMilliseconds(since: startedAt)),
                 "errorCategory": .string("apple_music_match"),
@@ -264,12 +274,14 @@ final class TransferViewModel: ObservableObject {
             statusMessage = isSingleTrackImport
                 ? "Added the song to \(playlist.name)."
                 : "Created \(playlist.name) with \(playlist.trackCount) ready tracks."
+            saveHistory(status: .completed)
             trackEvent("transfer_create_succeeded", properties: summaryProperties(analysis, durationMs: elapsedMilliseconds(since: startedAt), extra: [
                 "appleConnected": .bool(true),
                 "readyCount": .int(playlist.trackCount)
             ]))
         } catch {
             stopActivity()
+            saveHistory(status: .failed, errorMessage: errorMessage(error))
             trackEvent("transfer_create_failed", properties: summaryProperties(analysis, durationMs: elapsedMilliseconds(since: startedAt), extra: [
                 "appleConnected": .bool(false),
                 "errorCategory": .string("apple_music_create"),
@@ -312,11 +324,13 @@ final class TransferViewModel: ObservableObject {
             statusMessage = pendingItemIDs.count == 1
                 ? "Added the new match to \(updatedPlaylist.name)."
                 : "Added \(pendingItemIDs.count) new matches to \(updatedPlaylist.name)."
+            saveHistory(status: .completed)
             trackEvent("transfer_update_succeeded", properties: summaryProperties(analysis, durationMs: elapsedMilliseconds(since: startedAt), extra: [
                 "readyCount": .int(pendingItemIDs.count)
             ]))
         } catch {
             stopActivity()
+            saveHistory(status: .failed, errorMessage: errorMessage(error))
             trackEvent("transfer_update_failed", properties: summaryProperties(analysis, durationMs: elapsedMilliseconds(since: startedAt), extra: [
                 "errorCategory": .string("apple_music_update"),
                 "errorMessage": .string(errorMessage(error)),
@@ -332,6 +346,7 @@ final class TransferViewModel: ObservableObject {
         skippedItemIDs.remove(item.id)
         phase = createdPlaylist == nil ? .analysisReady : .created
         statusMessage = decisionConfirmation(for: item, candidateName: selectedCandidate(for: item)?.name)
+        saveHistory(status: currentHistoryStatus)
         trackReviewDecision("approve", item: item)
     }
 
@@ -342,6 +357,7 @@ final class TransferViewModel: ObservableObject {
 
         phase = createdPlaylist == nil ? .analysisReady : .created
         statusMessage = decisionConfirmation(for: item, candidateName: candidate.name)
+        saveHistory(status: currentHistoryStatus)
         let index = candidateIndex(candidate, in: item)
         trackReviewDecision("use-candidate", item: item, candidateIndex: index)
         trackMatchFeedback(
@@ -395,6 +411,7 @@ final class TransferViewModel: ObservableObject {
 
         phase = createdPlaylist == nil ? .analysisReady : .created
         statusMessage = decisionConfirmation(for: item, candidateName: candidate.name)
+        saveHistory(status: currentHistoryStatus)
         trackReviewDecision("manual-search", item: item)
         trackMatchFeedback(
             selectedCandidate: candidate,
@@ -415,6 +432,7 @@ final class TransferViewModel: ObservableObject {
         statusMessage = transferredItemIDs.contains(item.id)
             ? "\"\(item.source.name)\" was already transferred, so skipping it here will not remove it from Apple Music."
             : "Skipped \"\(item.source.name)\". It will stay out of the Apple Music playlist."
+        saveHistory(status: currentHistoryStatus)
         trackReviewDecision("skip", item: item)
     }
 
@@ -422,12 +440,14 @@ final class TransferViewModel: ObservableObject {
         skippedItemIDs.remove(item.id)
         phase = createdPlaylist == nil ? .analysisReady : .created
         statusMessage = "Restored \"\(item.source.name)\" to the match report."
+        saveHistory(status: currentHistoryStatus)
         trackReviewDecision("restore", item: item)
     }
 
     func reset() {
         playlistInput = ""
         currentSourceSurface = nil
+        activeHistoryEntryID = nil
         preview = nil
         analysis = nil
         createdPlaylist = nil
@@ -437,6 +457,102 @@ final class TransferViewModel: ObservableObject {
         stopActivity()
         phase = .idle
         statusMessage = "Paste a public Spotify playlist or song link to begin."
+    }
+
+    func openHistoryEntry(_ entry: TransferHistoryEntry) {
+        stopActivity()
+        activeHistoryEntryID = entry.id
+        currentSourceSurface = "history_open"
+        playlistInput = entry.input
+        preview = entry.preview
+        analysis = entry.analysis
+        destinationPlaylistName = entry.destinationPlaylistName
+        approvedItemIDs = entry.approvedItemIDs
+        skippedItemIDs = entry.skippedItemIDs
+        selectedCandidatesByItemID = entry.selectedCandidatesByItemID
+        transferredItemIDs = entry.transferredItemIDs
+        createdPlaylist = entry.createdPlaylist
+
+        if entry.createdPlaylist != nil {
+            phase = .created
+            statusMessage = "Opened the completed transfer. Nothing will be added again unless you explicitly update it."
+        } else if entry.analysis != nil {
+            phase = .analysisReady
+            statusMessage = entry.status == .failed
+                ? "Opened the previous result. Review it and retry when ready."
+                : "Opened the saved match report."
+        } else {
+            phase = .previewReady
+            statusMessage = entry.status == .failed
+                ? "Opened the failed attempt. Match it again when ready."
+                : "Opened the saved Spotify preview."
+        }
+
+        trackHistoryEvent("history_opened", properties: historyProperties(entry))
+    }
+
+    func retryHistoryEntry(_ entry: TransferHistoryEntry) async {
+        reset()
+        activeHistoryEntryID = entry.id
+        currentSourceSurface = "history_retry"
+        playlistInput = entry.input
+        trackHistoryEvent("history_retry_started", properties: historyProperties(entry))
+
+        await previewPlaylist()
+        guard phase == .previewReady else {
+            trackHistoryEvent("history_retry_failed", properties: historyProperties(entry, extra: [
+                "errorCategory": .string("history_preview_retry")
+            ]))
+            return
+        }
+
+        await analyzeMatches()
+        guard phase == .analysisReady else {
+            trackHistoryEvent("history_retry_failed", properties: historyProperties(entry, extra: [
+                "errorCategory": .string("history_analysis_retry")
+            ]))
+            return
+        }
+
+        if let existingPlaylist = entry.createdPlaylist, let refreshedAnalysis = analysis {
+            let previouslyTransferredSourceIDs = Set(
+                (entry.analysis?.items ?? [])
+                    .filter { entry.transferredItemIDs.contains($0.id) }
+                    .map { $0.source.id }
+            )
+            transferredItemIDs = Set(
+                refreshedAnalysis.items
+                    .filter { previouslyTransferredSourceIDs.contains($0.source.id) }
+                    .map(\.id)
+            )
+            createdPlaylist = existingPlaylist
+            phase = .created
+            statusMessage = pendingSyncItems.isEmpty
+                ? "Matches refreshed. The existing Apple Music playlist is already up to date."
+                : "\(pendingSyncItems.count) refreshed \(pendingSyncItems.count == 1 ? "match is" : "matches are") ready to add to the existing Apple Music playlist."
+            saveHistory(status: .completed)
+        }
+
+        trackHistoryEvent("history_retry_succeeded", properties: historyProperties(entry))
+    }
+
+    func deleteHistoryEntry(_ entry: TransferHistoryEntry) {
+        historyStore.remove(id: entry.id)
+        historyEntries = historyStore.entries
+        if activeHistoryEntryID == entry.id {
+            activeHistoryEntryID = nil
+        }
+        trackHistoryEvent("history_deleted", properties: historyProperties(entry))
+    }
+
+    func clearHistory() {
+        let count = historyEntries.count
+        historyStore.removeAll()
+        historyEntries = []
+        activeHistoryEntryID = nil
+        trackHistoryEvent("history_cleared", properties: [
+            "historyCount": .int(count)
+        ])
     }
 
     private func decisionConfirmation(for item: TransferItem, candidateName: String?) -> String {
@@ -642,6 +758,24 @@ final class TransferViewModel: ObservableObject {
         }
     }
 
+    private func trackHistoryEvent(
+        _ event: String,
+        properties: [String: AnalyticsPropertyValue] = [:]
+    ) {
+        var safeProperties: [String: AnalyticsPropertyValue] = [
+            "host": .string("ios"),
+            "path": .string("ios/history")
+        ]
+        properties.forEach { key, value in
+            safeProperties[key] = value
+        }
+        let api = api
+
+        Task {
+            await api.recordUsageEvent(event, properties: safeProperties)
+        }
+    }
+
     private func trackReviewDecision(_ action: String, item: TransferItem, candidateIndex: Int? = nil) {
         var properties = summaryProperties(analysis)
         properties["reviewAction"] = .string(action)
@@ -652,6 +786,63 @@ final class TransferViewModel: ObservableObject {
         }
 
         trackEvent("review_decision_succeeded", properties: properties)
+    }
+
+    private var currentHistoryStatus: TransferHistoryStatus {
+        if createdPlaylist != nil { return .completed }
+        if analysis != nil { return .ready }
+        return .previewed
+    }
+
+    private func saveHistory(
+        status: TransferHistoryStatus,
+        errorMessage: String? = nil
+    ) {
+        guard let preview else { return }
+
+        let now = Date()
+        let normalizedInput = playlistInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        let existing = activeHistoryEntryID.flatMap { id in
+            historyStore.entries.first { $0.id == id && $0.input == normalizedInput }
+        }
+        let entryID = existing?.id ?? UUID()
+        activeHistoryEntryID = entryID
+
+        let entry = TransferHistoryEntry(
+            id: entryID,
+            createdAt: existing?.createdAt ?? now,
+            updatedAt: now,
+            input: normalizedInput,
+            preview: preview,
+            analysis: analysis,
+            destinationPlaylistName: destinationPlaylistName,
+            approvedItemIDs: approvedItemIDs,
+            skippedItemIDs: skippedItemIDs,
+            selectedCandidatesByItemID: selectedCandidatesByItemID,
+            transferredItemIDs: transferredItemIDs,
+            createdPlaylist: createdPlaylist,
+            status: status,
+            errorMessage: errorMessage
+        )
+
+        historyStore.upsert(entry)
+        historyEntries = historyStore.entries
+    }
+
+    private func historyProperties(
+        _ entry: TransferHistoryEntry,
+        extra: [String: AnalyticsPropertyValue] = [:]
+    ) -> [String: AnalyticsPropertyValue] {
+        var properties = extra
+        properties["historyStatus"] = .string(entry.status.rawValue)
+        properties["historyEntryAgeDays"] = .int(max(0, Calendar.current.dateComponents(
+            [.day],
+            from: entry.createdAt,
+            to: Date()
+        ).day ?? 0))
+        properties["totalTracks"] = .int(entry.totalCount)
+        properties["readyCount"] = .int(entry.readyCount)
+        return properties
     }
 
     private func trackMatchFeedback(

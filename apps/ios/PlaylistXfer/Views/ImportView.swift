@@ -9,6 +9,7 @@ struct ImportView: View {
     @FocusState private var playlistFieldFocused: Bool
     @FocusState private var destinationFieldFocused: Bool
     @State private var isReadingClipboard = false
+    @State private var showsHistory = false
 
     var body: some View {
         ScrollViewReader { scrollProxy in
@@ -99,6 +100,9 @@ struct ImportView: View {
             .animation(.snappy(duration: 0.25), value: viewModel.phase)
             .animation(.snappy(duration: 0.25), value: viewModel.activity)
         }
+        .sheet(isPresented: $showsHistory) {
+            TransferHistoryView(viewModel: viewModel)
+        }
     }
 
     #if DEBUG
@@ -127,15 +131,23 @@ struct ImportView: View {
 
                 Spacer()
 
-                HStack(spacing: 7) {
-                    Circle()
-                        .fill(AppTheme.spotify)
-                        .frame(width: 7, height: 7)
-                    Text("Public link MVP")
-                        .font(.caption2.monospaced().weight(.bold))
-                        .foregroundStyle(AppTheme.inkMuted)
-                        .textCase(.uppercase)
+                Button {
+                    showsHistory = true
+                } label: {
+                    HStack(spacing: 7) {
+                        Image(systemName: "clock.arrow.circlepath")
+                        Text(viewModel.historyEntries.isEmpty
+                            ? "History"
+                            : "History \(viewModel.historyEntries.count)")
+                    }
+                    .font(.caption.weight(.black))
+                    .padding(.horizontal, 11)
+                    .padding(.vertical, 7)
+                    .background(AppTheme.inset)
+                    .foregroundStyle(AppTheme.ink)
+                    .clipShape(Capsule())
                 }
+                .buttonStyle(.plain)
             }
 
             Text("Drop a link.\nWe'll do the digging.")
@@ -1324,6 +1336,175 @@ private struct MetricCard: View {
             RoundedRectangle(cornerRadius: 22, style: .continuous)
                 .stroke(AppTheme.border, lineWidth: 1)
         )
+    }
+}
+
+private struct TransferHistoryView: View {
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject var viewModel: TransferViewModel
+    @State private var confirmsClearHistory = false
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if viewModel.historyEntries.isEmpty {
+                    ContentUnavailableView(
+                        "No transfers yet",
+                        systemImage: "clock.arrow.circlepath",
+                        description: Text("PlaylistXfer saves successful previews, match reports, and completed transfers on this device.")
+                    )
+                } else {
+                    List {
+                        Section {
+                            ForEach(viewModel.historyEntries) { entry in
+                                historyRow(entry)
+                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                        Button(role: .destructive) {
+                                            viewModel.deleteHistoryEntry(entry)
+                                        } label: {
+                                            Label("Delete", systemImage: "trash")
+                                        }
+                                    }
+                            }
+                        } footer: {
+                            Text("History stays on this device. Refreshing checks Spotify and Apple Music again, but never creates or changes a playlist automatically.")
+                        }
+                    }
+                    .listStyle(.insetGrouped)
+                }
+            }
+            .navigationTitle("Recent Transfers")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+
+                if !viewModel.historyEntries.isEmpty {
+                    ToolbarItem(placement: .destructiveAction) {
+                        Button("Clear") {
+                            confirmsClearHistory = true
+                        }
+                        .foregroundStyle(AppTheme.danger)
+                    }
+                }
+            }
+            .confirmationDialog(
+                "Clear all transfer history from this device?",
+                isPresented: $confirmsClearHistory,
+                titleVisibility: .visible
+            ) {
+                Button("Clear History", role: .destructive) {
+                    viewModel.clearHistory()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This cannot be undone. Apple Music playlists already created will not be deleted.")
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    private func historyRow(_ entry: TransferHistoryEntry) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
+                ArtworkView(url: entry.artworkURL, size: 58)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(entry.displayName)
+                        .font(.headline)
+                        .lineLimit(2)
+
+                    HStack(spacing: 6) {
+                        Text(statusLabel(entry.status))
+                            .font(.caption2.weight(.black))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(statusColor(entry.status).opacity(0.14))
+                            .foregroundStyle(statusColor(entry.status))
+                            .clipShape(Capsule())
+
+                        Text(entry.updatedAt, style: .relative)
+                            .font(.caption)
+                            .foregroundStyle(AppTheme.inkMuted)
+                    }
+
+                    Text(entry.analysis == nil
+                        ? "\(entry.totalCount) tracks previewed"
+                        : "\(entry.readyCount) ready of \(entry.totalCount)")
+                        .font(.caption)
+                        .foregroundStyle(AppTheme.inkMuted)
+                }
+
+                Spacer(minLength: 0)
+            }
+
+            if let errorMessage = entry.errorMessage, entry.status == .failed {
+                Text(errorMessage)
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.danger)
+                    .lineLimit(2)
+            }
+
+            HStack(spacing: 10) {
+                Button {
+                    viewModel.openHistoryEntry(entry)
+                    dismiss()
+                } label: {
+                    Label("Open", systemImage: "doc.text.magnifyingglass")
+                        .font(.caption.weight(.black))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(AppTheme.inset)
+                        .foregroundStyle(AppTheme.ink)
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    dismiss()
+                    Task {
+                        await viewModel.retryHistoryEntry(entry)
+                    }
+                } label: {
+                    Label("Refresh matches", systemImage: "arrow.clockwise")
+                        .font(.caption.weight(.black))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(AppTheme.actionBlue)
+                        .foregroundStyle(.white)
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.vertical, 6)
+    }
+
+    private func statusLabel(_ status: TransferHistoryStatus) -> String {
+        switch status {
+        case .previewed:
+            return "Previewed"
+        case .ready:
+            return "Ready"
+        case .completed:
+            return "Completed"
+        case .failed:
+            return "Needs attention"
+        }
+    }
+
+    private func statusColor(_ status: TransferHistoryStatus) -> Color {
+        switch status {
+        case .previewed:
+            return AppTheme.actionBlue
+        case .ready, .completed:
+            return AppTheme.spotify
+        case .failed:
+            return AppTheme.danger
+        }
     }
 }
 
