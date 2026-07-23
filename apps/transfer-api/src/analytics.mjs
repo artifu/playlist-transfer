@@ -1,52 +1,12 @@
 import { createHash } from "node:crypto";
 import { readJsonBody, sendJson } from "./http.mjs";
+import {
+  ANALYTICS_EVENT_NAMES,
+  SAFE_ANALYTICS_PROPERTY_KEYS
+} from "../../../shared/analytics-policy.js";
 
-const ALLOWED_EVENTS = new Set([
-  "transfer_form_started",
-  "apple_connect_started",
-  "apple_connect_succeeded",
-  "apple_connect_failed",
-  "apple_disconnect_succeeded",
-  "preview_started",
-  "preview_succeeded",
-  "preview_failed",
-  "analysis_started",
-  "analysis_succeeded",
-  "analysis_failed",
-  "review_decision_succeeded",
-  "review_decision_failed",
-  "transfer_create_started",
-  "transfer_create_succeeded",
-  "transfer_create_failed"
-]);
-
-const SAFE_PROPERTY_KEYS = new Set([
-  "appleConnected",
-  "analysisLimit",
-  "candidateIndex",
-  "durationMs",
-  "errorCategory",
-  "errorMessage",
-  "funnelOutcome",
-  "funnelStage",
-  "funnelStep",
-  "hasDeveloperToken",
-  "host",
-  "itemIndex",
-  "matchRate",
-  "missingCount",
-  "path",
-  "playlistId",
-  "playlistSource",
-  "readableTracks",
-  "readyCount",
-  "reviewAction",
-  "reviewCount",
-  "sourceSurface",
-  "totalTracks",
-  "transferId",
-  "withIsrcCount"
-]);
+const ALLOWED_EVENTS = new Set(ANALYTICS_EVENT_NAMES);
+const SAFE_PROPERTY_KEYS = new Set(SAFE_ANALYTICS_PROPERTY_KEYS);
 
 function sessionHash(sessionId) {
   const normalizedSessionId = String(sessionId || "").trim();

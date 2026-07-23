@@ -59,6 +59,15 @@ struct TransferAPIClient: Sendable {
         return try await pollAnalysisJob(job.id, progress: progress)
     }
 
+    func searchAppleMusic(term: String, limit: Int = 10) async throws -> [AppleSongCandidate] {
+        let response: AppleMusicCatalogSearchResponse = try await send(
+            path: "/api/apple-music/catalog-search",
+            method: "POST",
+            body: AppleMusicCatalogSearchRequest(term: term, limit: limit)
+        )
+        return response.results
+    }
+
     func recordUsageEvent(_ event: String, properties: [String: AnalyticsPropertyValue] = [:]) async {
         do {
             let _: UsageEventResponse = try await send(
@@ -138,6 +147,11 @@ private struct PublicPlaylistRequest: Encodable {
 
 private struct AnalyzePublicPlaylistRequest: Encodable {
     let input: String
+    let limit: Int
+}
+
+private struct AppleMusicCatalogSearchRequest: Encodable {
+    let term: String
     let limit: Int
 }
 

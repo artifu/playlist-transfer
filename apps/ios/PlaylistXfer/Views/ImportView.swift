@@ -40,7 +40,10 @@ struct ImportView: View {
                             skipTrack: viewModel.skipTrack,
                             restoreTrack: viewModel.restoreTrack,
                             selectedCandidate: viewModel.selectedCandidate,
-                            selectCandidate: viewModel.selectCandidate
+                            selectCandidate: viewModel.selectCandidate,
+                            manualSearchDefaultQuery: viewModel.manualSearchDefaultQuery,
+                            searchAppleMusic: viewModel.searchAppleMusic,
+                            selectManualSearchCandidate: viewModel.selectManualSearchCandidate
                         )
                         .id("report")
                     }
@@ -252,7 +255,7 @@ struct ImportView: View {
                 return
             }
 
-            viewModel.replaceSpotifyInput(with: clipboardText)
+            viewModel.replaceSpotifyInput(with: clipboardText, sourceSurface: "clipboard_button")
         }
         #else
         playlistFieldFocused = true
@@ -687,6 +690,9 @@ private struct MatchReportView: View {
     let restoreTrack: (TransferItem) -> Void
     let selectedCandidate: (TransferItem) -> AppleSongCandidate?
     let selectCandidate: (AppleSongCandidate, TransferItem) -> Void
+    let manualSearchDefaultQuery: (TransferItem) -> String
+    let searchAppleMusic: (String, TransferItem) async throws -> [AppleSongCandidate]
+    let selectManualSearchCandidate: (AppleSongCandidate, TransferItem, Int) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -710,7 +716,10 @@ private struct MatchReportView: View {
                     skipTrack: skipTrack,
                     restoreTrack: restoreTrack,
                     selectedCandidate: selectedCandidate,
-                    selectCandidate: selectCandidate
+                    selectCandidate: selectCandidate,
+                    manualSearchDefaultQuery: manualSearchDefaultQuery,
+                    searchAppleMusic: searchAppleMusic,
+                    selectManualSearchCandidate: selectManualSearchCandidate
                 )
             }
 
@@ -723,7 +732,10 @@ private struct MatchReportView: View {
                     skipTrack: skipTrack,
                     restoreTrack: restoreTrack,
                     selectedCandidate: selectedCandidate,
-                    selectCandidate: selectCandidate
+                    selectCandidate: selectCandidate,
+                    manualSearchDefaultQuery: manualSearchDefaultQuery,
+                    searchAppleMusic: searchAppleMusic,
+                    selectManualSearchCandidate: selectManualSearchCandidate
                 )
             }
 
@@ -735,7 +747,10 @@ private struct MatchReportView: View {
                 skipTrack: skipTrack,
                 restoreTrack: restoreTrack,
                 selectedCandidate: selectedCandidate,
-                selectCandidate: selectCandidate
+                selectCandidate: selectCandidate,
+                manualSearchDefaultQuery: manualSearchDefaultQuery,
+                searchAppleMusic: searchAppleMusic,
+                selectManualSearchCandidate: selectManualSearchCandidate
             )
 
             if !skippedItems.isEmpty {
@@ -747,7 +762,10 @@ private struct MatchReportView: View {
                     skipTrack: skipTrack,
                     restoreTrack: restoreTrack,
                     selectedCandidate: selectedCandidate,
-                    selectCandidate: selectCandidate
+                    selectCandidate: selectCandidate,
+                    manualSearchDefaultQuery: manualSearchDefaultQuery,
+                    searchAppleMusic: searchAppleMusic,
+                    selectManualSearchCandidate: selectManualSearchCandidate
                 )
             }
         }
@@ -770,6 +788,9 @@ private struct TransferSection: View {
     let restoreTrack: (TransferItem) -> Void
     let selectedCandidate: (TransferItem) -> AppleSongCandidate?
     let selectCandidate: (AppleSongCandidate, TransferItem) -> Void
+    let manualSearchDefaultQuery: (TransferItem) -> String
+    let searchAppleMusic: (String, TransferItem) async throws -> [AppleSongCandidate]
+    let selectManualSearchCandidate: (AppleSongCandidate, TransferItem, Int) -> Void
 
     @State private var showsAllItems = false
 
@@ -795,6 +816,13 @@ private struct TransferSection: View {
                         selectedCandidate: selectedCandidate(item),
                         selectCandidate: { candidate in
                             selectCandidate(candidate, item)
+                        },
+                        manualSearchDefaultQuery: manualSearchDefaultQuery(item),
+                        searchAppleMusic: { query in
+                            try await searchAppleMusic(query, item)
+                        },
+                        selectManualSearchCandidate: { candidate, resultRank in
+                            selectManualSearchCandidate(candidate, item, resultRank)
                         }
                     )
                     if item.id != visibleItems.last?.id {
@@ -842,6 +870,11 @@ private struct TransferItemRow: View {
     let restoreTrack: (TransferItem) -> Void
     let selectedCandidate: AppleSongCandidate?
     let selectCandidate: (AppleSongCandidate) -> Void
+    let manualSearchDefaultQuery: String
+    let searchAppleMusic: (String) async throws -> [AppleSongCandidate]
+    let selectManualSearchCandidate: (AppleSongCandidate, Int) -> Void
+
+    @State private var showsManualSearch = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -904,50 +937,12 @@ private struct TransferItemRow: View {
             }
 
             if shouldShowActions {
-                HStack(spacing: 10) {
-                    if mode == .review, item.appleCandidate != nil {
-                        Button {
-                            approveSuggestedMatch(item)
-                        } label: {
-                            Text("Use suggested match")
-                                .font(.caption.weight(.black))
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
-                                .background(AppTheme.spotify)
-                                .foregroundStyle(.white)
-                                .clipShape(Capsule())
-                        }
-                        .buttonStyle(.plain)
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 10) {
+                        actionButtons
                     }
-
-                    if mode == .ready || mode == .review {
-                        Button {
-                            skipTrack(item)
-                        } label: {
-                            Label(mode == .ready ? "Wrong match?" : "Skip this track", systemImage: "questionmark.circle")
-                                .font(.caption.weight(.black))
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
-                                .background(AppTheme.disabledFill)
-                                .foregroundStyle(AppTheme.ink)
-                                .clipShape(Capsule())
-                        }
-                        .buttonStyle(.plain)
-                    }
-
-                    if mode == .skipped {
-                        Button {
-                            restoreTrack(item)
-                        } label: {
-                            Text("Restore")
-                                .font(.caption.weight(.black))
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
-                                .background(AppTheme.disabledFill)
-                                .foregroundStyle(AppTheme.ink)
-                                .clipShape(Capsule())
-                        }
-                        .buttonStyle(.plain)
+                    VStack(alignment: .leading, spacing: 10) {
+                        actionButtons
                     }
                 }
             }
@@ -993,10 +988,79 @@ private struct TransferItemRow: View {
             }
         }
         .padding(14)
+        .sheet(isPresented: $showsManualSearch) {
+            ManualMatchSearchView(
+                source: item.source,
+                initialQuery: manualSearchDefaultQuery,
+                search: searchAppleMusic,
+                selectCandidate: selectManualSearchCandidate
+            )
+        }
+    }
+
+    @ViewBuilder
+    private var actionButtons: some View {
+                    if mode == .review, item.appleCandidate != nil {
+                        Button {
+                            approveSuggestedMatch(item)
+                        } label: {
+                            Text("Use suggested match")
+                                .font(.caption.weight(.black))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(AppTheme.spotify)
+                                .foregroundStyle(.white)
+                                .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    Button {
+                        showsManualSearch = true
+                    } label: {
+                        Label("Search Apple Music", systemImage: "magnifyingglass")
+                            .font(.caption.weight(.black))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(AppTheme.actionBlue)
+                            .foregroundStyle(.white)
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+
+                    if mode == .ready || mode == .review || mode == .missing {
+                        Button {
+                            skipTrack(item)
+                        } label: {
+                            Label("Skip", systemImage: "forward.end")
+                                .font(.caption.weight(.black))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(AppTheme.disabledFill)
+                                .foregroundStyle(AppTheme.ink)
+                                .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    if mode == .skipped {
+                        Button {
+                            restoreTrack(item)
+                        } label: {
+                            Text("Restore")
+                                .font(.caption.weight(.black))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(AppTheme.disabledFill)
+                                .foregroundStyle(AppTheme.ink)
+                                .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
     }
 
     private var shouldShowActions: Bool {
-        mode == .review || mode == .ready || mode == .skipped
+        mode == .review || mode == .missing || mode == .ready || mode == .skipped
     }
 
     private var statusLabel: String {
@@ -1028,6 +1092,184 @@ private struct TransferItemRow: View {
         default:
             return AppTheme.danger
         }
+    }
+}
+
+private struct ManualMatchSearchView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    let source: SpotifyTrack
+    let search: (String) async throws -> [AppleSongCandidate]
+    let selectCandidate: (AppleSongCandidate, Int) -> Void
+
+    @State private var query: String
+    @State private var results: [AppleSongCandidate] = []
+    @State private var isSearching = false
+    @State private var errorMessage: String?
+    @FocusState private var searchFieldFocused: Bool
+
+    init(
+        source: SpotifyTrack,
+        initialQuery: String,
+        search: @escaping (String) async throws -> [AppleSongCandidate],
+        selectCandidate: @escaping (AppleSongCandidate, Int) -> Void
+    ) {
+        self.source = source
+        self.search = search
+        self.selectCandidate = selectCandidate
+        _query = State(initialValue: initialQuery)
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Spotify track")
+                            .font(.caption2.weight(.black))
+                            .tracking(1.4)
+                            .foregroundStyle(AppTheme.spotify)
+                            .textCase(.uppercase)
+                        Text(source.name)
+                            .font(.title2.weight(.black))
+                        Text(source.artistText)
+                            .font(.subheadline)
+                            .foregroundStyle(AppTheme.inkMuted)
+                    }
+
+                    HStack(spacing: 8) {
+                        TextField("Song and artist", text: $query)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .submitLabel(.search)
+                            .focused($searchFieldFocused)
+                            .onSubmit {
+                                runSearch()
+                            }
+
+                        Button {
+                            runSearch()
+                        } label: {
+                            if isSearching {
+                                ProgressView()
+                                    .tint(.white)
+                            } else {
+                                Image(systemName: "magnifyingglass")
+                                    .fontWeight(.black)
+                            }
+                        }
+                        .frame(width: 44, height: 40)
+                        .background(canSearch ? AppTheme.actionBlue : AppTheme.disabledFill)
+                        .foregroundStyle(canSearch ? .white : AppTheme.inkMuted)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .disabled(!canSearch)
+                    }
+                    .padding(12)
+                    .background(AppTheme.card)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(AppTheme.lineStrong, lineWidth: 1)
+                    )
+
+                    if let errorMessage {
+                        Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(AppTheme.danger)
+                    } else if !isSearching && results.isEmpty {
+                        Text("Try adding the album or version name if the first search does not show the exact recording.")
+                            .font(.subheadline)
+                            .foregroundStyle(AppTheme.inkMuted)
+                    }
+
+                    LazyVStack(spacing: 10) {
+                        ForEach(Array(results.enumerated()), id: \.element.id) { index, candidate in
+                            HStack(alignment: .center, spacing: 12) {
+                                ArtworkView(url: candidate.artworkUrl, size: 58)
+
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(candidate.name)
+                                        .font(.headline)
+                                    Text(candidate.artistName)
+                                        .font(.subheadline)
+                                        .foregroundStyle(AppTheme.inkSoft)
+                                    if let albumName = candidate.albumName {
+                                        Text(albumName)
+                                            .font(.caption)
+                                            .foregroundStyle(AppTheme.inkMuted)
+                                    }
+                                }
+
+                                Spacer(minLength: 8)
+
+                                Button {
+                                    selectCandidate(candidate, index + 1)
+                                    dismiss()
+                                } label: {
+                                    Text("Use")
+                                        .font(.caption.weight(.black))
+                                        .padding(.horizontal, 14)
+                                        .padding(.vertical, 9)
+                                        .background(AppTheme.spotify)
+                                        .foregroundStyle(.white)
+                                        .clipShape(Capsule())
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            .padding(12)
+                            .background(AppTheme.card)
+                            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    .stroke(AppTheme.border, lineWidth: 1)
+                            )
+                        }
+                    }
+                }
+                .padding(20)
+            }
+            .background(AppTheme.background.ignoresSafeArea())
+            .navigationTitle("Find the exact match")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+            }
+            .task {
+                await performSearch()
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    private var canSearch: Bool {
+        query.trimmingCharacters(in: .whitespacesAndNewlines).count >= 2 && !isSearching
+    }
+
+    private func runSearch() {
+        Task {
+            await performSearch()
+        }
+    }
+
+    @MainActor
+    private func performSearch() async {
+        guard canSearch else { return }
+        isSearching = true
+        errorMessage = nil
+        searchFieldFocused = false
+
+        do {
+            results = try await search(query)
+        } catch {
+            results = []
+            errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
+
+        isSearching = false
     }
 }
 

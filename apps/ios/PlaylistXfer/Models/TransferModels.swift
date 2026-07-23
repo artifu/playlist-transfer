@@ -136,6 +136,10 @@ struct AppleSongCandidate: Decodable, Sendable {
     let artworkUrl: URL?
 }
 
+struct AppleMusicCatalogSearchResponse: Decodable, Sendable {
+    let results: [AppleSongCandidate]
+}
+
 struct APIErrorResponse: Decodable {
     let error: Bool?
     let message: String?

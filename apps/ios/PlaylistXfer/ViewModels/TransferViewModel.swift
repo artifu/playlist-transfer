@@ -48,6 +48,10 @@ final class TransferViewModel: ObservableObject {
     private let api: TransferAPIClient
     private let appleMusic: AppleMusicLibraryWriter
     private var progressPulseTask: Task<Void, Never>?
+    private var currentSourceSurface: String?
+    private var lastActiveTelemetryAt: Date?
+
+    private static let hasLaunchedKey = "playlistxfer.analytics.has-launched"
 
     init(
         api: TransferAPIClient = TransferAPIClient(),
@@ -105,9 +109,33 @@ final class TransferViewModel: ObservableObject {
         analysis?.items.filter { skippedItemIDs.contains($0.id) } ?? []
     }
 
+    func recordAppBecameActive() {
+        let now = Date()
+        if let lastActiveTelemetryAt,
+           now.timeIntervalSince(lastActiveTelemetryAt) < 30 {
+            return
+        }
+        lastActiveTelemetryAt = now
+
+        let defaults = UserDefaults.standard
+        let isFirstLaunch = !defaults.bool(forKey: Self.hasLaunchedKey)
+        defaults.set(true, forKey: Self.hasLaunchedKey)
+
+        trackEvent("app_opened", properties: [
+            "appVersion": .string(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown"),
+            "buildNumber": .string(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown"),
+            "isFirstLaunch": .bool(isFirstLaunch),
+            "sourceSurface": .string("app")
+        ])
+    }
+
     func previewPlaylist() async {
         let input = playlistInput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !input.isEmpty else { return }
+
+        if currentSourceSurface == nil {
+            currentSourceSurface = "manual_input"
+        }
 
         phase = .previewing
         statusMessage = "Reading public Spotify link..."
@@ -117,6 +145,7 @@ final class TransferViewModel: ObservableObject {
         transferredItemIDs = []
         resetDecisions()
         let startedAt = Date()
+        trackEvent("transfer_form_started")
         trackEvent("preview_started")
 
         do {
@@ -142,6 +171,8 @@ final class TransferViewModel: ObservableObject {
     }
 
     func openIncomingURL(_ url: URL) async {
+        currentSourceSurface = "share_sheet"
+
         guard let playlistURL = playlistInput(fromIncomingURL: url) else {
             trackEvent("preview_failed", properties: [
                 "errorCategory": .string("shared_link_extract"),
@@ -311,7 +342,66 @@ final class TransferViewModel: ObservableObject {
 
         phase = createdPlaylist == nil ? .analysisReady : .created
         statusMessage = decisionConfirmation(for: item, candidateName: candidate.name)
-        trackReviewDecision("use-candidate", item: item, candidateIndex: candidateIndex(candidate, in: item))
+        let index = candidateIndex(candidate, in: item)
+        trackReviewDecision("use-candidate", item: item, candidateIndex: index)
+        trackMatchFeedback(
+            selectedCandidate: candidate,
+            item: item,
+            selectionSource: "suggested_alternative",
+            resultRank: index.map { $0 + 1 }
+        )
+    }
+
+    func searchAppleMusic(_ query: String, for item: TransferItem) async throws -> [AppleSongCandidate] {
+        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let defaultQuery = manualSearchDefaultQuery(for: item)
+        let queryEdited = trimmedQuery.localizedCaseInsensitiveCompare(defaultQuery) != .orderedSame
+        let startedAt = Date()
+
+        trackEvent("manual_match_search_started", properties: manualSearchProperties(item, extra: [
+            "queryEdited": .bool(queryEdited),
+            "queryLength": .int(trimmedQuery.count)
+        ]))
+
+        do {
+            let results = try await api.searchAppleMusic(term: trimmedQuery)
+            trackEvent("manual_match_search_succeeded", properties: manualSearchProperties(item, extra: [
+                "durationMs": .int(elapsedMilliseconds(since: startedAt)),
+                "queryEdited": .bool(queryEdited),
+                "queryLength": .int(trimmedQuery.count),
+                "resultCount": .int(results.count)
+            ]))
+            return results
+        } catch {
+            trackEvent("manual_match_search_failed", properties: manualSearchProperties(item, extra: [
+                "durationMs": .int(elapsedMilliseconds(since: startedAt)),
+                "errorCategory": .string("apple_music_manual_search"),
+                "errorMessage": .string(errorMessage(error)),
+                "queryEdited": .bool(queryEdited),
+                "queryLength": .int(trimmedQuery.count)
+            ]))
+            throw error
+        }
+    }
+
+    func selectManualSearchCandidate(
+        _ candidate: AppleSongCandidate,
+        for item: TransferItem,
+        resultRank: Int
+    ) {
+        selectedCandidatesByItemID[item.id] = candidate
+        skippedItemIDs.remove(item.id)
+        approvedItemIDs.insert(item.id)
+
+        phase = createdPlaylist == nil ? .analysisReady : .created
+        statusMessage = decisionConfirmation(for: item, candidateName: candidate.name)
+        trackReviewDecision("manual-search", item: item)
+        trackMatchFeedback(
+            selectedCandidate: candidate,
+            item: item,
+            selectionSource: "manual_search",
+            resultRank: resultRank
+        )
     }
 
     func selectedCandidate(for item: TransferItem) -> AppleSongCandidate? {
@@ -337,6 +427,7 @@ final class TransferViewModel: ObservableObject {
 
     func reset() {
         playlistInput = ""
+        currentSourceSurface = nil
         preview = nil
         analysis = nil
         createdPlaylist = nil
@@ -359,8 +450,9 @@ final class TransferViewModel: ObservableObject {
         return "Added \"\(matchName)\". It will be included when you create the Apple Music playlist."
     }
 
-    func replaceSpotifyInput(with input: String) {
+    func replaceSpotifyInput(with input: String, sourceSurface: String = "manual_input") {
         reset()
+        currentSourceSurface = sourceSurface
         playlistInput = input.trimmingCharacters(in: .whitespacesAndNewlines)
         statusMessage = "Spotify link ready. Preview it when you are ready."
     }
@@ -562,12 +654,66 @@ final class TransferViewModel: ObservableObject {
         trackEvent("review_decision_succeeded", properties: properties)
     }
 
+    private func trackMatchFeedback(
+        selectedCandidate: AppleSongCandidate,
+        item: TransferItem,
+        selectionSource: String,
+        resultRank: Int?
+    ) {
+        var properties = manualSearchProperties(item)
+        properties["selectedAppleCandidateId"] = .string(selectedCandidate.id)
+        properties["selectionChanged"] = .bool(selectedCandidate.id != item.appleCandidate?.id)
+        properties["selectionSource"] = .string(selectionSource)
+
+        if let resultRank {
+            properties["resultRank"] = .int(resultRank)
+        }
+
+        trackEvent("match_feedback_selected", properties: properties)
+    }
+
+    private func manualSearchProperties(
+        _ item: TransferItem,
+        extra: [String: AnalyticsPropertyValue] = [:]
+    ) -> [String: AnalyticsPropertyValue] {
+        var properties = summaryProperties(analysis, extra: extra)
+        properties["itemIndex"] = .int(item.index)
+        properties["sourceMatchStatus"] = .string(item.status)
+
+        if let spotifyTrackID = item.source.spotifyTrackId {
+            properties["spotifyTrackId"] = .string(spotifyTrackID)
+        }
+        if let spotifyISRC = item.source.isrc {
+            properties["spotifyIsrc"] = .string(spotifyISRC)
+        }
+        if let algorithmCandidateID = item.appleCandidate?.id {
+            properties["algorithmAppleCandidateId"] = .string(algorithmCandidateID)
+        }
+        if let confidence = item.confidence {
+            properties["algorithmConfidence"] = .double(confidence)
+        }
+        if let reason = item.reason {
+            properties["algorithmReason"] = .string(reason)
+        }
+
+        return properties
+    }
+
+    func manualSearchDefaultQuery(for item: TransferItem) -> String {
+        "\(item.source.name) \(item.source.artistText)"
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     private func analyticsContext(_ properties: [String: AnalyticsPropertyValue]) -> [String: AnalyticsPropertyValue] {
         var context: [String: AnalyticsPropertyValue] = [
             "host": .string("ios"),
             "path": .string("ios/import"),
             "analysisLimit": .int(AppConfig.defaultAnalysisLimit)
         ]
+
+        if let currentSourceSurface {
+            context["sourceSurface"] = .string(currentSourceSurface)
+        }
 
         if let playlistID = spotifyPlaylistID(from: playlistInput) {
             context["playlistId"] = .string(playlistID)

@@ -67,3 +67,32 @@ select
   sum(case when created_apple_playlist_id is not null then 1 else 0 end) as completed_transfers
 from transfers;
 ```
+
+## iOS operational report
+
+The native app uses the same durable first-party event route and identifies its events with `host = ios`. It records lifecycle, input source, the transfer funnel, playlist updates, review decisions, and aggregate MetricKit diagnostic counts. MetricKit stack traces and raw diagnostic payloads are not uploaded.
+
+Run the read-only production report:
+
+```bash
+npm run analytics:report
+```
+
+The report in `tools/analytics-report.sql` includes:
+
+- 28-day event counts and anonymous-device counts
+- daily active iOS devices and completed transfers
+- manual, clipboard-button, and Share Sheet input sources
+- average match rate and analysis duration
+- failure categories and affected devices
+- day-1 and day-7 anonymous-device return counts
+- 90-day crash, hang, CPU-exception, and disk-write-exception totals
+- manual-match search adoption and exact correction choices
+
+Manual-match quality feedback records the Spotify track/ISRC identifier, the Apple
+catalog identifier suggested by the algorithm, the identifier ultimately chosen,
+the algorithm confidence/reason, and the selected result rank. This is enough to
+reconstruct and improve a bad match using public catalog metadata. Free-form
+search queries and song/artist names are deliberately excluded from analytics.
+
+The lifecycle identifier remains the existing one-way-hashed anonymous app session stored in `UserDefaults`. It is not an advertising identifier and is not joined to third-party data.

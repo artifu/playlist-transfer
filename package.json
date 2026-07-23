@@ -12,6 +12,7 @@
     "dev:web": "node apps/web/server.mjs",
     "brand:sync": "node tools/sync-brand-assets.mjs",
     "brand:check": "node tools/sync-brand-assets.mjs --check",
+    "analytics:report": "wrangler d1 execute playlist-transfer --remote --file=tools/analytics-report.sql",
     "spotify:auth": "node tools/spotify-auth-helper.mjs",
     "spotify:public-probe": "npm run build && node dist/cli/spotify-public-probe.js",
     "apple:developer-token": "npm run build && node dist/cli/generate-apple-developer-token.js",

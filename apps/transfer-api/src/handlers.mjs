@@ -84,6 +84,33 @@ export async function handlePublicPlaylistPreview(request, response) {
   }
 }
 
+export async function handleAppleMusicCatalogSearch(request, response) {
+  try {
+    const body = await readJsonBody(request);
+    const term = String(body.term ?? "").trim().slice(0, 160);
+    const requestedLimit = Number(body.limit ?? 10);
+    const limit = Number.isFinite(requestedLimit)
+      ? Math.min(15, Math.max(1, Math.floor(requestedLimit)))
+      : 10;
+
+    if (term.length < 2) {
+      sendJson(response, 400, {
+        error: true,
+        message: "Enter at least two characters to search Apple Music."
+      });
+      return;
+    }
+
+    const results = await createAppleMusicClient().searchSongs(term, limit);
+    sendJson(response, 200, { results });
+  } catch (error) {
+    sendJson(response, statusForError(error), {
+      error: true,
+      message: errorMessage(error)
+    });
+  }
+}
+
 export async function handleTransferAnalyze(request, response) {
   try {
     const body = await readJsonBody(request);

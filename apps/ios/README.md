@@ -126,14 +126,27 @@ POST /api/events
 
 These events reuse the same anonymous session header as the web app and are intended for early reliability and funnel debugging. Current native events cover:
 
+- app opens and first launch
 - preview start, success, and failure
+- input source such as manual entry, the in-app clipboard button, or the Share Sheet
 - Apple Music match analysis start, success, and failure
 - review decisions such as approve, candidate selection, skip, and restore
+- manual Apple Music catalog searches and exact-match selection
 - Apple Music playlist creation start, success, and failure
+- updates to an already-created playlist
+- aggregate MetricKit diagnostic counts for crashes, hangs, CPU exceptions, and disk-write exceptions
 
-The native app sends safe fields only: host, app path, playlist id, transfer id, aggregate track counts, match rate, duration, source, and error category/message. It should not send Apple Music user tokens, emails, full Spotify playlist URLs, authorization payloads, or raw user library data.
+The native app sends safe fields only: host, app path, app/build version, first-launch flag, input source, playlist id, transfer id, aggregate track counts, match rate, duration, aggregate diagnostic counts, error category/message, and catalog identifiers needed to compare the algorithm's suggestion with a user's selected match. Free-form Apple Music search text, track/artist names, MetricKit stack traces, Apple Music user tokens, emails, full Spotify playlist URLs, authorization payloads, and raw user library data are not logged.
 
 Google Analytics or Firebase Analytics can be added later if we want App Store funnel dashboards in GA4. That follow-up requires a Firebase app, `GoogleService-Info.plist`, and a Swift Package dependency, so this MVP keeps analytics lightweight and dependency-free.
+
+Run the production operational report from the repository root:
+
+```bash
+npm run analytics:report
+```
+
+The report reads the remote D1 database and prints the 28-day event funnel, iOS daily active anonymous devices, input sources, match quality, errors, retention, and 90-day aggregate diagnostics.
 
 ## Architecture
 

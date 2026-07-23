@@ -5,6 +5,7 @@ import {
 import { handleUsageEvent } from "./analytics.mjs";
 import {
   handlePlaylistPreview,
+  handleAppleMusicCatalogSearch,
   handlePublicPlaylistPreview,
   handlePublicTransferAnalyze,
   handlePublicTransferAnalyzeJob,
@@ -49,6 +50,14 @@ export function createTransferApiRouter({ host, port, renderHomePage }) {
       if (!sessionId) return;
 
       await handleAppleMusicUserToken(sessionId, request, response);
+      return;
+    }
+
+    if (method === "POST" && url.pathname === "/api/apple-music/catalog-search") {
+      const sessionId = requireSessionId(request, response);
+      if (!sessionId) return;
+
+      await handleAppleMusicCatalogSearch(request, response);
       return;
     }
 

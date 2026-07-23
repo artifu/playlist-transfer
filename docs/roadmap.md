@@ -14,6 +14,7 @@ PlaylistTransfer has moved past technical feasibility. The local product web she
 - create an Apple Music playlist from confident or approved matches
 - accept an individual Spotify song link through the same web/iOS input
 - add an approved song to a reusable `PlaylistXfer Inbox` in the native app
+- search the Apple Music catalog manually and replace an incorrect or missing match
 
 The matching pipeline now resolves ISRCs in Apple Music batches of up to 25, caches catalog results in D1 for 30 days, and runs bounded concurrent text fallback only for unresolved tracks. This replaces the previous mostly sequential search path and is the baseline for the next performance UAT.
 
@@ -116,7 +117,7 @@ Definition of done:
 
 ## Phase 4: Product Polish
 
-- Manual candidate search for review rows.
+- Manual candidate search for review rows. Implemented in the native app, with privacy-minimized quality feedback.
 - Saved transfer history if users ask for it.
 - Better confidence scoring and match cache.
 - Optional duplicate prevention for repeated single-song Inbox imports.
