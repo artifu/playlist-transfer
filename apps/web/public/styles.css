@@ -20,6 +20,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -476,6 +480,7 @@ p {
   padding: clamp(32px, 7vw, 78px);
 }
 
+.result-empty h1,
 .result-empty h2,
 .screen-title,
 .success-title {
@@ -484,6 +489,14 @@ p {
   font-style: italic;
   line-height: 0.94;
   letter-spacing: -0.055em;
+}
+
+.result-empty h1 {
+  font-size: clamp(2.4rem, 4.5vw, 4.5rem);
+}
+
+.headline-tail {
+  white-space: nowrap;
 }
 
 .result-empty p,

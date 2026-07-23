@@ -15,6 +15,7 @@ const progressDetail = document.querySelector("#progress-detail");
 const statusLine = document.querySelector("#status-line");
 const results = document.querySelector("#results");
 const fallbackGuide = document.querySelector("#fallback-guide");
+const progressiveControls = document.querySelectorAll("[data-progressive-control]");
 const toast = document.querySelector("#toast");
 const STORED_TRANSFER_ID_KEY = "playlist-transfer:last-transfer-id";
 const STORED_SESSION_ID_KEY = "playlist-transfer:anonymous-session-id";
@@ -123,9 +124,9 @@ function renderStartState({ hasInput = false } = {}) {
     `
     : `
       <p class="eyebrow">Spotify → Apple Music</p>
-      <h2>Transfer your Spotify playlists with confidence.</h2>
+      <h1>Transfer Spotify playlists to Apple Music <span class="headline-tail">— seamlessly.</span></h1>
       <p>Preview every match, fix anything that looks wrong, then create your Apple Music playlist.</p>
-      <button class="primary-action landing-start-action" type="button" data-start-transfer="true" data-analytics-cta="homepage_empty_state">Start your transfer</button>
+      <button class="primary-action landing-start-action" type="button" data-start-transfer="true" data-analytics-cta="homepage_empty_state">Preview my playlist</button>
     `;
 }
 
@@ -293,6 +294,9 @@ function refreshActions() {
     (state.preview && state.previewInput === inputValue) ||
     (state.analysis && state.analysisInput === inputValue)
   );
+  progressiveControls.forEach((control) => {
+    control.hidden = !hasPreviewForInput;
+  });
   previewButton.disabled = state.busy || !hasInput;
   analyzeButton.disabled = state.busy || !hasPreviewForInput || (appleSessionIsKnown() && !hasDeveloperToken());
   analyzeButton.classList.toggle("ready", !analyzeButton.disabled);

@@ -52,7 +52,7 @@
         <img src="/playlistxfer-icon.svg" alt="" class="brand-mark" />
         <div>
           <p class="eyebrow">Spotify to Apple Music</p>
-          <h1 class="brand-title"><span>Playlist</span><span>Xfer</span></h1>
+          <p class="brand-title" aria-label="PlaylistXfer"><span>Playlist</span><span>Xfer</span></p>
         </div>
       </div>
 
@@ -70,7 +70,7 @@
           </div>
         </div>
 
-        <div class="action-stack">
+        <div class="action-stack" data-progressive-control hidden>
           <button class="secondary-action" id="analyze-button" type="button" disabled>Match with Apple Music</button>
           <button class="create-action" id="create-button" type="button" disabled>Create Apple Music playlist</button>
         </div>
@@ -85,7 +85,7 @@
         </section>
       </form>
 
-      <section class="apple-card" id="apple-card" aria-live="polite">
+      <section class="apple-card" id="apple-card" aria-live="polite" data-progressive-control hidden>
         <div class="apple-card-head">
           <span class="service-pill apple" aria-label="Apple Music"><span aria-hidden="true">♪</span></span>
           <div>
@@ -96,7 +96,7 @@
         <button id="connect-apple" type="button" class="soft-action">Connect Apple Music</button>
       </section>
 
-      <label class="select-card analysis-scope-card" for="analysis-limit">
+      <label class="select-card analysis-scope-card" for="analysis-limit" data-progressive-control hidden>
         <span class="select-label">Review mode</span>
         <select id="analysis-limit">
           <option value="500">Full playlist</option>
@@ -121,9 +121,9 @@
     <section class="result-panel" aria-live="polite">
       <div class="result-empty" id="results">
         <p class="eyebrow">Spotify → Apple Music</p>
-        <h2>Transfer your Spotify playlists with confidence.</h2>
+        <h1>Transfer Spotify playlists to Apple Music <span class="headline-tail">— seamlessly.</span></h1>
         <p>Preview every match, fix anything that looks wrong, then create your Apple Music playlist.</p>
-        <button class="primary-action landing-start-action" type="button" data-start-transfer="true" data-analytics-cta="homepage_empty_state">Start your transfer</button>
+        <button class="primary-action landing-start-action" type="button" data-start-transfer="true" data-analytics-cta="homepage_empty_state">Preview my playlist</button>
       </div>
 
       <section class="fallback-guide" id="fallback-guide" hidden>
