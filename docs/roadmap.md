@@ -121,7 +121,7 @@ Definition of done:
 - Saved transfer history. Implemented locally on-device with open, refresh, individual delete, and clear-all controls.
 - Duplicate protection for repeated Inbox imports and existing-playlist updates. Implemented using Apple catalog IDs and ISRCs; duplicate checks stay on-device and only aggregate counts are logged.
 - Better confidence scoring and match cache.
-- Smart Refresh for public Spotify playlists without Spotify OAuth: detect additions/removals from saved links, present a clear diff, and update Apple Music only after explicit confirmation.
+- Smart Refresh for public Spotify playlists without Spotify OAuth: detect additions/removals from saved links, present a clear diff, and update Apple Music only after explicit confirmation. Product and architecture proposal: [smart-refresh-product-spec.md](./smart-refresh-product-spec.md).
 - Next major product step: optional Spotify OAuth together with batch import. Connect once, select multiple public/private playlists plus Liked Songs or saved albums, then process them through a resumable queue with independent results. Keep the public-link path available without login.
 - Full unattended synchronization only after Smart Refresh proves useful. Removal, ordering, user edits, background reliability, and conflict behavior need explicit product rules.
 - Do not build batch as a separate pasted-link queue first; its value is materially stronger when paired with Spotify library selection through optional OAuth.
