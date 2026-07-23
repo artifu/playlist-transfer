@@ -122,9 +122,9 @@ Definition of done:
 - Duplicate protection for repeated Inbox imports and existing-playlist updates. Implemented using Apple catalog IDs and ISRCs; duplicate checks stay on-device and only aggregate counts are logged.
 - Better confidence scoring and match cache.
 - Smart Refresh for public Spotify playlists without Spotify OAuth: detect additions/removals from saved links, present a clear diff, and update Apple Music only after explicit confirmation.
-- Optional Spotify login for private playlists, Liked Songs, albums, and whole-library selection. Keep the public-link path available without login.
+- Next major product step: optional Spotify OAuth together with batch import. Connect once, select multiple public/private playlists plus Liked Songs or saved albums, then process them through a resumable queue with independent results. Keep the public-link path available without login.
 - Full unattended synchronization only after Smart Refresh proves useful. Removal, ordering, user edits, background reliability, and conflict behavior need explicit product rules.
-- Multi-playlist batch transfer is deprioritized until usage shows stronger demand.
+- Do not build batch as a separate pasted-link queue first; its value is materially stronger when paired with Spotify library selection through optional OAuth.
 - Freemium usage limits.
 - Analytics and crash reporting.
 - One-time pass or low-cost purchase flow.
