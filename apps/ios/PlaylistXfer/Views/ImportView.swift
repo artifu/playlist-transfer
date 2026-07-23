@@ -384,7 +384,7 @@ struct ImportView: View {
                     } label: {
                         ActionButtonLabel(
                             title: viewModel.isSingleTrackImport
-                                ? "Add to PlaylistXfer Inbox"
+                                ? "Add to Apple Music"
                                 : "Create Apple Music playlist",
                             systemImage: viewModel.isSingleTrackImport ? "music.note.badge.plus" : "music.note.list",
                             background: viewModel.canCreate ? AppTheme.apple : AppTheme.disabledFill,
@@ -610,7 +610,7 @@ private struct PlaylistPreviewCard: View {
             return "\(preview.tracks.count) readable tracks fetched from \(total) total"
         }
 
-        return "\(preview.tracks.count) readable tracks"
+        return "\(preview.tracks.count) of \(total) tracks loaded"
     }
 }
 

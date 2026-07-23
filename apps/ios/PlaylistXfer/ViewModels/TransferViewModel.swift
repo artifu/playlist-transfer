@@ -690,6 +690,12 @@ extension TransferViewModel {
         destinationPlaylistName = AppleMusicLibraryWriter.defaultPlaylistName(for: fixture.preview.playlist.name)
 
         switch scenario {
+        case "home":
+            playlistInput = ""
+            preview = nil
+            analysis = nil
+            phase = .idle
+            statusMessage = "Paste a public Spotify playlist or song link to begin."
         case "preview":
             phase = .previewReady
             statusMessage = "Playlist loaded. Match it with Apple Music when you are ready."
@@ -700,7 +706,7 @@ extension TransferViewModel {
                 kind: .analysis,
                 eyebrow: activityEyebrow(for: .analysis),
                 title: "Matching with Apple Music",
-                detail: "18 of 46 tracks checked.",
+                detail: "18 of 42 tracks checked.",
                 progress: 43,
                 isEstimated: false
             )
@@ -710,14 +716,29 @@ extension TransferViewModel {
             statusMessage = "Apple Music match report ready. Create from ready tracks when you are comfortable."
         case "created":
             analysis = fixture.analysis
+            if let reviewItem = fixture.analysis.items.first(where: { $0.status == "needs_review" }) {
+                approvedItemIDs.insert(reviewItem.id)
+                if let candidate = reviewItem.appleCandidate {
+                    selectedCandidatesByItemID[reviewItem.id] = candidate
+                }
+            }
+            transferredItemIDs = Set(fixture.analysis.items.map(\.id))
             createdPlaylist = CreatedAppleMusicPlaylist(
                 id: "p.screenshot-playlist",
                 name: destinationPlaylistName,
                 url: URL(string: "https://music.apple.com/library/playlist/p.screenshot-playlist"),
-                trackCount: fixture.analysis.summary.confidentMatchCount
+                trackCount: fixture.analysis.items.count
             )
             phase = .created
-            statusMessage = "Created \(destinationPlaylistName) with \(fixture.analysis.summary.confidentMatchCount) ready tracks."
+            statusMessage = "Created \(destinationPlaylistName) with \(fixture.analysis.items.count) tracks."
+        case "single-track":
+            let singleTrackFixture = ScreenshotFixture.makeSingleTrack()
+            playlistInput = "https://open.spotify.com/track/playlistxfer-demo"
+            preview = singleTrackFixture.preview
+            analysis = singleTrackFixture.analysis
+            destinationPlaylistName = AppleMusicLibraryWriter.inboxPlaylistName
+            phase = .analysisReady
+            statusMessage = "Apple Music match ready. Add the song when it looks right."
         default:
             break
         }
@@ -725,8 +746,63 @@ extension TransferViewModel {
 }
 
 private enum ScreenshotFixture {
+    static func makeSingleTrack() -> (preview: PlaylistPreviewResponse, analysis: TransferAnalysis) {
+        let track = spotifyTrack("The Nights", "Avicii", "The Days / Nights")
+        let playlist = SpotifyPlaylist(
+            id: "playlistxfer-demo-track",
+            name: track.name,
+            kind: "track",
+            description: nil,
+            imageUrl: nil,
+            totalItems: 1,
+            source: "screenshot-fixture",
+            limitations: nil
+        )
+        let analyzedPlaylist = AnalyzedPlaylist(
+            id: playlist.id,
+            name: playlist.name,
+            kind: playlist.kind,
+            imageUrl: playlist.imageUrl,
+            totalItems: 1,
+            originalTotalItems: 1,
+            analyzedTrackCount: 1,
+            partialAnalysis: false,
+            source: playlist.source,
+            limitations: nil
+        )
+        let item = transferItem(
+            index: 0,
+            status: "matched",
+            source: track,
+            candidate: appleCandidate(
+                id: "apple-single-track",
+                name: track.name,
+                artist: track.artistText,
+                album: track.album ?? "Unknown album"
+            ),
+            confidence: 1,
+            reason: "isrc",
+            candidates: nil
+        )
+        let analysis = TransferAnalysis(
+            playlist: analyzedPlaylist,
+            summary: TransferSummary(
+                matchedCount: 1,
+                unmatchedCount: 0,
+                needsReviewCount: 0,
+                confidentMatchCount: 1,
+                matchRate: 1
+            ),
+            items: [item],
+            transferId: "screenshot-single-track-transfer",
+            transfer: nil,
+            createdApplePlaylistId: nil
+        )
+        return (PlaylistPreviewResponse(playlist: playlist, tracks: [track]), analysis)
+    }
+
     static func make() -> (preview: PlaylistPreviewResponse, analysis: TransferAnalysis) {
-        let tracks = [
+        let showcaseTracks = [
             spotifyTrack("The Nights", "Avicii", "The Days / Nights"),
             spotifyTrack("On Top Of The World", "Imagine Dragons", "Night Visions"),
             spotifyTrack("Heat Waves", "Glass Animals", "Dreamland"),
@@ -737,13 +813,27 @@ private enum ScreenshotFixture {
             spotifyTrack("Tiny Dancer", "Elton John", "Almost Famous")
         ]
 
+        let reviewTrack = spotifyTrack(
+            "Breakfast In America - Live At Pavillon de Paris/1979",
+            "Supertramp",
+            "Paris"
+        )
+        let supportingTracks = (showcaseTracks.count..<41).map { index in
+            spotifyTrack(
+                "Weekend Drive Track \(index + 1)",
+                "PlaylistXfer Demo",
+                "Weekend Drive"
+            )
+        }
+        let tracks = showcaseTracks + supportingTracks + [reviewTrack]
+
         let playlist = SpotifyPlaylist(
             id: "playlistxfer-demo",
             name: "Weekend Drive",
             kind: "playlist",
             description: "A compact screenshot fixture for App Store captures.",
             imageUrl: nil,
-            totalItems: 46,
+            totalItems: 42,
             source: "screenshot-fixture",
             limitations: nil
         )
@@ -760,7 +850,7 @@ private enum ScreenshotFixture {
             imageUrl: playlist.imageUrl,
             totalItems: playlist.totalItems,
             originalTotalItems: playlist.totalItems,
-            analyzedTrackCount: 46,
+            analyzedTrackCount: 42,
             partialAnalysis: false,
             source: playlist.source,
             limitations: nil
@@ -769,7 +859,7 @@ private enum ScreenshotFixture {
         let reviewItem = transferItem(
             index: 5,
             status: "needs_review",
-            source: spotifyTrack("Breakfast In America - Live At Pavillon de Paris/1979", "Supertramp", "Paris"),
+            source: reviewTrack,
             candidate: appleCandidate(
                 id: "apple-review-1",
                 name: "Even In the Quietest Moments (Live at Pavillon de Paris - 1979)",
@@ -800,7 +890,7 @@ private enum ScreenshotFixture {
             ]
         )
 
-        let readyItems = tracks.enumerated().map { offset, track in
+        let readyItems = tracks.dropLast().enumerated().map { offset, track in
             transferItem(
                 index: offset + 1,
                 status: "matched",
@@ -820,10 +910,10 @@ private enum ScreenshotFixture {
         let analysis = TransferAnalysis(
             playlist: analyzedPlaylist,
             summary: TransferSummary(
-                matchedCount: 45,
+                matchedCount: 41,
                 unmatchedCount: 0,
                 needsReviewCount: 1,
-                confidentMatchCount: 45,
+                confidentMatchCount: 41,
                 matchRate: 1
             ),
             items: [reviewItem] + readyItems,

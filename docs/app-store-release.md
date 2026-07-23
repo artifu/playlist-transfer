@@ -1,6 +1,6 @@
 # PlaylistXfer App Store Release
 
-Last reviewed: 2026-07-13
+Last reviewed: 2026-07-20
 
 This is the working release package for the first public iOS build. The current cream two-record app icon is installed in the app bundle, but final visual sign-off and the final submission click are intentionally deferred until the other release work is complete.
 
@@ -13,6 +13,9 @@ This is the working release package for the first public iOS build. The current 
 - Devices: iPhone only for version 1.0
 - Primary category: Music
 - Price: Free
+- Initial availability: United States, Canada, United Kingdom, Australia, New Zealand, and Ireland
+- Release control: Manual release after App Review approval
+- Expansion: language-led storefront waves; see `docs/playlistxfer-launch-roadmap.md`
 - Main bundle id: `com.artifu.playlistxfer`
 - Share extension bundle id: `com.artifu.playlistxfer.shareextension`
 - Support URL: `https://playlistxfer.com/contact`
@@ -36,7 +39,7 @@ Spotify to Apple Music
 ### Promotional Text
 
 ```text
-Preview public Spotify playlists and songs, review Apple Music matches, and transfer only the tracks you approve.
+100% free: transfer unlimited public Spotify playlists and individual songs to Apple Music. No Spotify login, subscription, or premium upgrade.
 ```
 
 ### Description
@@ -44,16 +47,19 @@ Preview public Spotify playlists and songs, review Apple Music matches, and tran
 ```text
 Move public Spotify playlists and individual songs into Apple Music without transferring blind.
 
+PlaylistXfer is 100% free. Transfer as many public playlists and individual songs as you want. There are no subscriptions, in-app purchases, or premium upgrades.
+
 Paste a Spotify link or share it directly to PlaylistXfer. The app previews the source, searches the Apple Music catalog, and shows exactly what matched before anything is added.
 
 With PlaylistXfer you can:
 
+- Transfer unlimited public playlists and individual songs for free
 - Preview public Spotify playlists without signing in to Spotify
 - Match playlists and individual songs with the Apple Music catalog
 - Review uncertain matches and choose another candidate
 - Skip tracks that do not look right
 - Create a new Apple Music playlist from approved matches
-- Add individual songs to your PlaylistXfer Inbox
+- Add individual songs directly to Apple Music
 - Start from the iOS Share Sheet
 
 Apple Music access is requested only when it is needed to add music. PlaylistXfer does not download audio and does not require a PlaylistXfer account.
@@ -89,6 +95,7 @@ Capture real iPhone screens after the final icon and last visual pass. Use one c
 Suggested screenshot headlines:
 
 ```text
+100% free. Unlimited transfers.
 Drop in any public Spotify link
 See every track before you transfer
 Review Apple Music matches clearly
@@ -96,6 +103,14 @@ Fix uncertain matches in a tap
 Create your playlist when it looks right
 Share from Spotify straight to PlaylistXfer
 ```
+
+Use this supporting line wherever the free claim needs qualification:
+
+```text
+Unlimited playlist transfers and individual song imports. No Spotify login, subscription, in-app purchase, or premium upgrade.
+```
+
+Do not claim PlaylistXfer is the only free unlimited transfer app in the App Store. The defensible differentiation is the combination of free unlimited transfers, public links without Spotify login, visible match review, and explicit approval before writing to Apple Music.
 
 ## Current Asset Inventory
 
@@ -203,6 +218,8 @@ The app does not stream, download, or host audio. It processes public metadata f
 - Complete Content Rights and Age Rating questionnaires honestly.
 - Add Privacy, Support, and Marketing URLs.
 - Complete and publish App Privacy answers from the final data inventory.
+- Set App Availability to Specific Countries or Regions for the initial English launch: United States, Canada, United Kingdom, Australia, New Zealand, and Ireland.
+- Keep version release set to manual; do not enable every current or future storefront yet.
 - Add final screenshots and final 1024px icon.
 - Confirm the archived app contains `PrivacyInfo.xcprivacy`.
 - Archive the Release build and run Xcode validation.

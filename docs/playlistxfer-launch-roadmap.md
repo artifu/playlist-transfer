@@ -1,6 +1,6 @@
 # PlaylistXfer Launch Roadmap
 
-Last reviewed: 2026-07-13
+Last reviewed: 2026-07-20
 
 This is the production launch runbook for moving the current PlaylistTransfer MVP to:
 
@@ -269,6 +269,30 @@ Status: release package and privacy manifest prepared; unsigned Release archive 
 - Run signed `Validate App`, upload the archive, and complete the clean-install TestFlight gate.
 - Use the prepared reviewer flow and public Spotify test playlist.
 - Capture screenshots only after the final icon and visual pass.
+- Lead launch creative with the verified offer: 100% free, unlimited playlist/song transfers, no Spotify login, and no premium upgrade.
+- Pair the free claim with match review and explicit approval; do not claim the app is the only free unlimited option in the App Store.
+
+### Storefront and localization rollout
+
+Use a language-led rollout instead of enabling all App Store storefronts for version 1.0. Price remains Free in every enabled storefront, and the version remains on manual release so approval does not publish it automatically.
+
+Rollout waves:
+
+1. English launch: United States, Canada, United Kingdom, Australia, New Zealand, and Ireland.
+2. Portuguese launch: Brazil and Portugal after the app, App Store metadata, screenshots, privacy/support copy, and core error states are localized and reviewed in Portuguese.
+3. Spanish launch: Spain, Mexico, and supported Spanish-speaking Latin American storefronts after the same localization gate is complete in Spanish.
+4. Additional languages: expand by demand and operational confidence, prioritizing storefronts where Spotify and Apple Music are both supported.
+5. Global completion: enable remaining eligible storefronts only after the corresponding localization/support coverage and provider/regulatory checks are complete.
+
+Expansion gate for every wave:
+
+- Shipping app UI, permission explanations, critical errors, App Store metadata, screenshots, privacy, and support content are reviewed in the target language.
+- At least 20 successful real transfers have completed in the preceding wave.
+- No unresolved crash, catalog-matching, authorization, or playlist-creation blocker is active.
+- Spotify public-link ingestion and Apple Music catalog/library functionality are supported in the target storefronts.
+- App Store Connect country-specific tax, content-rights, and regulatory requirements are clear.
+
+Availability can be expanded after launch without a new binary. Do not remove an already launched storefront merely because a later translation is delayed; users who previously downloaded the app retain update/redownload rights under Apple's availability rules.
 
 See [app-store-release.md](/Users/arthur_t_m/Documents/PlaylistTransfer/docs/app-store-release.md).
 See [testflight-runbook.md](/Users/arthur_t_m/Documents/PlaylistTransfer/docs/testflight-runbook.md).
