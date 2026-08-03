@@ -28,6 +28,15 @@ function sendJson(response, statusCode, payload) {
   response.end(JSON.stringify(payload));
 }
 
+function sendNotFoundPage(response) {
+  response.writeHead(404, {
+    "Content-Type": "text/html; charset=utf-8",
+    "Cache-Control": "no-store",
+    "X-Robots-Tag": "noindex"
+  });
+  createReadStream(join(publicDir, "404.html")).pipe(response);
+}
+
 function safeGoogleAnalyticsId(value) {
   const id = String(value || "").trim();
   return /^G-[A-Z0-9]+$/.test(id) ? id : "";
@@ -48,6 +57,7 @@ function safePublicPath(pathname) {
   const routedPathname = new Map([
     ["/", "/index.html"],
     ["/about", "/about.html"],
+    ["/after-spotify-to-apple-music-transfer", "/after-spotify-to-apple-music-transfer.html"],
     ["/contact", "/contact.html"],
     ["/faq", "/faq.html"],
     ["/guides", "/guides.html"],
@@ -57,7 +67,9 @@ function safePublicPath(pathname) {
     ["/public-vs-private-spotify-playlists", "/public-vs-private-spotify-playlists.html"],
     ["/spotify-playlist-not-loading", "/spotify-playlist-not-loading.html"],
     ["/spotify-to-apple-music", "/spotify-to-apple-music.html"],
+    ["/spotify-to-apple-music-match-report-example", "/spotify-to-apple-music-match-report-example.html"],
     ["/spotify-to-apple-music-missing-songs", "/spotify-to-apple-music-missing-songs.html"],
+    ["/transferring-large-spotify-playlists", "/transferring-large-spotify-playlists.html"],
     ["/terms", "/terms.html"]
   ]).get(cleanPathname) ?? cleanPathname;
   const requestedPath = decodeURIComponent(routedPathname);
@@ -72,7 +84,7 @@ async function serveStatic(request, response) {
   try {
     const fileStat = await stat(filePath);
     if (!fileStat.isFile()) {
-      sendJson(response, 404, { error: true, message: "Not found" });
+      sendNotFoundPage(response);
       return;
     }
 
@@ -82,7 +94,7 @@ async function serveStatic(request, response) {
     });
     createReadStream(filePath).pipe(response);
   } catch {
-    sendJson(response, 404, { error: true, message: "Not found" });
+    sendNotFoundPage(response);
   }
 }
 

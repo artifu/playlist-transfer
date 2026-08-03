@@ -4,21 +4,21 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Playlist Transfer Guides - PlaylistXfer</title>
-  <meta name="description" content="Practical, review-first guides for moving public Spotify playlists to Apple Music, understanding match quality, and fixing missing tracks." />
+  <meta name="description" content="Practical, review-first guides and original test reports for moving public Spotify playlists to Apple Music, checking match quality, and fixing missing tracks." />
   <meta name="robots" content="index,follow" />
   <meta name="theme-color" content="#fffaf0" />
   <link rel="canonical" href="https://playlistxfer.com/guides" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://playlistxfer.com/guides" />
   <meta property="og:title" content="Playlist Transfer Guides - PlaylistXfer" />
-  <meta property="og:description" content="Understand public links, Apple Music matching, missing songs, alternate versions, and safe playlist creation." />
+  <meta property="og:description" content="Understand public links, Apple Music matching, large playlists, missing songs, post-transfer checks, and real test results." />
   <meta property="og:image" content="https://playlistxfer.com/playlistxfer-icon-512.png" />
   <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "CollectionPage",
       "name": "PlaylistXfer playlist transfer guides",
-      "description": "Original guides about moving public Spotify playlists to Apple Music with review-first matching.",
+      "description": "Original guides and reproducible tests about moving public Spotify playlists to Apple Music with review-first matching.",
       "url": "https://playlistxfer.com/guides",
       "isPartOf": {
         "@type": "WebSite",
@@ -29,7 +29,7 @@
   </script>
   <link rel="icon" href="/playlistxfer-icon.svg" type="image/svg+xml" sizes="any" />
   <link rel="icon" href="/playlistxfer-icon-32.png" type="image/png" sizes="32x32" />
-  <link rel="stylesheet" href="/styles.css?v=20260722-content" />
+  <link rel="stylesheet" href="/styles.css?v=20260802-content" />
   <script defer src="/config.js"></script>
   <script defer src="/analytics.js"></script>
 </head>
@@ -47,8 +47,8 @@
     <article class="legal-document guide-hub">
       <p class="eyebrow">PlaylistXfer field guide</p>
       <h1>Move playlists with fewer surprises.</h1>
-      <p class="guide-deck">A practical library for understanding what transfers cleanly, what needs review, and why two music catalogs can disagree about the same song.</p>
-      <p class="guide-byline">Written and maintained by the PlaylistXfer project · Last reviewed July 22, 2026</p>
+      <p class="guide-deck">A practical library for understanding what transfers cleanly, what needs review, and what PlaylistXfer observes in reproducible production tests.</p>
+      <p class="guide-byline">Written, tested, and maintained by the PlaylistXfer project · Last reviewed August 2, 2026</p>
 
       <div class="guide-callout">
         <strong>New here?</strong>
@@ -105,6 +105,30 @@
             <p>See where public Spotify reading ends, where Apple Music matching begins, and when account authorization is required.</p>
             <span class="guide-card-link">See the product flow →</span>
           </a>
+
+          <a class="guide-card featured" href="/spotify-to-apple-music-match-report-example">
+            <span class="guide-card-number">07</span>
+            <span class="guide-card-kicker">Original incident report</span>
+            <strong>How 46 tracks exposed a 340-track ingestion bug</strong>
+            <p>See how a plausible partial preview was caught, why its match report was rejected, and how the production path was corrected.</p>
+            <span class="guide-card-link">Read the engineering report →</span>
+          </a>
+
+          <a class="guide-card" href="/transferring-large-spotify-playlists">
+            <span class="guide-card-number">08</span>
+            <span class="guide-card-kicker">Large playlists</span>
+            <strong>Plan a large playlist transfer</strong>
+            <p>Choose between Full playlist and a dry-run scope, estimate review work, recover from interruptions, and handle more than 500 rows.</p>
+            <span class="guide-card-link">Plan a large transfer →</span>
+          </a>
+
+          <a class="guide-card" href="/after-spotify-to-apple-music-transfer">
+            <span class="guide-card-number">09</span>
+            <span class="guide-card-kicker">Post-transfer audit</span>
+            <strong>Check what actually arrived</strong>
+            <p>Verify counts, order, versions, duplicates, missing songs, and playback after Apple Music creates the destination playlist.</p>
+            <span class="guide-card-link">Use the verification checklist →</span>
+          </a>
         </div>
       </section>
 
@@ -112,6 +136,7 @@
         <h2>Why these guides exist</h2>
         <p>A playlist is not a folder of identical files shared by every streaming service. Spotify and Apple Music each maintain their own catalog, territory availability, identifiers, editions, and metadata. A title that looks identical can refer to a studio recording, live performance, remaster, radio edit, clean version, or regional release.</p>
         <p>PlaylistXfer is designed around that uncertainty. It previews the source, separates confident matches from ambiguous ones, and keeps questionable tracks out of the destination until a person reviews them. These guides explain those decisions in plain language so you can finish a transfer without treating the result like a black box.</p>
+        <p>The library also documents production tests with the public source, date, method, and limitations included. That makes product claims reproducible instead of asking readers to trust a generic match-rate promise.</p>
       </section>
 
       <div class="content-cta">

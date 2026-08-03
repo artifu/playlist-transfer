@@ -13,7 +13,7 @@ import {
 } from "./d1-storage.js";
 import { errorMessage, jsonResponse, readJsonBody, statusForError } from "./http.js";
 import { requireSessionId, sessionIdFromRequest, SESSION_HEADER } from "./session.js";
-import { getPublicSpotifyPlaylist } from "./spotify-public.js";
+import { getSpotifyPlaylistForEnvironment } from "./spotify-ingestion.js";
 import {
   analysisLimitFromBody,
   analyzeTracksOptimized,
@@ -98,10 +98,10 @@ function handleError(error) {
   });
 }
 
-async function handlePublicPlaylistPreview(request) {
+async function handlePublicPlaylistPreview(env, request) {
   const body = await readJsonBody(request);
   const input = transferInputFromBody(body);
-  const playlist = await getPublicSpotifyPlaylist(input);
+  const playlist = await getSpotifyPlaylistForEnvironment(env, input);
 
   return noStoreJson(200, {
     playlist: {
@@ -188,7 +188,7 @@ async function initializeChunkedAnalyzeJob(context, job, body) {
       progress: 4
     });
 
-    const playlist = await getPublicSpotifyPlaylist(input);
+    const playlist = await getSpotifyPlaylistForEnvironment(context.env, input);
     const analysisPlaylist = slicePlaylistForAnalysis(playlist, limit);
     const state = createAnalyzeState(input, limit, playlist, analysisPlaylist);
 
@@ -318,7 +318,7 @@ async function runAnalyzeJob(env, job, body) {
       progress: 4
     });
 
-    const playlist = await getPublicSpotifyPlaylist(input);
+    const playlist = await getSpotifyPlaylistForEnvironment(env, input);
     const analysisPlaylist = slicePlaylistForAnalysis(playlist, limit);
 
     await updateJob(env, job, {
@@ -407,7 +407,7 @@ async function runCreateJob(env, job, body) {
         progress: 4
       });
 
-      const playlist = await getPublicSpotifyPlaylist(input);
+      const playlist = await getSpotifyPlaylistForEnvironment(env, input);
       const analysisPlaylist = slicePlaylistForAnalysis(playlist, limit);
 
       await updateJob(env, job, {
@@ -621,7 +621,7 @@ export async function handleNativeApiRequest(context) {
     }
 
     if (method === "POST" && path === "/api/spotify/public-playlist-preview") {
-      return await handlePublicPlaylistPreview(request);
+      return await handlePublicPlaylistPreview(context.env, request);
     }
 
     if (method === "POST" && path === "/api/transfers/analyze-public-job") {

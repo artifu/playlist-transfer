@@ -6,15 +6,19 @@ const publicDir = new URL("../apps/web/public/", import.meta.url);
 const adsenseLoader = "pagead2.googlesyndication.com/pagead/js/adsbygoogle.js";
 
 const editorialPages = [
+  "after-spotify-to-apple-music-transfer.html",
   "how-it-works.html",
   "how-playlist-matching-works.html",
   "public-vs-private-spotify-playlists.html",
   "spotify-playlist-not-loading.html",
   "spotify-to-apple-music.html",
-  "spotify-to-apple-music-missing-songs.html"
+  "spotify-to-apple-music-match-report-example.html",
+  "spotify-to-apple-music-missing-songs.html",
+  "transferring-large-spotify-playlists.html"
 ];
 
 const adFreePages = [
+  "404.html",
   "about.html",
   "contact.html",
   "faq.html",
@@ -42,7 +46,7 @@ test("homepage preserves AdSense ownership verification without loading ads", as
   assert.match(html, /name="google-adsense-account" content="ca-pub-8103940626356369"/);
 });
 
-test("all public pages retain analytics bootstrap and the editorial routes are indexed", async () => {
+test("all public pages retain analytics bootstrap and editorial routes are listed in the sitemap", async () => {
   for (const fileName of [...editorialPages, ...adFreePages]) {
     const html = await readFile(new URL(fileName, publicDir), "utf8");
     assert.match(html, /<script defer src="\/config\.js"><\/script>/, `${fileName} should load public config`);
@@ -51,12 +55,15 @@ test("all public pages retain analytics bootstrap and the editorial routes are i
 
   const sitemap = await readFile(new URL("sitemap.xml", publicDir), "utf8");
   const expectedRoutes = [
+    "/after-spotify-to-apple-music-transfer",
     "/guides",
     "/how-playlist-matching-works",
     "/public-vs-private-spotify-playlists",
     "/spotify-playlist-not-loading",
     "/spotify-to-apple-music",
-    "/spotify-to-apple-music-missing-songs"
+    "/spotify-to-apple-music-match-report-example",
+    "/spotify-to-apple-music-missing-songs",
+    "/transferring-large-spotify-playlists"
   ];
 
   for (const route of expectedRoutes) {
@@ -73,5 +80,50 @@ test("structured data on content pages is valid JSON", async () => {
     for (const [, json] of blocks) {
       assert.doesNotThrow(() => JSON.parse(json), `${fileName} structured data should parse`);
     }
+  }
+});
+
+test("Cloudflare Pages has a real noindex 404 instead of a homepage fallback", async () => {
+  const html = await readFile(new URL("404.html", publicDir), "utf8");
+
+  assert.match(html, /<meta name="robots" content="noindex,follow"/);
+  assert.match(html, /404 · Page not found/);
+  assert.doesNotMatch(html, new RegExp(adsenseLoader.replaceAll(".", "\\.")));
+});
+
+test("homepage contains substantive visible publisher content", async () => {
+  const html = await readFile(new URL("index.html", publicDir), "utf8");
+  const publisherContent = html.match(/<section class="homepage-content"[\s\S]*?<\/section>\s*<\/section>/)?.[0] ?? "";
+  const words = publisherContent
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&[a-z#0-9]+;/gi, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  assert.match(html, /data-publisher-content/);
+  assert.match(html, /46-versus-340 discrepancy exposed an incomplete playlist preview/);
+  assert.ok(words.length >= 400, `homepage publisher content should be substantive, found ${words.length} words`);
+});
+
+test("editorial articles are substantive and use unique canonical URLs", async () => {
+  const canonicals = new Set();
+
+  for (const fileName of editorialPages) {
+    const html = await readFile(new URL(fileName, publicDir), "utf8");
+    const article = html.match(/<article[\s\S]*?<\/article>/)?.[0] ?? "";
+    const words = article
+      .replace(/<script[\s\S]*?<\/script>/gi, " ")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&[a-z#0-9]+;/gi, " ")
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+    const canonical = html.match(/<link rel="canonical" href="([^"]+)"/)?.[1];
+
+    assert.ok(words.length >= 500, `${fileName} should contain at least 500 words, found ${words.length}`);
+    assert.ok(canonical, `${fileName} should include a canonical URL`);
+    assert.ok(!canonicals.has(canonical), `${fileName} should not duplicate canonical ${canonical}`);
+    canonicals.add(canonical);
   }
 });

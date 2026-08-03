@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8103940626356369" crossorigin="anonymous"></script>
+  <title>Spotify Playlist Preview Incident: 46 vs 340 Tracks - PlaylistXfer</title>
+  <meta name="description" content="A production incident report explaining how PlaylistXfer caught a 46-versus-340 Spotify playlist discrepancy, rejected a misleading match report, and fixed the ingestion path." />
+  <meta name="robots" content="index,follow" />
+  <meta name="theme-color" content="#fffaf0" />
+  <link rel="canonical" href="https://playlistxfer.com/spotify-to-apple-music-match-report-example" />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://playlistxfer.com/spotify-to-apple-music-match-report-example" />
+  <meta property="og:title" content="How 46 tracks exposed a 340-track ingestion bug" />
+  <meta property="og:description" content="The method, root cause, fix, and verification behind a public Spotify playlist completeness audit." />
+  <meta property="og:image" content="https://playlistxfer.com/playlistxfer-icon-512.png" />
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": "How 46 tracks exposed a 340-track Spotify playlist ingestion bug",
+      "description": "A production incident report about detecting and correcting an incomplete public Spotify playlist preview before treating its Apple Music match totals as evidence.",
+      "datePublished": "2026-08-02",
+      "dateModified": "2026-08-02",
+      "author": {
+        "@type": "Organization",
+        "name": "PlaylistXfer"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "PlaylistXfer"
+      },
+      "mainEntityOfPage": "https://playlistxfer.com/spotify-to-apple-music-match-report-example"
+    }
+  </script>
+  <link rel="icon" href="/playlistxfer-icon.svg" type="image/svg+xml" sizes="any" />
+  <link rel="icon" href="/playlistxfer-icon-32.png" type="image/png" sizes="32x32" />
+  <link rel="stylesheet" href="/styles.css?v=20260802-content" />
+  <script defer src="/config.js"></script>
+  <script defer src="/analytics.js"></script>
+</head>
+<body>
+  <main class="legal-page content-page guide-page">
+    <nav class="article-nav" aria-label="Primary">
+      <a class="legal-back" href="/guides">&larr; All guides</a>
+      <div>
+        <a href="/guides">Guides</a>
+        <a href="/how-it-works">How it works</a>
+        <a href="/faq">FAQ</a>
+      </div>
+    </nav>
+
+    <article class="legal-document guide-article">
+      <p class="eyebrow">Original production incident report · 8 minute read</p>
+      <h1>How 46 tracks exposed a 340-track Spotify playlist ingestion bug.</h1>
+      <p class="guide-deck">A plausible preview can be more dangerous than an obvious error. This report documents the completeness check that stopped PlaylistXfer from presenting a partial playlist as a successful Apple Music match test.</p>
+      <p class="guide-byline">Investigated and documented by the PlaylistXfer project · August 2, 2026</p>
+
+      <div class="guide-callout">
+        <strong>Result at a glance</strong>
+        <p>The production Worker returned 46 readable tracks for a public playlist. The same source returned 340 tracks through the ingestion backend. The 294-row gap was traced to an architecture that expanded metadata one track at a time inside the Worker. Playlist expansion now happens behind one backend request before the complete list enters the production review flow.</p>
+      </div>
+
+      <div class="metric-grid success-metrics" aria-label="Incident result">
+        <div class="metric-card review"><span class="metric-label">Before fix</span><div class="metric-value">46</div></div>
+        <div class="metric-card ready"><span class="metric-label">Complete source</span><div class="metric-value">340</div></div>
+        <div class="metric-card missing"><span class="metric-label">Rows recovered</span><div class="metric-value">294</div></div>
+      </div>
+
+      <nav class="guide-toc" aria-label="On this page">
+        <strong>On this page</strong>
+        <a href="#signal">The first signal</a>
+        <a href="#method">Comparison method</a>
+        <a href="#cause">Root cause</a>
+        <a href="#fix">The production fix</a>
+        <a href="#matching">Why the match report was rejected</a>
+        <a href="#verify">How to verify completeness</a>
+      </nav>
+
+      <section class="guide-section" id="signal">
+        <h2>The first result looked good enough to trust</h2>
+        <p>The source was the public playlist <a href="https://open.spotify.com/playlist/315j5OaNjSO3C5AifquhBc">FIFA Songs ⚽ Best FIFA songs of all time</a>. Pasted into the live site, it produced 46 readable Spotify rows with recording identifiers. Matching those rows returned 45 confident Apple Music candidates and one missing result. There were no browser errors, the progress flow completed, and the numbers looked coherent.</p>
+        <p>That result was initially useful as a user-flow test, but it was not enough as a completeness test. The playlist was visibly a large collection, so a second environment was used before publishing the 45-of-46 total as evidence of overall matching quality. The local web app, connected to the standalone ingestion backend, returned 340 readable tracks from exactly the same public URL.</p>
+        <p>The mismatch changed the interpretation completely. The 45 matches were real matches for a partial input, but they said nothing reliable about the other 294 rows. A high percentage calculated from an incomplete source is not a successful transfer report.</p>
+      </section>
+
+      <section class="guide-section" id="method">
+        <h2>Comparison method</h2>
+        <ol class="guide-checklist">
+          <li>Use the same normal Spotify playlist URL in both environments.</li>
+          <li>Run only the public preview step, before Apple Music authorization or playlist creation.</li>
+          <li>Record the playlist ID, reported total, returned track-array length, and ISRC count.</li>
+          <li>Repeat the production preview in a fresh page to rule out a stale browser state.</li>
+          <li>Confirm that both environments are reading the same source rather than a copied fixture.</li>
+          <li>Inspect the two server paths to identify where their behavior diverges.</li>
+        </ol>
+        <p>The production result remained at 46 after a repeat. The backend result remained at 340. That stability ruled out a one-off rendering problem and moved the investigation to the server boundary. No Apple Music write permission was requested during this comparison.</p>
+      </section>
+
+      <section class="guide-section" id="cause">
+        <h2>Why the Worker stopped with a believable partial result</h2>
+        <p>The public Spotify playlist response provides track identifiers, but PlaylistXfer also retrieves recording metadata for each identifier so the match report can use fields such as ISRC, artists, album, and duration. The Cloudflare-native implementation performed that expansion with one outgoing metadata request per track.</p>
+        <p>Edge Workers have limits around outgoing subrequests. The code also treated an individual metadata failure as a skipped row, then built the displayed total from the number of successful rows. Once requests beyond the available budget failed, the surviving 46 rows were filtered into an otherwise valid-looking playlist. The interface therefore had no explicit error to display.</p>
+        <div class="guide-note">
+          <strong>The key product lesson</strong>
+          <p>A preview count needs an independent completeness signal. “Every returned row has good metadata” is different from “every source row was returned.” Silent filtering can preserve data quality while destroying coverage.</p>
+        </div>
+      </section>
+
+      <section class="guide-section" id="fix">
+        <h2>The production fix: one ingestion boundary</h2>
+        <p>Playlist expansion now runs through the standalone transfer backend, which is not constrained by the Worker’s per-request subrequest budget. The Worker makes one internal request and receives the normalized track list as a single response. Cloudflare still owns the native Apple Music matching jobs, review state, analytics policy, and D1 persistence.</p>
+        <p>This is a narrow architectural change rather than a return to a fully proxied application. Public song links remain local because one song needs only a small number of requests. Public playlist links use the dedicated ingestion path because their size is unbounded within the product’s supported limit.</p>
+        <p>The new boundary also rejects an empty or malformed upstream playlist instead of turning it into a successful zero-row preview. Automated tests assert that a 340-track response crosses the Worker boundary in one request and preserves all 340 rows.</p>
+      </section>
+
+      <section class="guide-section" id="matching">
+        <h2>Why the original 45-of-46 match report was rejected</h2>
+        <p>The partial report did demonstrate two behaviors: the Apple Music search job completed, and it was willing to leave an unsafe candidate missing. It did not demonstrate a 98% success rate for the source playlist. Publishing it that way would confuse precision with coverage.</p>
+        <p>Precision asks whether the selected Apple Music candidates are correct. Coverage asks whether every source row entered the matching stage. Both are necessary. The incident occurred before write authorization, so no incomplete destination playlist was created during the audit. The full 340-row source must be analyzed separately before any new aggregate match-rate claim is published.</p>
+        <div class="guide-table-wrap">
+          <table class="guide-table">
+            <thead><tr><th>Question</th><th>What the audit established</th></tr></thead>
+            <tbody>
+              <tr><td>Did the 46 returned rows contain useful metadata?</td><td>Yes, but they were only a subset.</td></tr>
+              <tr><td>Was 45 of 46 a valid total-playlist match rate?</td><td>No, because 294 source rows never reached matching.</td></tr>
+              <tr><td>Did the test modify Apple Music?</td><td>No. It stopped before authorization and creation.</td></tr>
+              <tr><td>What can be claimed after the fix?</td><td>The preview carries the complete 340-row source into review.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="guide-section" id="verify">
+        <h2>How to verify a large playlist before trusting the match percentage</h2>
+        <p>Start with the source count shown by Spotify and compare it with the preview count. Duplicates can be intentionally removed when the same Spotify track ID appears more than once, and unavailable rows can occasionally lack readable metadata, so a small documented difference may be expected. A 294-row difference is not.</p>
+        <p>Then compare the preview total with the analysis total. The Full playlist mode should send every supported preview row into matching, up to the current 500-row web limit. Faster test modes intentionally analyze only their selected scope and label that limitation in the report.</p>
+        <p>Finally, keep reading and writing separate. Verify the source, inspect the Apple Music candidates, and only then authorize creation. If any stage reports a smaller count, stop and explain the difference before treating the final percentage as meaningful.</p>
+      </section>
+
+      <aside class="related-guides" aria-labelledby="related-report-guides">
+        <h2 id="related-report-guides">Continue reading</h2>
+        <a href="/transferring-large-spotify-playlists">How to plan a large playlist transfer →</a>
+        <a href="/how-playlist-matching-works">How playlist matching actually works →</a>
+        <a href="/after-spotify-to-apple-music-transfer">How to audit the created Apple Music playlist →</a>
+      </aside>
+
+      <div class="content-cta">
+        <a class="button-link" href="/" data-analytics-cta="match_report_case_study">Preview a public playlist</a>
+        <a class="soft-link" href="/guides">Browse all guides</a>
+      </div>
+
+      <p class="guide-disclosure">PlaylistXfer is independent and is not affiliated with, endorsed by, or sponsored by Spotify or Apple. The named public playlist is used solely to document a reproducible interoperability and completeness test.</p>
+    </article>
+  </main>
+</body>
+</html>

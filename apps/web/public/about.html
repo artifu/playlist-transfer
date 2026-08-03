@@ -15,7 +15,7 @@
   <meta property="og:image" content="https://playlistxfer.com/playlistxfer-icon-512.png" />
   <link rel="icon" href="/playlistxfer-icon.svg" type="image/svg+xml" sizes="any" />
   <link rel="icon" href="/playlistxfer-icon-32.png" type="image/png" sizes="32x32" />
-  <link rel="stylesheet" href="/styles.css?v=20260722-content" />
+  <link rel="stylesheet" href="/styles.css?v=20260802-content" />
   <script defer src="/config.js"></script>
   <script defer src="/analytics.js"></script>
 </head>
@@ -60,6 +60,9 @@
 
       <h2>Current status</h2>
       <p>The web MVP supports public Spotify playlist and song previews, Apple Music match analysis, candidate review, and authorized playlist creation. The iOS app is in active development. Private Spotify account access, other streaming destinations, and local-file migration are outside the current scope.</p>
+
+      <h2>Claims backed by reproducible tests</h2>
+      <p>PlaylistXfer publishes dated production reports when a result can be reproduced from a public source. An August 2, 2026 audit found that one public playlist produced 340 readable tracks through the ingestion backend but only 46 through the original production Worker. The incomplete match report was rejected, the ingestion boundary was corrected, and the discrepancy was documented instead of being presented as a success metric. Read the <a href="/spotify-to-apple-music-match-report-example">incident method, fix, and verification checklist</a>.</p>
 
       <h2>Why the guides are part of the product</h2>
       <p>A useful transfer tool should explain its limits. The <a href="/guides">PlaylistXfer guides</a> document playlist visibility, catalog matching, missing tracks, and troubleshooting with links to first-party Spotify and Apple references. They are written for people making an actual transfer, not as filler around the form.</p>

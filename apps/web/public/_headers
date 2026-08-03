@@ -45,5 +45,9 @@
 /ads.txt
   Cache-Control: public, max-age=3600
 
+/404.html
+  Cache-Control: public, max-age=300, must-revalidate
+  X-Robots-Tag: noindex
+
 /llms.txt
   Cache-Control: public, max-age=3600
