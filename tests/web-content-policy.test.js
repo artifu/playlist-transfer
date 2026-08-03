@@ -44,6 +44,7 @@ test("homepage preserves AdSense ownership verification without loading ads", as
   const html = await readFile(new URL("index.html", publicDir), "utf8");
 
   assert.match(html, /name="google-adsense-account" content="ca-pub-8103940626356369"/);
+  assert.match(html, /name="google-site-verification" content="3F7Qim3-rpeOtRkXc-76GNCaAr4Hf_jLziTY2hmdTno"/);
 });
 
 test("all public pages retain analytics bootstrap and editorial routes are listed in the sitemap", async () => {
