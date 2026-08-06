@@ -49,7 +49,17 @@ const SCHEMA_STATEMENTS = [
     observed_at text not null
   )`,
   `create index if not exists idx_analytics_events_observed_at on analytics_events (observed_at)`,
-  `create index if not exists idx_analytics_events_event_observed_at on analytics_events (event, observed_at)`
+  `create index if not exists idx_analytics_events_event_observed_at on analytics_events (event, observed_at)`,
+  `create table if not exists support_requests (
+    id text primary key,
+    category text not null,
+    reply_email text,
+    message text not null,
+    status text not null,
+    created_at text not null
+  )`,
+  `create index if not exists idx_support_requests_created_at on support_requests (created_at)`,
+  `create index if not exists idx_support_requests_status_created_at on support_requests (status, created_at)`
 ];
 
 let schemaReady = false;
@@ -58,6 +68,7 @@ let lastCleanupAt = 0;
 const DEFAULT_TRANSFER_RETENTION_DAYS = 7;
 const CLEANUP_INTERVAL_MS = 15 * 60 * 1000;
 const ANALYTICS_RETENTION_DAYS = 90;
+const SUPPORT_RETENTION_DAYS = 180;
 
 export function requireD1(env) {
   if (!env.PLAYLIST_TRANSFER_DB) {
@@ -106,6 +117,9 @@ async function cleanupExpiredRecords(env) {
     db.prepare("delete from apple_isrc_cache where expires_at < ?").bind(new Date(now).toISOString()),
     db.prepare("delete from analytics_events where observed_at < ?").bind(
       new Date(now - ANALYTICS_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString()
+    ),
+    db.prepare("delete from support_requests where created_at < ?").bind(
+      new Date(now - SUPPORT_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString()
     )
   ]);
   lastCleanupAt = now;
@@ -131,6 +145,31 @@ export async function saveAnalyticsEvent(env, payload) {
       payload.observedAt
     )
     .run();
+}
+
+export async function saveSupportRequest(env, { category, replyEmail, message }) {
+  await cleanupExpiredRecords(env);
+  const id = randomId();
+  const createdAt = nowIso();
+  await requireD1(env)
+    .prepare(
+      `insert into support_requests (
+        id,
+        category,
+        reply_email,
+        message,
+        status,
+        created_at
+      ) values (?, ?, ?, ?, 'new', ?)`
+    )
+    .bind(id, category, replyEmail || null, message, createdAt)
+    .run();
+
+  return {
+    id,
+    reference: `PX-${id.slice(0, 8).toUpperCase()}`,
+    createdAt
+  };
 }
 
 function clone(value) {

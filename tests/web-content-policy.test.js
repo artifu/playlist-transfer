@@ -47,6 +47,16 @@ test("homepage preserves AdSense ownership verification without loading ads", as
   assert.match(html, /name="google-site-verification" content="3F7Qim3-rpeOtRkXc-76GNCaAr4Hf_jLziTY2hmdTno"/);
 });
 
+test("support page provides a direct first-party request form", async () => {
+  const html = await readFile(new URL("contact.html", publicDir), "utf8");
+
+  assert.match(html, /<h1>PlaylistXfer Support<\/h1>/);
+  assert.match(html, /id="support-form"/);
+  assert.match(html, /name="replyEmail"/);
+  assert.match(html, /Send support request/);
+  assert.match(html, /Include an email if you want a direct reply/);
+});
+
 test("all public pages retain analytics bootstrap and editorial routes are listed in the sitemap", async () => {
   for (const fileName of [...editorialPages, ...adFreePages]) {
     const html = await readFile(new URL(fileName, publicDir), "utf8");

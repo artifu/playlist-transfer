@@ -8,6 +8,7 @@ import {
   loadTransferReport,
   markTransferCreated,
   saveAnalyticsEvent,
+  saveSupportRequest,
   serializeJob,
   updateJob
 } from "./d1-storage.js";
@@ -591,6 +592,39 @@ async function handleUsageEvent(env, request) {
   return noStoreJson(202, { ok: true });
 }
 
+async function handleSupportRequest(env, request) {
+  const body = await readJsonBody(request);
+  const honeypot = String(body.website ?? "").trim();
+  if (honeypot) return noStoreJson(202, { ok: true });
+
+  const allowedCategories = new Set(["bug", "transfer", "privacy", "feedback", "other"]);
+  const category = String(body.category ?? "other").trim().toLowerCase();
+  const replyEmail = String(body.replyEmail ?? "").trim().toLowerCase();
+  const message = String(body.message ?? "").trim();
+
+  if (!allowedCategories.has(category)) {
+    return noStoreJson(400, { error: true, message: "Choose a valid support topic." });
+  }
+  if (replyEmail && (replyEmail.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(replyEmail))) {
+    return noStoreJson(400, { error: true, message: "Enter a valid reply email or leave it blank." });
+  }
+  if (message.length < 20 || message.length > 4_000) {
+    return noStoreJson(400, {
+      error: true,
+      message: "Describe the issue in 20 to 4,000 characters."
+    });
+  }
+
+  const supportRequest = await saveSupportRequest(env, { category, replyEmail, message });
+  return noStoreJson(201, {
+    ok: true,
+    reference: supportRequest.reference,
+    message: replyEmail
+      ? "Your request was received. Keep the reference below for follow-up."
+      : "Your request was received. Add a reply email next time if you need a direct response."
+  });
+}
+
 export function nativeApiIsConfigured(env) {
   return Boolean(env.PLAYLIST_TRANSFER_DB);
 }
@@ -614,6 +648,10 @@ export async function handleNativeApiRequest(context) {
 
     if (method === "POST" && path === "/api/events") {
       return handleUsageEvent(context.env, request);
+    }
+
+    if (method === "POST" && path === "/api/support") {
+      return await handleSupportRequest(context.env, request);
     }
 
     if (method === "POST" && path === "/api/apple-music/catalog-search") {

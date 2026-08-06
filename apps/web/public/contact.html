@@ -15,20 +15,62 @@
   <meta property="og:image" content="https://playlistxfer.com/playlistxfer-icon-512.png" />
   <link rel="icon" href="/playlistxfer-icon.svg" type="image/svg+xml" sizes="any" />
   <link rel="icon" href="/playlistxfer-icon-32.png" type="image/png" sizes="32x32" />
-  <link rel="stylesheet" href="/styles.css?v=20260722-content" />
+  <link rel="stylesheet" href="/styles.css?v=20260806-support" />
   <script defer src="/config.js"></script>
   <script defer src="/analytics.js"></script>
+  <script defer src="/contact.js?v=20260806-support"></script>
 </head>
 <body>
   <main class="legal-page content-page">
     <a class="legal-back" href="/">&larr; Back to PlaylistXfer</a>
     <article class="legal-document">
       <p class="eyebrow">Contact</p>
-      <h1>Feedback makes the transfer better.</h1>
-      <p class="legal-updated">Use this page for support, bugs, and product feedback.</p>
+      <h1>PlaylistXfer Support</h1>
+      <p class="legal-updated">Ask a question, report a problem, or request help directly from the PlaylistXfer team.</p>
+
+      <section class="support-panel" aria-labelledby="support-form-title">
+        <div>
+          <p class="eyebrow">Direct support</p>
+          <h2 id="support-form-title">Send a support request</h2>
+          <p>We review every request. Include an email if you want a direct reply.</p>
+        </div>
+
+        <form id="support-form" class="support-form">
+          <label>
+            Topic
+            <select name="category" required>
+              <option value="transfer">Playlist preview or transfer</option>
+              <option value="bug">Bug or error</option>
+              <option value="privacy">Privacy question</option>
+              <option value="feedback">Product feedback</option>
+              <option value="other">Something else</option>
+            </select>
+          </label>
+
+          <label>
+            Reply email <span>(optional)</span>
+            <input name="replyEmail" type="email" autocomplete="email" maxlength="254" placeholder="you@example.com" />
+          </label>
+
+          <label class="support-honeypot" aria-hidden="true">
+            Website
+            <input name="website" type="text" tabindex="-1" autocomplete="off" />
+          </label>
+
+          <label>
+            How can we help?
+            <textarea name="message" required minlength="20" maxlength="4000" rows="7" placeholder="Tell us what you tried, what you expected, and the exact error you saw."></textarea>
+          </label>
+
+          <div class="support-submit-row">
+            <button class="button-link" type="submit">Send support request</button>
+            <p class="support-form-status" id="support-form-status" role="status" aria-live="polite"></p>
+          </div>
+        </form>
+      </section>
 
       <h2>Bug reports</h2>
-      <p>If a playlist fails to preview, match, or create, include the step that failed, exact visible error, browser or device, approximate time, and whether another known-public playlist worked. A public Spotify playlist URL can help reproduce the issue, but do not post a private or sensitive playlist. Open an issue in the <a href="https://github.com/artifu/playlist-transfer/issues">PlaylistXfer GitHub issues</a>.</p>
+      <p>If a playlist fails to preview, match, or create, include the step that failed, exact visible error, browser or device, approximate time, and whether another known-public playlist worked. A public Spotify playlist URL can help reproduce the issue, but do not submit a private or sensitive playlist.</p>
 
       <p>Before reporting a preview problem, work through the <a href="/spotify-playlist-not-loading">playlist link troubleshooting guide</a>. It separates wrong or restricted links from a temporary PlaylistXfer service failure.</p>
 
@@ -42,7 +84,8 @@
       <p>Support does not need your Spotify password, Apple ID password, Apple Music token, cookies, account email, or browser storage. Remove those values from screenshots and logs before posting an issue.</p>
 
       <div class="content-cta">
-        <a class="button-link" href="https://github.com/artifu/playlist-transfer/issues">Open a GitHub issue</a>
+        <a class="button-link" href="#support-form-title">Contact support</a>
+        <a class="soft-link" href="https://github.com/artifu/playlist-transfer/issues">Public issue tracker</a>
         <a class="soft-link" href="/">Back to transfer</a>
       </div>
     </article>

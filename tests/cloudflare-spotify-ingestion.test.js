@@ -54,3 +54,32 @@ test("Cloudflare rejects an incomplete backend playlist instead of silently trun
     /incomplete playlist/
   );
 });
+
+test("Cloudflare retries one transient upstream timeout", async () => {
+  let calls = 0;
+  const result = await getSpotifyPlaylistForEnvironment(
+    { TRANSFER_API_URL: "https://transfer.example.com" },
+    playlistUrl,
+    async () => {
+      calls += 1;
+      if (calls === 1) throw new DOMException("Timed out", "TimeoutError");
+      return new Response(JSON.stringify({
+        playlist: {
+          id: "315j5OaNjSO3C5AifquhBc",
+          name: "Recovered playlist",
+          totalItems: 1,
+          source: "spotify-public-spclient",
+          limitations: []
+        },
+        tracks: [{
+          spotifyTrackId: "0000000000000000000000",
+          name: "Recovered track",
+          artists: ["Test artist"]
+        }]
+      }), { status: 200 });
+    }
+  );
+
+  assert.equal(calls, 2);
+  assert.equal(result.tracks.length, 1);
+});
