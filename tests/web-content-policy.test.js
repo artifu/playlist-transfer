@@ -55,6 +55,7 @@ test("support page provides a direct first-party request form", async () => {
   assert.match(html, /name="replyEmail"/);
   assert.match(html, /Send support request/);
   assert.match(html, /Include an email if you want a direct reply/);
+  assert.match(html, /mailto:support@playlistxfer\.com/);
 });
 
 test("all public pages retain analytics bootstrap and editorial routes are listed in the sitemap", async () => {

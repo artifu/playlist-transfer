@@ -1418,6 +1418,13 @@ p {
   background: linear-gradient(180deg, #fffefb, #fff8e9);
 }
 
+.support-email-line {
+  margin: 18px 0 0;
+  padding: 14px 18px;
+  border-left: 4px solid var(--ink);
+  background: rgba(255, 255, 255, 0.66);
+}
+
 .support-panel h2 {
   margin-top: 4px;
 }
