@@ -35,7 +35,8 @@ For the production domain launch sequence, use [playlistxfer-launch-roadmap.md](
 
 ## Web Environment
 
-- Cloudflare Pages may keep `TRANSFER_API_URL=https://playlist-transfer-api.onrender.com` as rollback config.
+- Cloudflare Pages uses `TRANSFER_API_URL=https://oracle-api.playlistxfer.com` for full public-playlist expansion.
+- Cloudflare Pages keeps `TRANSFER_API_FALLBACK_URL=https://playlist-transfer-api.onrender.com` for automatic transient-error fallback.
 - Cloudflare Pages has `PLAYLIST_TRANSFER_DB` D1 binding when using native mode.
 - Cloudflare Pages has `GA_MEASUREMENT_ID=G-XXXXXXXXXX` if Google Analytics should load.
 - Cloudflare Pages build output directory is `apps/web/public`.

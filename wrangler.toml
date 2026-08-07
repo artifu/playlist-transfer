@@ -3,7 +3,8 @@ compatibility_date = "2026-05-15"
 pages_build_output_dir = "apps/web/public"
 
 [vars]
-TRANSFER_API_URL = "https://playlist-transfer-api.onrender.com"
+TRANSFER_API_URL = "https://oracle-api.playlistxfer.com"
+TRANSFER_API_FALLBACK_URL = "https://playlist-transfer-api.onrender.com"
 
 [[d1_databases]]
 binding = "PLAYLIST_TRANSFER_DB"

@@ -109,11 +109,12 @@ Root directory: /
 Set this Pages environment variable:
 
 ```bash
-TRANSFER_API_URL=https://playlist-transfer-api.onrender.com
+TRANSFER_API_URL=https://oracle-api.playlistxfer.com
+TRANSFER_API_FALLBACK_URL=https://playlist-transfer-api.onrender.com
 GA_MEASUREMENT_ID=G-XXXXXXXXXX
 ```
 
-This keeps Render proxy mode working. When Cloudflare-native API mode is enabled, the Pages Function ignores `TRANSFER_API_URL` for implemented API routes and uses D1 instead.
+Cloudflare-native routes use D1 directly. Full public-playlist expansion uses Oracle first and retries on Render only after a transient Oracle failure.
 
 `GA_MEASUREMENT_ID` is optional. If it is missing or empty, `/config.js` returns an empty analytics id and Google Analytics is not loaded.
 
@@ -134,7 +135,8 @@ D1 database: playlist-transfer
 ```bash
 APPLE_MUSIC_DEVELOPER_TOKEN=your-apple-developer-token
 APPLE_MUSIC_STOREFRONT=us
-TRANSFER_API_URL=https://playlist-transfer-api.onrender.com
+TRANSFER_API_URL=https://oracle-api.playlistxfer.com
+TRANSFER_API_FALLBACK_URL=https://playlist-transfer-api.onrender.com
 GA_MEASUREMENT_ID=G-XXXXXXXXXX
 ```
 

@@ -6,12 +6,26 @@ const UPSTREAM_PREVIEW_TIMEOUT_MS = 24_000;
 const UPSTREAM_PREVIEW_ATTEMPTS = 2;
 const UPSTREAM_RETRY_DELAY_MS = 250;
 
-function transferApiUrl(env) {
-  try {
-    return new URL(env?.TRANSFER_API_URL || DEFAULT_TRANSFER_API_URL);
-  } catch {
-    return new URL(DEFAULT_TRANSFER_API_URL);
+function transferApiUrls(env) {
+  const configured = [
+    env?.TRANSFER_API_URL || DEFAULT_TRANSFER_API_URL,
+    env?.TRANSFER_API_FALLBACK_URL
+  ];
+  const urls = [];
+
+  for (const value of configured) {
+    if (!value) continue;
+    try {
+      const url = new URL(value);
+      if (!urls.some((candidate) => candidate.origin === url.origin)) {
+        urls.push(url);
+      }
+    } catch {
+      // Ignore an invalid optional fallback; the default primary remains valid.
+    }
   }
+
+  return urls.length > 0 ? urls : [new URL(DEFAULT_TRANSFER_API_URL)];
 }
 
 async function resolvedSpotifyInput(input, fetchImpl) {
@@ -76,8 +90,8 @@ function wait(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
-async function fetchPlaylistThroughTransferApi(env, input, fetchImpl) {
-  const url = new URL("/api/spotify/public-playlist-preview", transferApiUrl(env));
+async function fetchPlaylistFromTransferApi(baseUrl, input, fetchImpl) {
+  const url = new URL("/api/spotify/public-playlist-preview", baseUrl);
   let lastError;
 
   for (let attempt = 1; attempt <= UPSTREAM_PREVIEW_ATTEMPTS; attempt += 1) {
@@ -104,6 +118,7 @@ async function fetchPlaylistThroughTransferApi(env, input, fetchImpl) {
         const upstreamError = new Error(
           `Spotify ingestion service returned HTTP ${response.status}: ${detail}`
         );
+        upstreamError.retryable = retryableStatus(response.status);
         if (attempt < UPSTREAM_PREVIEW_ATTEMPTS && retryableStatus(response.status)) {
           lastError = upstreamError;
           await wait(UPSTREAM_RETRY_DELAY_MS);
@@ -127,6 +142,25 @@ async function fetchPlaylistThroughTransferApi(env, input, fetchImpl) {
         continue;
       }
       throw error;
+    }
+  }
+
+  throw lastError ?? new Error("The Spotify ingestion service did not respond.");
+}
+
+async function fetchPlaylistThroughTransferApi(env, input, fetchImpl) {
+  const urls = transferApiUrls(env);
+  let lastError;
+
+  for (let index = 0; index < urls.length; index += 1) {
+    try {
+      return await fetchPlaylistFromTransferApi(urls[index], input, fetchImpl);
+    } catch (error) {
+      lastError = error;
+      const hasFallback = index < urls.length - 1;
+      if (!hasFallback || (!error?.retryable && !retryableFetchError(error))) {
+        throw error;
+      }
     }
   }
 

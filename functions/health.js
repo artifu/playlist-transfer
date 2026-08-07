@@ -10,7 +10,8 @@ export function onRequest(context) {
       apiMode: nativeApiConfigured ? "cloudflare-native" : "render-proxy",
       nativeApiConfigured,
       hasAppleDeveloperToken: Boolean(context.env.APPLE_MUSIC_DEVELOPER_TOKEN),
-      transferApiUrl: context.env.TRANSFER_API_URL || DEFAULT_TRANSFER_API_URL
+      transferApiUrl: context.env.TRANSFER_API_URL || DEFAULT_TRANSFER_API_URL,
+      transferApiFallbackUrl: context.env.TRANSFER_API_FALLBACK_URL || null
     }),
     {
       headers: {

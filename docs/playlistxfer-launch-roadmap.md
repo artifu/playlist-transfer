@@ -51,10 +51,11 @@ Build command: none
 Build output directory: apps/web/public
 ```
 
-Set this Pages environment variable only as rollback config:
+Set the public-playlist expansion origins:
 
 ```bash
-TRANSFER_API_URL=https://playlist-transfer-api.onrender.com
+TRANSFER_API_URL=https://oracle-api.playlistxfer.com
+TRANSFER_API_FALLBACK_URL=https://playlist-transfer-api.onrender.com
 ```
 
 Add custom domains in the Pages project:
@@ -113,9 +114,9 @@ Validation:
 
 Owner: Arthur + Codex
 
-Status: implemented for the normal production path.
+Status: implemented for the normal production path. Oracle Always Free is the primary public-playlist expansion service; Render is a temporary automatic fallback for transient failures.
 
-Goal: keep session, job, analytics, Apple Music, and persistence work on Cloudflare. Full public-playlist expansion currently still uses Render to avoid a large number of per-track Worker subrequests, so the iOS preview path can still encounter a Render cold start.
+Goal: keep session, job, analytics, Apple Music, and persistence work on Cloudflare. Full public-playlist expansion runs on the always-on Oracle VM to avoid Worker subrequest limits and Render cold starts. Render remains a fallback until the device-native ingestion milestone is complete.
 
 Cloudflare setup:
 
@@ -129,7 +130,8 @@ Pages environment variables:
 ```bash
 APPLE_MUSIC_DEVELOPER_TOKEN=your-apple-developer-token
 APPLE_MUSIC_STOREFRONT=us
-TRANSFER_API_URL=https://playlist-transfer-api.onrender.com
+TRANSFER_API_URL=https://oracle-api.playlistxfer.com
+TRANSFER_API_FALLBACK_URL=https://playlist-transfer-api.onrender.com
 ```
 
 Expected health response after redeploy:

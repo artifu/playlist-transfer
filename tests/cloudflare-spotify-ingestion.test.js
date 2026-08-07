@@ -83,3 +83,63 @@ test("Cloudflare retries one transient upstream timeout", async () => {
   assert.equal(calls, 2);
   assert.equal(result.tracks.length, 1);
 });
+
+test("Cloudflare falls back to Render after the primary origin stays unavailable", async () => {
+  const calls = [];
+  const result = await getSpotifyPlaylistForEnvironment(
+    {
+      TRANSFER_API_URL: "https://oracle.example.com",
+      TRANSFER_API_FALLBACK_URL: "https://render.example.com"
+    },
+    playlistUrl,
+    async (input) => {
+      calls.push(String(input));
+      if (String(input).startsWith("https://oracle.example.com")) {
+        return new Response("temporarily unavailable", { status: 503 });
+      }
+
+      return new Response(JSON.stringify({
+        playlist: {
+          id: "315j5OaNjSO3C5AifquhBc",
+          name: "Fallback playlist",
+          totalItems: 1,
+          source: "spotify-public-spclient",
+          limitations: []
+        },
+        tracks: [{
+          spotifyTrackId: "0000000000000000000000",
+          name: "Fallback track",
+          artists: ["Test artist"]
+        }]
+      }), { status: 200 });
+    }
+  );
+
+  assert.deepEqual(calls, [
+    "https://oracle.example.com/api/spotify/public-playlist-preview",
+    "https://oracle.example.com/api/spotify/public-playlist-preview",
+    "https://render.example.com/api/spotify/public-playlist-preview"
+  ]);
+  assert.equal(result.tracks[0].name, "Fallback track");
+});
+
+test("Cloudflare does not hide a non-retryable primary response with fallback", async () => {
+  let calls = 0;
+
+  await assert.rejects(
+    getSpotifyPlaylistForEnvironment(
+      {
+        TRANSFER_API_URL: "https://oracle.example.com",
+        TRANSFER_API_FALLBACK_URL: "https://render.example.com"
+      },
+      playlistUrl,
+      async () => {
+        calls += 1;
+        return new Response(JSON.stringify({ message: "invalid input" }), { status: 400 });
+      }
+    ),
+    /HTTP 400/
+  );
+
+  assert.equal(calls, 1);
+});
