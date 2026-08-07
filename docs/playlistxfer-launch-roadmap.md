@@ -1,6 +1,6 @@
 # PlaylistXfer Launch Roadmap
 
-Last reviewed: 2026-07-20
+Last reviewed: 2026-08-06
 
 This is the production launch runbook for moving the current PlaylistTransfer MVP to:
 
@@ -15,7 +15,7 @@ The goal is a fast, public, ad-ready web MVP with the static site and normal tra
 - Production domain: `https://playlistxfer.com`
 - Redirect domain: `https://www.playlistxfer.com` -> `https://playlistxfer.com`
 - Staging domain: `https://playlist.arthurmendes.com`
-- Backend API: Cloudflare Pages Functions with D1; `https://playlist-transfer-api.onrender.com` as fallback only
+- Backend API: Cloudflare Pages Functions with D1; full public-playlist expansion currently calls `https://playlist-transfer-api.onrender.com`, while other native API work stays on Cloudflare
 - Web host: Cloudflare Pages
 - Apple Music auth timing: ask only when the user creates the Apple Music playlist
 - Spotify auth: no Spotify login for MVP; use public playlist link ingestion
@@ -115,7 +115,7 @@ Owner: Arthur + Codex
 
 Status: implemented for the normal production path.
 
-Goal: remove the Render free-tier cold start from normal transfers while keeping Render as a rollback path.
+Goal: keep session, job, analytics, Apple Music, and persistence work on Cloudflare. Full public-playlist expansion currently still uses Render to avoid a large number of per-track Worker subrequests, so the iOS preview path can still encounter a Render cold start.
 
 Cloudflare setup:
 
@@ -151,13 +151,53 @@ Cutover smoke test:
 5. Approve or skip one review candidate.
 6. Create Apple Music playlist.
 7. Confirm the playlist appears in Apple Music.
-8. Confirm Render logs do not wake for this flow.
+8. Confirm Render is used only for full public-playlist expansion, not session, storage, analytics, or Apple Music orchestration.
 
 Rollback:
 
 - Remove or rename the `PLAYLIST_TRANSFER_DB` Pages binding.
 - Redeploy Pages.
 - `/health` should return `apiMode: "render-proxy"` and `/api/*` will proxy to Render again.
+
+## Phase 2.6 - Urgent Local-First iOS Path With Remote Fallback
+
+Owner: Arthur + Codex
+
+Priority: first engineering milestone after the current App Store resubmission is accepted or safely back in review.
+
+Goal: remove Render and Cloudflare latency from the normal native transfer path without giving up the ability to hotfix Spotify ingestion remotely.
+
+Default on-device path:
+
+1. Parse Spotify playlist and song links locally, including `spotify.link` redirects.
+2. Read public Spotify embed metadata on-device without requiring Spotify OAuth.
+3. Fetch track metadata with bounded concurrency, incremental progress, cancellation, and local cache.
+4. Search and match against Apple Music locally with MusicKit.
+5. Keep review decisions, history, duplicate checks, and Apple Music writes on-device.
+6. Send only privacy-minimized aggregate reliability and quality events.
+
+Remote fallback:
+
+- Trigger only for known local incompatibility, Spotify surface change, incomplete local result, timeout, or an explicitly enabled emergency feature flag.
+- Preserve the same normalized playlist and match-report contract so the UI does not fork.
+- Record a safe fallback reason and outcome, never the full Spotify URL, Apple Music token, or library contents.
+- Let a server-side fix restore transfers while a new App Store binary is prepared.
+
+UAT gates before making local-first the default:
+
+- Side-by-side comparison on at least 20 public playlists and individual song links.
+- Include small, 50-track, 100+ track, duplicate-heavy, unavailable-track, malformed, and `spotify.link` cases.
+- Local completeness must match or exceed the hosted result; never silently truncate.
+- Measure local success rate, fallback rate/reason, time to first track, total duration, and battery/network impact.
+- Verify cancellation and foreground/background transitions do not create duplicate Apple Music writes.
+- Keep the current hosted path available as a remotely controlled rollback during rollout.
+
+Rollout:
+
+1. Internal TestFlight behind a feature flag.
+2. External TestFlight with local-first enabled for opted-in testers.
+3. Gradual production enablement after telemetry and matching-quality review.
+4. Retire the normal Render dependency only after fallback usage is consistently low.
 
 ## Phase 3 - Brand And SEO Code Pass
 

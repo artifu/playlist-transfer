@@ -1,6 +1,6 @@
 # Roadmap
 
-Last reviewed: 2026-07-01
+Last reviewed: 2026-08-06
 
 ## Current Position
 
@@ -22,24 +22,27 @@ The current local backend uses a small SQLite file for developer convenience. It
 
 ## Immediate Next Sprint
 
-The next push should turn the working product into something that feels demo-ready on iPhone while keeping the public web funnel observable and cheap to run.
+The next push should remove the hosted Spotify-ingestion dependency from the normal iOS path while keeping a remotely fixable fallback.
 
-1. iOS UAT and short polish.
+1. Urgent: local-first iOS ingestion and matching with remote fallback.
+   Read public Spotify playlist/song metadata on-device without Spotify OAuth, perform Apple Music catalog search and matching with MusicKit on-device, and write to Apple Music only after confirmation. Keep the hosted ingestion/matching API behind a feature-controlled fallback for Spotify surface changes, device/network incompatibilities, and emergency recovery. Instrument local success, fallback reason, fallback success, duration, playlist size, and completeness without logging full URLs or library contents. Ship only after side-by-side quality and completeness tests prove that local results match or beat the current hosted path.
+
+2. iOS UAT and short polish.
    Test 5-10 real Spotify playlists on device and fix conversion blockers first: keyboard behavior, loading states, share-sheet handoff, button labels, review-row decisions, Apple Music creation, and post-transfer actions.
 
-2. Designer-package incorporation.
+3. Designer-package incorporation.
    Pull only the useful missing components from the latest `DesignSuggestions/newpackage/` drop. Avoid a full redesign for now; focus on final icon/brand assets, mobile layout polish, loading states, match cards, and the post-transfer screen.
 
-3. App Store basics.
+4. App Store basics.
    Clean up bundle/signing, privacy copy, screenshots, final app icon, display name, short description, MusicKit/Media Library permission strings, and an App Review checklist.
 
-4. Web SEO and analytics finishing.
+5. Web SEO and analytics finishing.
    Verify `playlistxfer.com` title/meta, guide pages, sitemap/robots, GA events, and the main funnel logs: preview, analyze, review, create.
 
-5. Reliability pass.
+6. Reliability pass.
    Test large playlists, individual song links, `spotify.link` URLs, duplicates, bad matches, denied Apple authorization, expired sessions, and interrupted creation. This is the pass that turns the demo into a product.
 
-Recommended sequencing: work on iOS UAT and designer-package polish together first, then App Store readiness. Web SEO/analytics can continue in parallel as long as it does not slow down the iOS transfer loop.
+Recommended sequencing: complete the current App Store resubmission first without changing its binary. Immediately afterward, build the local-first path behind a feature flag, run side-by-side UAT, then make it the default while preserving the remote fallback. Web SEO/analytics can continue in parallel as long as it does not slow down the iOS transfer loop.
 
 ## Phase 0: Technical Validation
 
