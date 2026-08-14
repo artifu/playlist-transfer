@@ -167,6 +167,16 @@ Next SEO tasks:
 - Configure `GA_MEASUREMENT_ID` in Cloudflare Pages so Google Analytics records organic landing-page visits and high-level funnel events without waking the Transfer API.
 - Consider AdSense only after Search Console sees indexed pages and the privacy/contact/about pages are stable.
 
+Post-indexing editorial consolidation (deferred until the current Search Console validation finishes):
+
+- Review crawl, indexing, query, and engagement data before removing or merging any URL. Do not change the routes while the August 2026 validation and priority crawl requests are still in progress.
+- Reduce the current 17 public URLs toward roughly 12-13 stronger pages when the data confirms overlap; quality and clear intent matter more than the raw page count.
+- Merge `/how-it-works` into `/spotify-to-apple-music` if they continue to answer the same primary transfer intent.
+- Combine `/public-vs-private-spotify-playlists` and `/spotify-playlist-not-loading` into one authoritative Spotify-link troubleshooting guide.
+- Combine `/spotify-to-apple-music-missing-songs` and `/after-spotify-to-apple-music-transfer` if their indexed queries and reader paths show the same recovery intent.
+- Keep the production test ledger, the 46-versus-340 incident report, matching methodology, large-playlist guide, FAQ, About, Contact, Privacy, and Terms as distinct pages while each continues to provide a separate purpose.
+- For every consolidation, ship a permanent 301 redirect, update canonicals and internal links, remove the retired URL from the sitemap, preserve analytics attribution, and verify that neither users nor crawlers receive a 404.
+
 ## Phase 6: AI and Agent Distribution
 
 Goal: make PlaylistXfer easy for ChatGPT, Gemini, Claude, Perplexity, and other agents to discover, explain, preview, analyze, and hand users off to the product after the iOS app is solid.
