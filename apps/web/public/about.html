@@ -63,6 +63,7 @@
 
       <h2>Claims backed by reproducible tests</h2>
       <p>PlaylistXfer publishes dated production reports when a result can be reproduced from a public source. An August 2, 2026 audit found that one public playlist produced 340 readable tracks through the ingestion backend but only 46 through the original production Worker. The incomplete match report was rejected, the ingestion boundary was corrected, and the discrepancy was documented instead of being presented as a success metric. Read the <a href="/spotify-to-apple-music-match-report-example">incident method, fix, and verification checklist</a>.</p>
+      <p>A follow-up on August 14 ran three public sources through production and analyzed 439 rows against the US Apple Music storefront. The published <a href="/playlist-transfer-test-results">test ledger</a> names every source, distinguishes full reports from a 50-row sample, lists the six unmatched rows, and explains why the combined total is not a universal success-rate promise.</p>
 
       <h2>Why the guides are part of the product</h2>
       <p>A useful transfer tool should explain its limits. The <a href="/guides">PlaylistXfer guides</a> document playlist visibility, catalog matching, missing tracks, and troubleshooting with links to first-party Spotify and Apple references. They are written for people making an actual transfer, not as filler around the form.</p>

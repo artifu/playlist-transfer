@@ -21,7 +21,7 @@
       "headline": "How 46 tracks exposed a 340-track Spotify playlist ingestion bug",
       "description": "A production incident report about detecting and correcting an incomplete public Spotify playlist preview before treating its Apple Music match totals as evidence.",
       "datePublished": "2026-08-02",
-      "dateModified": "2026-08-02",
+      "dateModified": "2026-08-14",
       "author": {
         "@type": "Organization",
         "name": "PlaylistXfer"
@@ -138,11 +138,19 @@
         <p>Finally, keep reading and writing separate. Verify the source, inspect the Apple Music candidates, and only then authorize creation. If any stage reports a smaller count, stop and explain the difference before treating the final percentage as meaningful.</p>
       </section>
 
+      <section class="guide-section" id="follow-up">
+        <h2>August 14 follow-up: the complete report</h2>
+        <p>A fresh production snapshot returned 339 unique readable rows from the same public source. Public playlists change and PlaylistXfer removes duplicate Spotify track identifiers, so this current count does not rewrite the August 2 incident: it records a different dated source state.</p>
+        <p>All 339 preview rows entered the Full playlist analysis. Apple Music matching classified 333 as confident and six as unmatched, with no rows silently lost between preview and report. Testing again stopped before Apple Music authorization, so no destination playlist was created.</p>
+        <p>The complete numbers, six omitted titles, comparison runs, method, and limitations are published in the <a href="/playlist-transfer-test-results">production test ledger</a>.</p>
+      </section>
+
       <aside class="related-guides" aria-labelledby="related-report-guides">
         <h2 id="related-report-guides">Continue reading</h2>
         <a href="/transferring-large-spotify-playlists">How to plan a large playlist transfer →</a>
         <a href="/how-playlist-matching-works">How playlist matching actually works →</a>
         <a href="/after-spotify-to-apple-music-transfer">How to audit the created Apple Music playlist →</a>
+        <a href="/playlist-transfer-test-results">See the complete August 14 production results →</a>
       </aside>
 
       <div class="content-cta">

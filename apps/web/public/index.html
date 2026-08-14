@@ -149,6 +149,7 @@
             <h3>A 46-versus-340 discrepancy exposed an incomplete playlist preview.</h3>
             <p>A public FIFA songs playlist produced 340 readable tracks through the ingestion backend but only 46 through the original Cloudflare path. The smaller result looked valid, so it could have gone unnoticed. PlaylistXfer now expands public playlist metadata once outside the Worker and sends the complete list into the review flow.</p>
             <a href="/spotify-to-apple-music-match-report-example">Read the incident report, fix, and verification method →</a>
+            <p><strong>August 14 follow-up:</strong> a fresh full run carried all 339 current readable rows into analysis, with 333 confident Apple Music matches and six honest omissions. <a href="/playlist-transfer-test-results">See all three production tests and their limitations →</a></p>
           </div>
           <div class="homepage-proof-metrics">
             <div><strong>46</strong><span>before fix</span></div>
@@ -206,6 +207,7 @@
             <a href="/transferring-large-spotify-playlists"><strong>Large playlist strategy</strong><span>Choose a review scope and avoid repeating expensive work.</span></a>
             <a href="/spotify-to-apple-music-missing-songs"><strong>Missing songs</strong><span>Diagnose local files, alternate versions, and regional gaps.</span></a>
             <a href="/how-playlist-matching-works"><strong>Matching evidence</strong><span>Understand ISRC, metadata, duration, and confidence.</span></a>
+            <a href="/playlist-transfer-test-results"><strong>Production test results</strong><span>Review dated sources, scopes, match counts, and omissions.</span></a>
           </div>
           <div class="homepage-reading-actions">
             <a class="button-link" href="/guides" data-analytics-cta="homepage_guides">Browse every guide</a>

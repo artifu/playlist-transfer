@@ -63,6 +63,7 @@ function safePublicPath(pathname) {
     ["/guides", "/guides.html"],
     ["/how-it-works", "/how-it-works.html"],
     ["/how-playlist-matching-works", "/how-playlist-matching-works.html"],
+    ["/playlist-transfer-test-results", "/playlist-transfer-test-results.html"],
     ["/privacy", "/privacy.html"],
     ["/public-vs-private-spotify-playlists", "/public-vs-private-spotify-playlists.html"],
     ["/spotify-playlist-not-loading", "/spotify-playlist-not-loading.html"],

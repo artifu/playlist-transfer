@@ -9,6 +9,7 @@ const editorialPages = [
   "after-spotify-to-apple-music-transfer.html",
   "how-it-works.html",
   "how-playlist-matching-works.html",
+  "playlist-transfer-test-results.html",
   "public-vs-private-spotify-playlists.html",
   "spotify-playlist-not-loading.html",
   "spotify-to-apple-music.html",
@@ -70,6 +71,7 @@ test("all public pages retain analytics bootstrap and editorial routes are liste
     "/after-spotify-to-apple-music-transfer",
     "/guides",
     "/how-playlist-matching-works",
+    "/playlist-transfer-test-results",
     "/public-vs-private-spotify-playlists",
     "/spotify-playlist-not-loading",
     "/spotify-to-apple-music",
@@ -138,4 +140,17 @@ test("editorial articles are substantive and use unique canonical URLs", async (
     assert.ok(!canonicals.has(canonical), `${fileName} should not duplicate canonical ${canonical}`);
     canonicals.add(canonical);
   }
+});
+
+test("production test ledger states sources, scopes, outcomes, and write boundary", async () => {
+  const html = await readFile(new URL("playlist-transfer-test-results.html", publicDir), "utf8");
+
+  assert.match(html, /What happened when PlaylistXfer tested 439 Apple Music matches/);
+  assert.match(html, /315j5OaNjSO3C5AifquhBc/);
+  assert.match(html, /0h8JNovqXS97ygva27IHfi/);
+  assert.match(html, /4fQ8a2Pg2llDd76J9a5WzH/);
+  assert.match(html, /333/);
+  assert.match(html, /First 50 of 494/);
+  assert.match(html, /No Apple Music account was connected and no destination playlist was created/);
+  assert.match(html, /not be read as “PlaylistXfer always matches 98\.6%\.”/);
 });
