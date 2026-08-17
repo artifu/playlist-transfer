@@ -167,16 +167,17 @@ Next SEO tasks:
 - Configure `GA_MEASUREMENT_ID` in Cloudflare Pages so Google Analytics records organic landing-page visits and high-level funnel events without waking the Transfer API.
 - Consider AdSense only after Search Console sees indexed pages and the privacy/contact/about pages are stable.
 
-Post-indexing editorial consolidation (deferred until the current Search Console validation finishes):
+Post-indexing editorial consolidation (implemented August 17, 2026):
 
 - Follow the detailed implementation and migration plan in [web-guide-consolidation-spec.md](./web-guide-consolidation-spec.md).
-- Review crawl, indexing, query, and engagement data before removing or merging any URL. Do not change the routes while the August 2026 validation and priority crawl requests are still in progress.
-- Reduce the current 17 public URLs toward roughly 10-11 stronger pages when the data confirms overlap; quality and clear intent matter more than the raw page count.
-- Make `/guides` the authoritative product manual and merge `/spotify-to-apple-music`, `/how-it-works`, and `/faq` into anchored sections.
-- Fold `/public-vs-private-spotify-playlists` and `/spotify-playlist-not-loading` into the `/guides` readiness and troubleshooting sections.
-- Fold `/spotify-to-apple-music-missing-songs` and `/after-spotify-to-apple-music-transfer` into the `/guides` recovery and verification sections.
+- Baseline captured before consolidation: 0 Search clicks, 7 indexed pages, and 10 not-indexed pages in the verified URL-prefix property.
+- Reduced the sitemap from 17 public URLs to 10 stronger canonical pages; quality and clear intent matter more than the raw page count.
+- Made `/guides` the authoritative product manual and merged `/spotify-to-apple-music`, `/how-it-works`, and `/faq` into anchored sections.
+- Folded `/public-vs-private-spotify-playlists` and `/spotify-playlist-not-loading` into the `/guides` readiness and troubleshooting sections.
+- Folded `/spotify-to-apple-music-missing-songs` and `/after-spotify-to-apple-music-transfer` into the `/guides` recovery and verification sections.
 - Keep the production test ledger, the 46-versus-340 incident report, matching methodology, large-playlist guide, About, Contact, Privacy, and Terms as distinct pages while each continues to provide a separate purpose.
-- For every consolidation, ship a permanent 301 redirect, update canonicals and internal links, remove the retired URL from the sitemap, preserve analytics attribution, and verify that neither users nor crawlers receive a 404.
+- Permanent 301 redirects, canonical links, internal links, `llms.txt`, sitemap entries, and safe guide analytics were updated together; no retired URL returns a 404.
+- Next: after production verification, resubmit the sitemap in Search Console. Request a new AdSense review only after Google can crawl the consolidated guide and redirects.
 
 ## Phase 6: AI and Agent Distribution
 

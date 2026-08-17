@@ -1,12 +1,14 @@
 # PlaylistXfer Guide Consolidation Specification
 
-Last updated: 2026-08-14
+Last updated: 2026-08-17
 
 ## Status
 
-Approved direction, intentionally deferred.
+Implemented August 17, 2026 after the August 14 AdSense review again classified the site as low-value content and the owner approved the consolidation.
 
-Do not implement the route or sitemap changes while the August 2026 Search Console validation and priority crawl requests are still in progress. Use this document as the implementation plan once Google reports new crawl or indexing data.
+Pre-launch baseline from the verified Search Console URL-prefix property: 0 total web search clicks, 7 indexed pages, and 10 not-indexed pages. The domain property was not available to the signed-in account, so the URL-prefix property is the source of record for this snapshot.
+
+The implementation turns `/guides` into the canonical manual, reduces the sitemap from 17 to 10 URLs, and adds permanent redirects for every retired route. Search Console sitemap resubmission and a new AdSense review remain post-publication actions.
 
 ## Decision
 

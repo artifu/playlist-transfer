@@ -6,15 +6,9 @@ const publicDir = new URL("../apps/web/public/", import.meta.url);
 const adsenseLoader = "pagead2.googlesyndication.com/pagead/js/adsbygoogle.js";
 
 const editorialPages = [
-  "after-spotify-to-apple-music-transfer.html",
-  "how-it-works.html",
   "how-playlist-matching-works.html",
   "playlist-transfer-test-results.html",
-  "public-vs-private-spotify-playlists.html",
-  "spotify-playlist-not-loading.html",
-  "spotify-to-apple-music.html",
   "spotify-to-apple-music-match-report-example.html",
-  "spotify-to-apple-music-missing-songs.html",
   "transferring-large-spotify-playlists.html"
 ];
 
@@ -22,7 +16,6 @@ const adFreePages = [
   "404.html",
   "about.html",
   "contact.html",
-  "faq.html",
   "guides.html",
   "index.html",
   "privacy.html",
@@ -63,20 +56,15 @@ test("all public pages retain analytics bootstrap and editorial routes are liste
   for (const fileName of [...editorialPages, ...adFreePages]) {
     const html = await readFile(new URL(fileName, publicDir), "utf8");
     assert.match(html, /<script defer src="\/config\.js"><\/script>/, `${fileName} should load public config`);
-    assert.match(html, /<script defer src="\/analytics\.js"><\/script>/, `${fileName} should load analytics`);
+    assert.match(html, /<script defer src="\/analytics\.js(?:\?[^\"]+)?"><\/script>/, `${fileName} should load analytics`);
   }
 
   const sitemap = await readFile(new URL("sitemap.xml", publicDir), "utf8");
   const expectedRoutes = [
-    "/after-spotify-to-apple-music-transfer",
     "/guides",
     "/how-playlist-matching-works",
     "/playlist-transfer-test-results",
-    "/public-vs-private-spotify-playlists",
-    "/spotify-playlist-not-loading",
-    "/spotify-to-apple-music",
     "/spotify-to-apple-music-match-report-example",
-    "/spotify-to-apple-music-missing-songs",
     "/transferring-large-spotify-playlists"
   ];
 
@@ -86,7 +74,7 @@ test("all public pages retain analytics bootstrap and editorial routes are liste
 });
 
 test("structured data on content pages is valid JSON", async () => {
-  for (const fileName of [...editorialPages, "faq.html", "guides.html", "index.html"]) {
+  for (const fileName of [...editorialPages, "guides.html", "index.html"]) {
     const html = await readFile(new URL(fileName, publicDir), "utf8");
     const blocks = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)];
 
@@ -95,6 +83,38 @@ test("structured data on content pages is valid JSON", async () => {
       assert.doesNotThrow(() => JSON.parse(json), `${fileName} structured data should parse`);
     }
   }
+});
+
+test("retired guide routes permanently redirect to consolidated sections", async () => {
+  const redirects = await readFile(new URL("_redirects", publicDir), "utf8");
+  const sitemap = await readFile(new URL("sitemap.xml", publicDir), "utf8");
+  const expectedRedirects = new Map([
+    ["/after-spotify-to-apple-music-transfer", "/guides#after-transfer"],
+    ["/faq", "/guides#faq"],
+    ["/how-it-works", "/guides#how-it-works"],
+    ["/public-vs-private-spotify-playlists", "/guides#before-you-start"],
+    ["/spotify-playlist-not-loading", "/guides#troubleshooting"],
+    ["/spotify-to-apple-music", "/guides#start"],
+    ["/spotify-to-apple-music-missing-songs", "/guides#missing-songs"]
+  ]);
+
+  for (const [route, destination] of expectedRedirects) {
+    assert.match(redirects, new RegExp(`^${route} ${destination.replace("#", "\\#")} 301$`, "m"));
+    assert.doesNotMatch(sitemap, new RegExp(`<loc>https://playlistxfer\\.com${route}</loc>`));
+  }
+});
+
+test("consolidated guide exposes one clear manual and valid anchors", async () => {
+  const html = await readFile(new URL("guides.html", publicDir), "utf8");
+  const ids = new Set([...html.matchAll(/\sid="([^"]+)"/g)].map(([, id]) => id));
+  const fragments = [...html.matchAll(/href="#([^"]+)"/g)].map(([, id]) => id);
+
+  assert.equal((html.match(/<h1\b/g) || []).length, 1);
+  assert.equal((html.match(/<details>/g) || []).length, 10);
+  assert.match(html, /The practical Spotify to Apple Music transfer guide/);
+  assert.match(html, /"@type": "HowTo"/);
+  assert.match(html, /"@type": "FAQPage"/);
+  assert.deepEqual(fragments.filter((id) => !ids.has(id)), []);
 });
 
 test("Cloudflare Pages has a real noindex 404 instead of a homepage fallback", async () => {

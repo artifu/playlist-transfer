@@ -1,0 +1,22 @@
+# Consolidated guide routes
+/after-spotify-to-apple-music-transfer /guides#after-transfer 301
+/after-spotify-to-apple-music-transfer/ /guides#after-transfer 301
+/after-spotify-to-apple-music-transfer.html /guides#after-transfer 301
+/faq /guides#faq 301
+/faq/ /guides#faq 301
+/faq.html /guides#faq 301
+/how-it-works /guides#how-it-works 301
+/how-it-works/ /guides#how-it-works 301
+/how-it-works.html /guides#how-it-works 301
+/public-vs-private-spotify-playlists /guides#before-you-start 301
+/public-vs-private-spotify-playlists/ /guides#before-you-start 301
+/public-vs-private-spotify-playlists.html /guides#before-you-start 301
+/spotify-playlist-not-loading /guides#troubleshooting 301
+/spotify-playlist-not-loading/ /guides#troubleshooting 301
+/spotify-playlist-not-loading.html /guides#troubleshooting 301
+/spotify-to-apple-music /guides#start 301
+/spotify-to-apple-music/ /guides#start 301
+/spotify-to-apple-music.html /guides#start 301
+/spotify-to-apple-music-missing-songs /guides#missing-songs 301
+/spotify-to-apple-music-missing-songs/ /guides#missing-songs 301
+/spotify-to-apple-music-missing-songs.html /guides#missing-songs 301

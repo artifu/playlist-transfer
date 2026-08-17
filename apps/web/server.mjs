@@ -20,6 +20,23 @@ const mimeTypes = new Map([
   [".xml", "application/xml; charset=utf-8"]
 ]);
 
+const permanentRedirects = new Map([
+  ["/after-spotify-to-apple-music-transfer", "/guides#after-transfer"],
+  ["/after-spotify-to-apple-music-transfer.html", "/guides#after-transfer"],
+  ["/faq", "/guides#faq"],
+  ["/faq.html", "/guides#faq"],
+  ["/how-it-works", "/guides#how-it-works"],
+  ["/how-it-works.html", "/guides#how-it-works"],
+  ["/public-vs-private-spotify-playlists", "/guides#before-you-start"],
+  ["/public-vs-private-spotify-playlists.html", "/guides#before-you-start"],
+  ["/spotify-playlist-not-loading", "/guides#troubleshooting"],
+  ["/spotify-playlist-not-loading.html", "/guides#troubleshooting"],
+  ["/spotify-to-apple-music", "/guides#start"],
+  ["/spotify-to-apple-music.html", "/guides#start"],
+  ["/spotify-to-apple-music-missing-songs", "/guides#missing-songs"],
+  ["/spotify-to-apple-music-missing-songs.html", "/guides#missing-songs"]
+]);
+
 function sendJson(response, statusCode, payload) {
   response.writeHead(statusCode, {
     "Content-Type": "application/json; charset=utf-8",
@@ -57,19 +74,12 @@ function safePublicPath(pathname) {
   const routedPathname = new Map([
     ["/", "/index.html"],
     ["/about", "/about.html"],
-    ["/after-spotify-to-apple-music-transfer", "/after-spotify-to-apple-music-transfer.html"],
     ["/contact", "/contact.html"],
-    ["/faq", "/faq.html"],
     ["/guides", "/guides.html"],
-    ["/how-it-works", "/how-it-works.html"],
     ["/how-playlist-matching-works", "/how-playlist-matching-works.html"],
     ["/playlist-transfer-test-results", "/playlist-transfer-test-results.html"],
     ["/privacy", "/privacy.html"],
-    ["/public-vs-private-spotify-playlists", "/public-vs-private-spotify-playlists.html"],
-    ["/spotify-playlist-not-loading", "/spotify-playlist-not-loading.html"],
-    ["/spotify-to-apple-music", "/spotify-to-apple-music.html"],
     ["/spotify-to-apple-music-match-report-example", "/spotify-to-apple-music-match-report-example.html"],
-    ["/spotify-to-apple-music-missing-songs", "/spotify-to-apple-music-missing-songs.html"],
     ["/transferring-large-spotify-playlists", "/transferring-large-spotify-playlists.html"],
     ["/terms", "/terms.html"]
   ]).get(cleanPathname) ?? cleanPathname;
@@ -142,6 +152,19 @@ async function proxyApi(request, response) {
 
 const server = createServer(async (request, response) => {
   const url = new URL(request.url ?? "/", `http://${host}:${port}`);
+
+  const redirectPath = url.pathname.endsWith("/") && url.pathname !== "/"
+    ? url.pathname.slice(0, -1)
+    : url.pathname;
+  const redirectLocation = permanentRedirects.get(redirectPath);
+  if (redirectLocation) {
+    response.writeHead(301, {
+      Location: redirectLocation,
+      "Cache-Control": "public, max-age=300"
+    });
+    response.end();
+    return;
+  }
 
   if (url.pathname === "/health") {
     sendJson(response, 200, {

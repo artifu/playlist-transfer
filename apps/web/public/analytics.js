@@ -28,6 +28,7 @@
       "funnelOutcome",
       "funnelStage",
       "funnelStep",
+      "guideSection",
       "hasDeveloperToken",
       "matchRate",
       "missingCount",
@@ -38,6 +39,8 @@
       "reviewCount",
       "sourceSurface",
       "totalTracks",
+      "troubleshootingPath",
+      "evidenceType",
       "withIsrcCount"
     ]);
 
@@ -82,6 +85,40 @@
     });
   }
 
+  function setupGuideTracking() {
+    document.addEventListener("click", (event) => {
+      if (!(event.target instanceof Element)) return;
+
+      const sectionLink = event.target.closest("[data-guide-section]");
+      if (sectionLink) {
+        window.PlaylistXferAnalytics?.track?.("guide_section_selected", {
+          guideSection: sectionLink.dataset.guideSection || "unknown"
+        });
+      }
+
+      const troubleshootingLink = event.target.closest("[data-troubleshooting-path]");
+      if (troubleshootingLink) {
+        window.PlaylistXferAnalytics?.track?.("guide_troubleshooting_selected", {
+          troubleshootingPath: troubleshootingLink.dataset.troubleshootingPath || "unknown"
+        });
+      }
+
+      const supportLink = event.target.closest("[data-analytics-support]");
+      if (supportLink) {
+        window.PlaylistXferAnalytics?.track?.("guide_support_clicked", {
+          sourceSurface: supportLink.dataset.analyticsSupport || "guide"
+        });
+      }
+
+      const evidenceLink = event.target.closest("[data-analytics-evidence]");
+      if (evidenceLink) {
+        window.PlaylistXferAnalytics?.track?.("guide_evidence_clicked", {
+          evidenceType: evidenceLink.dataset.analyticsEvidence || "unknown"
+        });
+      }
+    });
+  }
+
   window.PlaylistXferAnalytics = {
     isEnabled: Boolean(measurementId),
     track(eventName, properties) {
@@ -106,4 +143,5 @@
 
   setupGoogleAnalytics();
   setupCtaTracking();
+  setupGuideTracking();
 })();
