@@ -41,6 +41,32 @@ test("Cloudflare ingests a public playlist through one backend request", async (
   assert.equal(result.tracks.length, 340);
 });
 
+test("Cloudflare normalizes a Spotify URL embedded in shared text before proxying", async () => {
+  let proxiedInput;
+  await getSpotifyPlaylistForEnvironment(
+    { TRANSFER_API_URL: "https://transfer.example.com" },
+    `Try this one:\nhttps://open.spotify.com/playlist/315j5OaNjSO3C5AifquhBc?si=shared).`,
+    async (_input, init) => {
+      proxiedInput = JSON.parse(init.body).input;
+      return new Response(JSON.stringify({
+        playlist: {
+          id: "315j5OaNjSO3C5AifquhBc",
+          name: "Shared playlist",
+          totalItems: 1,
+          source: "spotify-public-spclient",
+          limitations: []
+        },
+        tracks: [{ spotifyTrackId: "0000000000000000000000", name: "Track", artists: ["Artist"] }]
+      }), { status: 200 });
+    }
+  );
+
+  assert.equal(
+    proxiedInput,
+    "https://open.spotify.com/playlist/315j5OaNjSO3C5AifquhBc?si=shared"
+  );
+});
+
 test("Cloudflare rejects an incomplete backend playlist instead of silently truncating it", async () => {
   await assert.rejects(
     getSpotifyPlaylistForEnvironment(
@@ -116,7 +142,6 @@ test("Cloudflare falls back to Render after the primary origin stays unavailable
   );
 
   assert.deepEqual(calls, [
-    "https://oracle.example.com/api/spotify/public-playlist-preview",
     "https://oracle.example.com/api/spotify/public-playlist-preview",
     "https://render.example.com/api/spotify/public-playlist-preview"
   ]);

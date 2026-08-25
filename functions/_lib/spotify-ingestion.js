@@ -1,9 +1,13 @@
 import { getPublicSpotifyPlaylist } from "./spotify-public.js";
-import { parseSpotifyInput } from "./spotify-url.js";
+import {
+  isSpotifyRedirectHost,
+  parseSpotifyInput,
+  spotifyInputCandidate
+} from "./spotify-url.js";
 
 const DEFAULT_TRANSFER_API_URL = "https://playlist-transfer-api.onrender.com";
-const UPSTREAM_PREVIEW_TIMEOUT_MS = 24_000;
-const UPSTREAM_PREVIEW_ATTEMPTS = 2;
+const PRIMARY_PREVIEW_TIMEOUT_MS = 15_000;
+const FALLBACK_PREVIEW_TIMEOUT_MS = 30_000;
 const UPSTREAM_RETRY_DELAY_MS = 250;
 
 function transferApiUrls(env) {
@@ -29,20 +33,21 @@ function transferApiUrls(env) {
 }
 
 async function resolvedSpotifyInput(input, fetchImpl) {
+  const candidate = spotifyInputCandidate(input);
   try {
     return {
-      input,
-      parsed: parseSpotifyInput(input)
+      input: candidate,
+      parsed: parseSpotifyInput(candidate)
     };
   } catch (originalError) {
     let url;
     try {
-      url = new URL(String(input ?? "").trim());
+      url = new URL(candidate);
     } catch {
       throw originalError;
     }
 
-    if (url.hostname !== "spotify.link") throw originalError;
+    if (!isSpotifyRedirectHost(url.hostname)) throw originalError;
 
     const response = await fetchImpl(url.toString(), {
       redirect: "follow",
@@ -90,11 +95,13 @@ function wait(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
-async function fetchPlaylistFromTransferApi(baseUrl, input, fetchImpl) {
+async function fetchPlaylistFromTransferApi(baseUrl, input, fetchImpl, options = {}) {
   const url = new URL("/api/spotify/public-playlist-preview", baseUrl);
+  const timeoutMs = options.timeoutMs ?? PRIMARY_PREVIEW_TIMEOUT_MS;
+  const attempts = options.attempts ?? 1;
   let lastError;
 
-  for (let attempt = 1; attempt <= UPSTREAM_PREVIEW_ATTEMPTS; attempt += 1) {
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
       const response = await fetchImpl(url.toString(), {
         method: "POST",
@@ -103,7 +110,7 @@ async function fetchPlaylistFromTransferApi(baseUrl, input, fetchImpl) {
           "X-PlaylistTransfer-Proxy": "cloudflare-native-ingestion"
         },
         body: JSON.stringify({ input }),
-        signal: AbortSignal.timeout(UPSTREAM_PREVIEW_TIMEOUT_MS)
+        signal: AbortSignal.timeout(timeoutMs)
       });
       const text = await response.text();
 
@@ -119,7 +126,7 @@ async function fetchPlaylistFromTransferApi(baseUrl, input, fetchImpl) {
           `Spotify ingestion service returned HTTP ${response.status}: ${detail}`
         );
         upstreamError.retryable = retryableStatus(response.status);
-        if (attempt < UPSTREAM_PREVIEW_ATTEMPTS && retryableStatus(response.status)) {
+        if (attempt < attempts && retryableStatus(response.status)) {
           lastError = upstreamError;
           await wait(UPSTREAM_RETRY_DELAY_MS);
           continue;
@@ -137,7 +144,7 @@ async function fetchPlaylistFromTransferApi(baseUrl, input, fetchImpl) {
       return normalizedPlaylist(payload);
     } catch (error) {
       lastError = error;
-      if (attempt < UPSTREAM_PREVIEW_ATTEMPTS && retryableFetchError(error)) {
+      if (attempt < attempts && retryableFetchError(error)) {
         await wait(UPSTREAM_RETRY_DELAY_MS);
         continue;
       }
@@ -154,7 +161,11 @@ async function fetchPlaylistThroughTransferApi(env, input, fetchImpl) {
 
   for (let index = 0; index < urls.length; index += 1) {
     try {
-      return await fetchPlaylistFromTransferApi(urls[index], input, fetchImpl);
+      const isFallback = index > 0;
+      return await fetchPlaylistFromTransferApi(urls[index], input, fetchImpl, {
+        timeoutMs: isFallback ? FALLBACK_PREVIEW_TIMEOUT_MS : PRIMARY_PREVIEW_TIMEOUT_MS,
+        attempts: !isFallback && urls.length === 1 ? 2 : 1
+      });
     } catch (error) {
       lastError = error;
       const hasFallback = index < urls.length - 1;
