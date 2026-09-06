@@ -167,13 +167,15 @@ Owner: Arthur + Codex
 
 Priority: first engineering milestone after the current App Store resubmission is accepted or safely back in review.
 
+Status (2026-09-06): implemented in the native client and enabled by default; awaiting signed-device and TestFlight UAT. A live 50-track Spotify playlist passed the native ingestion smoke test with 50/50 completeness. The hosted path remains the automatic fallback.
+
 Goal: remove Render and Cloudflare latency from the normal native transfer path without giving up the ability to hotfix Spotify ingestion remotely.
 
 Default on-device path:
 
 1. Parse Spotify playlist and song links locally, including `spotify.link` redirects.
 2. Read public Spotify embed metadata on-device without requiring Spotify OAuth.
-3. Fetch track metadata with bounded concurrency, incremental progress, cancellation, and local cache.
+3. Decode the public embed track list, verify it against Spotify's public manifest, and cache complete results locally for the session.
 4. Search and match against Apple Music locally with MusicKit.
 5. Keep review decisions, history, duplicate checks, and Apple Music writes on-device.
 6. Send only privacy-minimized aggregate reliability and quality events.

@@ -48,6 +48,8 @@ final class TransferViewModel: ObservableObject {
     @Published private(set) var historyEntries: [TransferHistoryEntry] = []
 
     private let api: TransferAPIClient
+    private let localSpotify: SpotifyLocalIngestionService
+    private let localMatcher: AppleMusicLocalMatcher
     private let appleMusic: AppleMusicLibraryWriter
     private let historyStore: TransferHistoryStore
     private var progressPulseTask: Task<Void, Never>?
@@ -59,10 +61,14 @@ final class TransferViewModel: ObservableObject {
 
     init(
         api: TransferAPIClient = TransferAPIClient(),
+        localSpotify: SpotifyLocalIngestionService = SpotifyLocalIngestionService(),
+        localMatcher: AppleMusicLocalMatcher = AppleMusicLocalMatcher(),
         appleMusic: AppleMusicLibraryWriter = AppleMusicLibraryWriter(),
         historyStore: TransferHistoryStore = TransferHistoryStore()
     ) {
         self.api = api
+        self.localSpotify = localSpotify
+        self.localMatcher = localMatcher
         self.appleMusic = appleMusic
         self.historyStore = historyStore
         self.historyEntries = historyStore.entries
@@ -154,11 +160,35 @@ final class TransferViewModel: ObservableObject {
         lastWriteOutcome = nil
         resetDecisions()
         let startedAt = Date()
+        var didStartRemoteFallback = false
         trackEvent("transfer_form_started")
         trackEvent("preview_started")
 
         do {
-            preview = try await api.previewPublicPlaylist(input: input)
+            let executionPath: String
+            if AppConfig.localFirstTransfersEnabled {
+                do {
+                    preview = try await localSpotify.preview(input: input) { [weak self] completed, total in
+                        self?.updateLocalActivity(.preview, completed: completed, total: total)
+                    }
+                    executionPath = "local"
+                    trackEvent("local_pipeline_succeeded", properties: pipelineProperties(stage: "preview"))
+                } catch {
+                    let localError = errorMessage(error)
+                    trackEvent("local_pipeline_failed", properties: pipelineProperties(
+                        stage: "preview",
+                        extra: ["fallbackReason": .string(localError)]
+                    ))
+                    trackEvent("remote_fallback_started", properties: pipelineProperties(stage: "preview"))
+                    didStartRemoteFallback = true
+                    preview = try await api.previewPublicPlaylist(input: input)
+                    executionPath = "remote_fallback"
+                    trackEvent("remote_fallback_succeeded", properties: pipelineProperties(stage: "preview"))
+                }
+            } else {
+                preview = try await api.previewPublicPlaylist(input: input)
+                executionPath = "remote_only"
+            }
             destinationPlaylistName = preview?.playlist.kind == "track"
                 ? AppleMusicLibraryWriter.inboxPlaylistName
                 : AppleMusicLibraryWriter.defaultPlaylistName(for: preview?.playlist.name ?? "Spotify Playlist")
@@ -168,9 +198,19 @@ final class TransferViewModel: ObservableObject {
                 ? "Song loaded. Find its Apple Music match when you are ready."
                 : "Playlist loaded. Match it with Apple Music when you are ready."
             saveHistory(status: .previewed)
-            trackEvent("preview_succeeded", properties: previewProperties(preview, durationMs: elapsedMilliseconds(since: startedAt)))
+            trackEvent("preview_succeeded", properties: previewProperties(
+                preview,
+                durationMs: elapsedMilliseconds(since: startedAt),
+                extra: ["executionPath": .string(executionPath)]
+            ))
         } catch {
             stopActivity()
+            if didStartRemoteFallback {
+                trackEvent("remote_fallback_failed", properties: pipelineProperties(
+                    stage: "preview",
+                    extra: ["fallbackReason": .string(errorMessage(error))]
+                ))
+            }
             trackEvent("preview_failed", properties: [
                 "durationMs": .int(elapsedMilliseconds(since: startedAt)),
                 "errorCategory": .string("spotify_public_preview"),
@@ -211,11 +251,37 @@ final class TransferViewModel: ObservableObject {
         lastWriteOutcome = nil
         resetDecisions()
         let startedAt = Date()
+        var didStartRemoteFallback = false
         trackEvent("analysis_started")
 
         do {
-            analysis = try await api.analyzePublicPlaylist(input: input) { [weak self] job in
-                self?.updateActivity(from: job)
+            let executionPath: String
+            if AppConfig.localFirstTransfersEnabled, let preview {
+                do {
+                    analysis = try await localMatcher.analyze(preview: preview) { [weak self] completed, total in
+                        self?.updateLocalActivity(.analysis, completed: completed, total: total)
+                    }
+                    executionPath = "local"
+                    trackEvent("local_pipeline_succeeded", properties: pipelineProperties(stage: "analysis"))
+                } catch {
+                    let localError = errorMessage(error)
+                    trackEvent("local_pipeline_failed", properties: pipelineProperties(
+                        stage: "analysis",
+                        extra: ["fallbackReason": .string(localError)]
+                    ))
+                    trackEvent("remote_fallback_started", properties: pipelineProperties(stage: "analysis"))
+                    didStartRemoteFallback = true
+                    analysis = try await api.analyzePublicPlaylist(input: input) { [weak self] job in
+                        self?.updateActivity(from: job)
+                    }
+                    executionPath = "remote_fallback"
+                    trackEvent("remote_fallback_succeeded", properties: pipelineProperties(stage: "analysis"))
+                }
+            } else {
+                analysis = try await api.analyzePublicPlaylist(input: input) { [weak self] job in
+                    self?.updateActivity(from: job)
+                }
+                executionPath = "remote_only"
             }
             stopActivity()
             phase = .analysisReady
@@ -223,9 +289,19 @@ final class TransferViewModel: ObservableObject {
                 ? "Apple Music match ready. Add the song when it looks right."
                 : "Apple Music match report ready. Create from ready tracks when you are comfortable."
             saveHistory(status: .ready)
-            trackEvent("analysis_succeeded", properties: summaryProperties(analysis, durationMs: elapsedMilliseconds(since: startedAt)))
+            trackEvent("analysis_succeeded", properties: summaryProperties(
+                analysis,
+                durationMs: elapsedMilliseconds(since: startedAt),
+                extra: ["executionPath": .string(executionPath)]
+            ))
         } catch {
             stopActivity()
+            if didStartRemoteFallback {
+                trackEvent("remote_fallback_failed", properties: pipelineProperties(
+                    stage: "analysis",
+                    extra: ["fallbackReason": .string(errorMessage(error))]
+                ))
+            }
             saveHistory(status: .failed, errorMessage: errorMessage(error))
             trackEvent("analysis_failed", properties: [
                 "durationMs": .int(elapsedMilliseconds(since: startedAt)),
@@ -406,6 +482,7 @@ final class TransferViewModel: ObservableObject {
         let defaultQuery = manualSearchDefaultQuery(for: item)
         let queryEdited = trimmedQuery.localizedCaseInsensitiveCompare(defaultQuery) != .orderedSame
         let startedAt = Date()
+        var didStartRemoteFallback = false
 
         trackEvent("manual_match_search_started", properties: manualSearchProperties(item, extra: [
             "queryEdited": .bool(queryEdited),
@@ -413,15 +490,43 @@ final class TransferViewModel: ObservableObject {
         ]))
 
         do {
-            let results = try await api.searchAppleMusic(term: trimmedQuery)
+            let results: [AppleSongCandidate]
+            let executionPath: String
+            if AppConfig.localFirstTransfersEnabled {
+                do {
+                    results = try await localMatcher.searchSongs(trimmedQuery)
+                    executionPath = "local"
+                    trackEvent("local_pipeline_succeeded", properties: pipelineProperties(stage: "manual_search"))
+                } catch {
+                    trackEvent("local_pipeline_failed", properties: pipelineProperties(
+                        stage: "manual_search",
+                        extra: ["fallbackReason": .string(errorMessage(error))]
+                    ))
+                    trackEvent("remote_fallback_started", properties: pipelineProperties(stage: "manual_search"))
+                    didStartRemoteFallback = true
+                    results = try await api.searchAppleMusic(term: trimmedQuery)
+                    executionPath = "remote_fallback"
+                    trackEvent("remote_fallback_succeeded", properties: pipelineProperties(stage: "manual_search"))
+                }
+            } else {
+                results = try await api.searchAppleMusic(term: trimmedQuery)
+                executionPath = "remote_only"
+            }
             trackEvent("manual_match_search_succeeded", properties: manualSearchProperties(item, extra: [
                 "durationMs": .int(elapsedMilliseconds(since: startedAt)),
+                "executionPath": .string(executionPath),
                 "queryEdited": .bool(queryEdited),
                 "queryLength": .int(trimmedQuery.count),
                 "resultCount": .int(results.count)
             ]))
             return results
         } catch {
+            if didStartRemoteFallback {
+                trackEvent("remote_fallback_failed", properties: pipelineProperties(
+                    stage: "manual_search",
+                    extra: ["fallbackReason": .string(errorMessage(error))]
+                ))
+            }
             trackEvent("manual_match_search_failed", properties: manualSearchProperties(item, extra: [
                 "durationMs": .int(elapsedMilliseconds(since: startedAt)),
                 "errorCategory": .string("apple_music_manual_search"),
@@ -671,6 +776,28 @@ final class TransferViewModel: ObservableObject {
                 ? "\(job.completed) of \(job.total) tracks checked."
                 : "Preparing Apple Music match data.",
             progress: max(previousProgress, max(0, min(100, reportedProgress))),
+            isEstimated: false
+        )
+    }
+
+    private func updateLocalActivity(
+        _ kind: TransferActivityKind,
+        completed: Int,
+        total: Int
+    ) {
+        stopOptimisticProgress()
+        let percentage = total > 0
+            ? Int((Double(completed) / Double(total) * 100).rounded())
+            : 0
+        let title = kind == .preview ? "Reading on this iPhone" : "Matching on this iPhone"
+        let noun = kind == .preview ? "tracks loaded" : "tracks checked"
+
+        activity = TransferActivity(
+            kind: kind,
+            eyebrow: activityEyebrow(for: kind),
+            title: title,
+            detail: total > 0 ? "\(completed) of \(total) \(noun)." : "Preparing local processing.",
+            progress: max(activity?.progress ?? 0, max(0, min(100, percentage))),
             isEstimated: false
         )
     }
@@ -970,18 +1097,34 @@ final class TransferViewModel: ObservableObject {
         return context
     }
 
-    private func previewProperties(_ preview: PlaylistPreviewResponse?, durationMs: Int) -> [String: AnalyticsPropertyValue] {
+    private func previewProperties(
+        _ preview: PlaylistPreviewResponse?,
+        durationMs: Int,
+        extra: [String: AnalyticsPropertyValue] = [:]
+    ) -> [String: AnalyticsPropertyValue] {
         guard let preview else {
-            return ["durationMs": .int(durationMs)]
+            var properties = extra
+            properties["durationMs"] = .int(durationMs)
+            return properties
         }
 
-        return [
-            "durationMs": .int(durationMs),
-            "totalTracks": .int(preview.playlist.totalItems ?? preview.tracks.count),
-            "readableTracks": .int(preview.tracks.count),
-            "withIsrcCount": .int(preview.tracks.filter { $0.isrc != nil }.count),
-            "playlistSource": .string(preview.playlist.source ?? "")
-        ]
+        var properties = extra
+        properties["durationMs"] = .int(durationMs)
+        properties["totalTracks"] = .int(preview.playlist.totalItems ?? preview.tracks.count)
+        properties["readableTracks"] = .int(preview.tracks.count)
+        properties["withIsrcCount"] = .int(preview.tracks.filter { $0.isrc != nil }.count)
+        properties["playlistSource"] = .string(preview.playlist.source ?? "")
+        return properties
+    }
+
+    private func pipelineProperties(
+        stage: String,
+        extra: [String: AnalyticsPropertyValue] = [:]
+    ) -> [String: AnalyticsPropertyValue] {
+        var properties = extra
+        properties["pipelineStage"] = .string(stage)
+        properties["executionPath"] = .string("local_first")
+        return properties
     }
 
     private func summaryProperties(

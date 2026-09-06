@@ -88,6 +88,22 @@ test("analytics policy accepts aggregate duplicate prevention telemetry", () => 
   assert.ok(!SAFE_ANALYTICS_PROPERTY_KEYS.includes("appleLibraryPlaylistContents"));
 });
 
+test("analytics policy distinguishes local processing from remote fallback", () => {
+  for (const event of [
+    "local_pipeline_succeeded",
+    "local_pipeline_failed",
+    "remote_fallback_started",
+    "remote_fallback_succeeded",
+    "remote_fallback_failed"
+  ]) {
+    assert.ok(ANALYTICS_EVENT_NAMES.includes(event), `${event} should be allowlisted`);
+  }
+
+  for (const property of ["executionPath", "pipelineStage", "fallbackReason"]) {
+    assert.ok(SAFE_ANALYTICS_PROPERTY_KEYS.includes(property), `${property} should be allowlisted`);
+  }
+});
+
 test("analytics policy accepts only aggregate lifecycle and diagnostics fields", () => {
   const requiredProperties = [
     "appVersion",

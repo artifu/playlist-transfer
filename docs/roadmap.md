@@ -1,6 +1,6 @@
 # Roadmap
 
-Last reviewed: 2026-08-06
+Last reviewed: 2026-09-06
 
 ## Current Position
 
@@ -24,7 +24,7 @@ The current local backend uses a small SQLite file for developer convenience. It
 
 The next push should remove the hosted Spotify-ingestion dependency from the normal iOS path while keeping a remotely fixable fallback.
 
-1. Urgent: local-first iOS ingestion and matching with remote fallback.
+1. Urgent: local-first iOS ingestion and matching with remote fallback. **Implementation complete; device UAT pending.**
    Read public Spotify playlist/song metadata on-device without Spotify OAuth, perform Apple Music catalog search and matching with MusicKit on-device, and write to Apple Music only after confirmation. Keep the hosted ingestion/matching API behind a feature-controlled fallback for Spotify surface changes, device/network incompatibilities, and emergency recovery. Instrument local success, fallback reason, fallback success, duration, playlist size, and completeness without logging full URLs or library contents. Ship only after side-by-side quality and completeness tests prove that local results match or beat the current hosted path.
 
 2. iOS UAT and short polish.
@@ -42,7 +42,7 @@ The next push should remove the hosted Spotify-ingestion dependency from the nor
 6. Reliability pass.
    Test large playlists, individual song links, `spotify.link` URLs, duplicates, bad matches, denied Apple authorization, expired sessions, and interrupted creation. This is the pass that turns the demo into a product.
 
-Recommended sequencing: complete the current App Store resubmission first without changing its binary. Immediately afterward, build the local-first path behind a feature flag, run side-by-side UAT, then make it the default while preserving the remote fallback. Web SEO/analytics can continue in parallel as long as it does not slow down the iOS transfer loop.
+Recommended sequencing: run the new default-local build through internal TestFlight, compare local and fallback quality on the UAT matrix, then promote it to external TestFlight while preserving the hosted recovery path. Web SEO/analytics can continue in parallel as long as it does not slow down the iOS transfer loop.
 
 ## Phase 0: Technical Validation
 
