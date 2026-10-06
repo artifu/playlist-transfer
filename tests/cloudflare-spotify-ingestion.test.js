@@ -148,6 +148,44 @@ test("Cloudflare falls back to Render after the primary origin stays unavailable
   assert.equal(result.tracks[0].name, "Fallback track");
 });
 
+test("Cloudflare falls back to Render when the primary Cloudflare Tunnel is unavailable", async () => {
+  const calls = [];
+  const result = await getSpotifyPlaylistForEnvironment(
+    {
+      TRANSFER_API_URL: "https://oracle.example.com",
+      TRANSFER_API_FALLBACK_URL: "https://render.example.com"
+    },
+    playlistUrl,
+    async (input) => {
+      calls.push(String(input));
+      if (String(input).startsWith("https://oracle.example.com")) {
+        return new Response("error code: 1033", { status: 530 });
+      }
+
+      return new Response(JSON.stringify({
+        playlist: {
+          id: "315j5OaNjSO3C5AifquhBc",
+          name: "Tunnel fallback playlist",
+          totalItems: 1,
+          source: "spotify-public-spclient",
+          limitations: []
+        },
+        tracks: [{
+          spotifyTrackId: "0000000000000000000000",
+          name: "Recovered through fallback",
+          artists: ["Test artist"]
+        }]
+      }), { status: 200 });
+    }
+  );
+
+  assert.deepEqual(calls, [
+    "https://oracle.example.com/api/spotify/public-playlist-preview",
+    "https://render.example.com/api/spotify/public-playlist-preview"
+  ]);
+  assert.equal(result.tracks[0].name, "Recovered through fallback");
+});
+
 test("Cloudflare does not hide a non-retryable primary response with fallback", async () => {
   let calls = 0;
 

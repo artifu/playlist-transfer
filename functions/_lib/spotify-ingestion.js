@@ -88,7 +88,7 @@ function retryableFetchError(error) {
 }
 
 function retryableStatus(status) {
-  return [408, 425, 429, 500, 502, 503, 504].includes(status);
+  return [408, 425, 429].includes(status) || (status >= 500 && status <= 599);
 }
 
 function wait(milliseconds) {
