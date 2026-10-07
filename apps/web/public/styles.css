@@ -520,7 +520,6 @@ p {
 }
 
 .homepage-content-intro,
-.homepage-proof,
 .homepage-section {
   border: 1px solid var(--line);
   border-radius: 34px;
@@ -533,8 +532,7 @@ p {
   padding: clamp(28px, 5vw, 48px);
 }
 
-.homepage-content h2,
-.homepage-proof h3 {
+.homepage-content h2 {
   max-width: 16ch;
   margin: 12px 0 18px;
   font-family: var(--display);
@@ -546,75 +544,11 @@ p {
 
 .homepage-content-intro > p:last-child,
 .homepage-section > p,
-.homepage-proof-copy > p,
 .homepage-trust > div > p {
   max-width: 760px;
   color: var(--muted);
   font-size: 1.08rem;
   line-height: 1.58;
-}
-
-.homepage-proof {
-  display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(230px, 0.65fr);
-  gap: 30px;
-  padding: clamp(28px, 5vw, 46px);
-  background:
-    radial-gradient(circle at 5% 100%, rgba(29, 185, 84, 0.12), transparent 34%),
-    radial-gradient(circle at 95% 0%, rgba(255, 45, 85, 0.11), transparent 34%),
-    rgba(255, 253, 247, 0.9);
-}
-
-.homepage-proof h3 {
-  max-width: 18ch;
-  font-size: clamp(2.1rem, 3.5vw, 3.25rem);
-}
-
-.homepage-proof-copy a {
-  color: var(--ink);
-  font-weight: 900;
-  text-underline-offset: 0.2em;
-}
-
-.homepage-proof-metrics {
-  display: grid;
-  gap: 12px;
-  align-content: center;
-}
-
-.homepage-proof-metrics > div {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 18px;
-  padding: 18px 20px;
-  border: 1px solid var(--line);
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.68);
-}
-
-.homepage-proof-metrics strong {
-  font-family: var(--display);
-  font-size: 3rem;
-  font-style: italic;
-  letter-spacing: -0.06em;
-}
-
-.homepage-proof-metrics span {
-  color: var(--muted);
-  font-family: var(--mono);
-  font-size: 0.76rem;
-  font-weight: 900;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.homepage-proof-metrics .ready strong {
-  color: var(--ready);
-}
-
-.homepage-proof-metrics .missing strong {
-  color: var(--missing);
 }
 
 .homepage-step-grid,
@@ -2234,7 +2168,6 @@ p {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .homepage-proof,
   .homepage-trust {
     grid-template-columns: 1fr;
   }
@@ -2318,7 +2251,6 @@ p {
   }
 
   .homepage-content-intro,
-  .homepage-proof,
   .homepage-section {
     border-radius: 26px;
   }

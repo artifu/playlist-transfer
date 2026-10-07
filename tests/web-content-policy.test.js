@@ -136,8 +136,10 @@ test("homepage contains substantive visible publisher content", async () => {
     .filter(Boolean);
 
   assert.match(html, /data-publisher-content/);
-  assert.match(html, /46-versus-340 discrepancy exposed an incomplete playlist preview/);
-  assert.ok(words.length >= 400, `homepage publisher content should be substantive, found ${words.length} words`);
+  assert.doesNotMatch(html, /Production audit/);
+  assert.doesNotMatch(html, /46-versus-340/);
+  assert.doesNotMatch(html, /Production test results/);
+  assert.ok(words.length >= 350, `homepage publisher content should be substantive, found ${words.length} words`);
 });
 
 test("editorial articles are substantive and use unique canonical URLs", async () => {
