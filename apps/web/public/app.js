@@ -108,10 +108,10 @@ function analyzedScopeText(data) {
   const original = data.playlist?.originalTotalItems;
 
   if (data.playlist?.partialAnalysis && original) {
-    return `${analyzed} of ${original} readable tracks`;
+    return `${analyzed} of ${original} tracks`;
   }
 
-  return `${analyzed} readable tracks`;
+  return `${analyzed} tracks`;
 }
 
 function renderStartState({ hasInput = false } = {}) {
@@ -135,7 +135,7 @@ function renderStoredTransferPrompt() {
   results.innerHTML = `
     <p class="eyebrow">Saved playlist found</p>
     <h2>Keep working on this playlist?</h2>
-    <p>We saved the last match report in this browser. Continue reviewing it, or paste a different Spotify playlist.</p>
+    <p>We saved the last matches in this browser. Continue reviewing them, or paste a different Spotify playlist.</p>
     <div class="button-row">
       <button class="soft-action" type="button" data-restore-transfer="true">Continue playlist</button>
       <button class="soft-action" type="button" data-start-over="true">Use a new playlist</button>
@@ -319,8 +319,8 @@ function renderAppleSession() {
 
   if (!session?.hasDeveloperToken) {
     appleCard.className = "apple-card blocked";
-    appleState.textContent = "Developer token missing. Start the Transfer API with Apple credentials before matching.";
-    connectAppleButton.textContent = "Developer token required";
+    appleState.textContent = "Apple Music matching is temporarily unavailable. Please try again later.";
+    connectAppleButton.textContent = "Apple Music unavailable";
     refreshActions();
     return;
   }
@@ -333,9 +333,8 @@ function renderAppleSession() {
     return;
   }
 
-  const source = session.userTokenSource === "runtime" ? "this browser session" : "local environment";
   appleCard.className = "apple-card connected";
-  appleState.textContent = `Connected from ${source} for storefront ${session.storefront || "us"}. Disconnect if you want to use a different Apple account.`;
+  appleState.textContent = "Apple Music connected. You can create the playlist when you are ready.";
   connectAppleButton.textContent = "Disconnect Apple Music";
   refreshActions();
 }
@@ -444,7 +443,7 @@ async function loadAppleSession() {
       storefront: "us",
       developerToken: ""
     };
-    setStatus(error instanceof Error ? error.message : String(error), "error");
+    setStatus("Apple Music matching is temporarily unavailable. Please try again later.", "error");
   } finally {
     renderAppleSession();
   }
@@ -462,7 +461,7 @@ async function ensureDeveloperTokenForAnalysis() {
   await ensureAppleSession();
 
   if (!hasDeveloperToken()) {
-    setStatus("Apple Music developer token is missing. The API needs Apple credentials before matching.", "error");
+    setStatus("Apple Music matching is temporarily unavailable. Please try again later.", "error");
     return false;
   }
 
@@ -487,7 +486,7 @@ async function connectAppleMusic() {
   await ensureAppleSession();
 
   if (!state.appleSession?.developerToken) {
-    setStatus("Apple Music developer token is missing.", "error");
+    setStatus("Apple Music matching is temporarily unavailable. Please try again later.", "error");
     return false;
   }
 
@@ -534,7 +533,7 @@ async function connectAppleMusic() {
     return true;
   } catch (error) {
     console.error(error);
-    setStatus(errorMessage(error), "error");
+    setStatus("Apple Music was not connected. Please try again.", "error");
     showToast("Apple Music was not connected.", "error");
     trackEvent("apple_connect_failed", {
       durationMs: elapsedMs(startedAt),
@@ -604,7 +603,7 @@ function workingCopy(kind) {
     return {
       eyebrow: "Step 1 of 3 - Preview",
       title: "Reading the Spotify link.",
-      copy: "We are identifying the link and loading its public metadata before anything is moved.",
+      copy: "We are opening the link and loading the playlist before anything is moved.",
       steps: ["Read link", "Identify type", "Load details", "Ready to match"]
     };
   }
@@ -621,15 +620,15 @@ function workingCopy(kind) {
   return {
     eyebrow: "Step 2 of 3 - Matching",
     title: "Matching with Apple Music.",
-    copy: "We are checking Apple Music in small batches so the free-tier API stays reliable. Keep this tab open.",
-    steps: ["Read playlist", "Search catalog", "Score matches", "Build report"]
+    copy: "We are checking the playlist against Apple Music. Keep this tab open.",
+    steps: ["Read playlist", "Search Apple Music", "Compare tracks", "Prepare results"]
   };
 }
 
 function optimisticJobFor(kind, elapsedSeconds) {
   const phaseSets = {
     preview: [
-      { at: 0, progress: 8, phase: "Reading Spotify link", detail: "Fetching public playlist metadata." },
+      { at: 0, progress: 8, phase: "Reading Spotify link", detail: "Loading the playlist." },
       { at: 4, progress: 22, phase: "Opening public playlist", detail: "Spotify can take a moment to return public tracks." },
       { at: 10, progress: 36, phase: "Loading track list", detail: "Still working. Keep this tab open." },
       { at: 20, progress: 48, phase: "Checking playlist data", detail: "Large or cold-started requests can take a little longer." }
@@ -641,8 +640,8 @@ function optimisticJobFor(kind, elapsedSeconds) {
       { at: 20, progress: 46, phase: "Building receipt", detail: "Keep this tab open until the receipt appears." }
     ],
     analysis: [
-      { at: 0, progress: 8, phase: "Starting match report", detail: "Sending the playlist to the matcher." },
-      { at: 4, progress: 18, phase: "Warming Apple Music search", detail: "Large playlists can take a minute on the free tier." },
+      { at: 0, progress: 8, phase: "Starting the search", detail: "Preparing the playlist for Apple Music." },
+      { at: 4, progress: 18, phase: "Searching Apple Music", detail: "Large playlists can take a minute." },
       { at: 10, progress: 30, phase: "Checking the catalog", detail: "Waiting for the first batch of match results." },
       { at: 20, progress: 42, phase: "Still matching", detail: "This is normal for larger playlists. Keep this tab open." }
     ]
@@ -677,18 +676,18 @@ function setProgress(job) {
   const reportedProgress = Math.max(0, Math.min(100, Number(job.progress || 0)));
   displayedProgress = Math.max(displayedProgress, reportedProgress);
   const renderedJob = { ...job, progress: displayedProgress };
-  const progressLabel = renderedJob.indeterminate ? `~${displayedProgress}%` : `${displayedProgress}%`;
+  const progressLabel = renderedJob.indeterminate ? "Working" : `${displayedProgress}%`;
   progressCard.hidden = false;
   progressCard.classList.toggle("is-indeterminate", Boolean(renderedJob.indeterminate));
   progressCard.classList.toggle("is-active", displayedProgress < 100);
   progressPhase.textContent = renderedJob.phase || "Working";
   progressPercent.textContent = progressLabel;
-  progressBar.style.width = `${displayedProgress}%`;
+  progressBar.style.width = renderedJob.indeterminate ? "100%" : `${displayedProgress}%`;
   progressDetail.textContent = renderedJob.detail
     ? renderedJob.detail
     : renderedJob.total
     ? `${renderedJob.completed} of ${renderedJob.total} tracks processed.`
-    : "Preparing playlist metadata.";
+    : "Preparing the playlist.";
   return renderedJob;
 }
 
@@ -706,16 +705,16 @@ function resetProgress() {
 
 function renderWorkingProgress(job, options = {}) {
   const progress = Math.max(0, Math.min(100, Number(job.progress || 0)));
-  const progressLabel = job.indeterminate ? `~${progress}%` : `${progress}%`;
+  const progressLabel = job.indeterminate ? "Working" : `${progress}%`;
   const copy = workingCopy(options.kind);
   const processed = job.detail
     ? esc(job.detail)
     : job.total
     ? `${esc(job.completed)} of ${esc(job.total)} tracks processed`
-    : "Preparing playlist metadata";
+    : "Preparing the playlist";
   const thresholds = [10, 35, 70, 100];
   const steps = copy.steps.map((step, index) => (
-    `<span class="${progress >= thresholds[index] ? "done" : ""}">${esc(step)}</span>`
+    `<span class="${!job.indeterminate && progress >= thresholds[index] ? "done" : ""}">${esc(step)}</span>`
   )).join("");
 
   results.className = "screen working-screen";
@@ -735,7 +734,7 @@ function renderWorkingProgress(job, options = {}) {
           <strong>${progressLabel}</strong>
         </div>
         <div class="progress-track progress-track-large">
-          <div style="width: ${progress}%"></div>
+          <div style="width: ${job.indeterminate ? 100 : progress}%"></div>
         </div>
         <p>${processed}</p>
       </div>
@@ -768,18 +767,18 @@ async function startJob(path, body, options = {}) {
 
 function partialNote(data) {
   if (!data.playlist?.partialAnalysis) return "";
-  return `<div class="trust-note warn">This report analyzed ${esc(data.playlist.analyzedTrackCount)} of ${esc(data.playlist.originalTotalItems)} readable tracks. Create will only transfer ready tracks from this analyzed scope.</div>`;
+  return `<div class="trust-note warn">This playlist has ${esc(data.playlist.originalTotalItems)} tracks we could read. We checked the first ${esc(data.playlist.analyzedTrackCount)}. Only those tracks can be added from this result.</div>`;
 }
 
 function rowsNote(total, rendered) {
   if (total <= rendered) return "";
-  return `<div class="trust-note warn">Showing ${rendered} rows here. The report contains all ${total} rows.</div>`;
+  return `<div class="trust-note warn">Showing ${rendered} tracks here. ${total - rendered} more are included in the results.</div>`;
 }
 
 function statusLabel(statusValue) {
-  if (statusValue === "matched") return "Ready";
-  if (statusValue === "needs_review") return "Review";
-  return "Missing";
+  if (statusValue === "matched") return "Matched";
+  if (statusValue === "needs_review") return "Unsure";
+  return "No match";
 }
 
 function toneForStatus(statusValue) {
@@ -816,11 +815,10 @@ function renderPreview(data) {
     <div class="playlist-card">
       ${artworkHtml(playlistArtwork, "big")}
       <div>
-        <p class="eyebrow">Public Spotify ${singleTrack ? "song" : "playlist"}</p>
+        <p class="eyebrow">Spotify ${singleTrack ? "song" : "playlist"}</p>
         <div class="playlist-name">${esc(data.playlist.name)}</div>
         <div class="playlist-meta">
-          <span>${singleTrack ? "1 song" : `${data.tracks.length} readable tracks`}</span>
-          <span>${data.tracks.filter((track) => track.isrc).length} with ISRC</span>
+          <span>${singleTrack ? "1 song" : `${data.tracks.length} tracks found`}</span>
         </div>
       </div>
     </div>
@@ -839,13 +837,11 @@ function renderPreview(data) {
 }
 
 function renderMetrics(data) {
-  const anyMatchRate = data.summary?.matchRate ?? 0;
   return `
     <div class="metric-grid">
-      <div class="metric-card ready"><div class="metric-label">Ready</div><div class="metric-value">${esc(data.summary.confidentMatchCount)}</div></div>
-      <div class="metric-card review"><div class="metric-label">Review</div><div class="metric-value">${esc(data.summary.needsReviewCount)}</div></div>
-      <div class="metric-card missing"><div class="metric-label">Missing</div><div class="metric-value">${esc(data.summary.unmatchedCount)}</div></div>
-      <div class="metric-card"><div class="metric-label">Any match</div><div class="metric-value">${percent(anyMatchRate)}</div></div>
+      <div class="metric-card ready"><div class="metric-label">Matched</div><div class="metric-value">${esc(data.summary.confidentMatchCount)}</div></div>
+      <div class="metric-card review"><div class="metric-label">Unsure</div><div class="metric-value">${esc(data.summary.needsReviewCount)}</div></div>
+      <div class="metric-card missing"><div class="metric-label">No match</div><div class="metric-value">${esc(data.summary.unmatchedCount)}</div></div>
     </div>
   `;
 }
@@ -888,7 +884,7 @@ function renderMatchRow(item) {
         <div class="track-meta mono">${esc(item.reason || "")}</div>
       </div>`
     : `<div class="candidate-card missing">
-        <div class="candidate-label">No confident match</div>
+        <div class="candidate-label">No match found</div>
         <div class="track-meta">${esc(item.reason || "No candidate selected.")}</div>
       </div>`;
 
@@ -913,7 +909,7 @@ function renderMatchGroup(label, items, tone, renderLimit) {
   const visible = items.slice(0, renderLimit);
   const hiddenCount = items.length - visible.length;
   const more = hiddenCount > 0
-    ? `<div class="track-row"><div></div><div></div><div class="track-meta mono">+ ${hiddenCount} more ${esc(label.toLowerCase())} tracks in the full report.</div><div></div></div>`
+    ? `<div class="track-row"><div></div><div></div><div class="track-meta mono">+ ${hiddenCount} more ${esc(label.toLowerCase())} tracks in the results.</div><div></div></div>`
     : "";
 
   return `
@@ -929,24 +925,23 @@ function renderAnalysis(data) {
   const review = renderedItems.filter((item) => item.status === "needs_review");
   const missing = renderedItems.filter((item) => item.status === "unmatched");
   const ready = renderedItems.filter((item) => item.status === "matched");
-  const readyRate = data.items.length === 0 ? 0 : data.summary.confidentMatchCount / data.items.length;
   const transferNote = data.summary.confidentMatchCount > 0
-    ? `<div class="trust-note">Create will transfer ${data.summary.confidentMatchCount} ready tracks from this report. Review and missing tracks stay out unless you approve them first.</div>`
-    : `<div class="trust-note warn">No tracks are ready yet. Approve suggested review rows or try another playlist before creating.</div>`;
+    ? `<div class="trust-note">Create will add ${data.summary.confidentMatchCount} matched tracks. Unsure tracks stay out unless you choose a match.</div>`
+    : `<div class="trust-note warn">No tracks are matched yet. Choose a suggested match for any track you recognize, or try another playlist.</div>`;
 
   results.className = "screen";
   results.innerHTML = `
     <div class="screen-head">
-      <p class="eyebrow">Step 2 of 3 - Match report</p>
-      <h2 class="screen-title">${percent(readyRate)} ready to transfer cleanly.</h2>
+      <p class="eyebrow">Step 2 of 3 - Matches</p>
+      <h2 class="screen-title">${data.summary.confidentMatchCount} matches ready.</h2>
       <p class="screen-copy">We matched ${data.summary.confidentMatchCount} of ${data.items.length} tracks confidently. We are unsure about ${data.summary.needsReviewCount} ${data.summary.needsReviewCount === 1 ? "track" : "tracks"}. We did not find a match for ${data.summary.unmatchedCount}.</p>
     </div>
     ${renderMetrics(data)}
     ${partialNote(data)}
     ${transferNote}
-    ${renderMatchGroup("Needs review", review, "review", 32)}
-    ${renderMatchGroup("Will not transfer", missing, "missing", 32)}
-    ${renderMatchGroup("Ready to transfer", ready, "ready", 90)}
+    ${renderMatchGroup("Unsure", review, "review", 32)}
+    ${renderMatchGroup("No match found", missing, "missing", 32)}
+    ${renderMatchGroup("Matched", ready, "ready", 90)}
     ${rowsNote(data.items.length, renderedItems.length)}
   `;
 }
@@ -964,15 +959,15 @@ function renderSuccess(data) {
     </div>
     <div class="metric-grid success-metrics">
       <div class="metric-card ready"><div class="metric-label">Transferred</div><div class="metric-value">${data.summary.confidentMatchCount}</div></div>
-      <div class="metric-card review"><div class="metric-label">Review left</div><div class="metric-value">${data.summary.needsReviewCount}</div></div>
-      <div class="metric-card missing"><div class="metric-label">Not moved</div><div class="metric-value">${notTransferred}</div></div>
+      <div class="metric-card review"><div class="metric-label">Unsure</div><div class="metric-value">${data.summary.needsReviewCount}</div></div>
+      <div class="metric-card missing"><div class="metric-label">Not added</div><div class="metric-value">${notTransferred}</div></div>
     </div>
     <div class="receipt-card">
       <div class="receipt-line"><span>Playlist created</span><strong>${esc(destinationName)}</strong></div>
-      <div class="receipt-line"><span>Analyzed scope</span><strong>${esc(scope)}</strong></div>
+      <div class="receipt-line"><span>Tracks checked</span><strong>${esc(scope)}</strong></div>
       <div class="receipt-line"><span>Tracks transferred</span><strong>${data.summary.confidentMatchCount}</strong></div>
-      <div class="receipt-line"><span>Still needs review</span><strong>${data.summary.needsReviewCount}</strong></div>
-      <div class="receipt-line"><span>Missing or skipped</span><strong>${data.summary.unmatchedCount}</strong></div>
+      <div class="receipt-line"><span>Still unsure</span><strong>${data.summary.needsReviewCount}</strong></div>
+      <div class="receipt-line"><span>No match or skipped</span><strong>${data.summary.unmatchedCount}</strong></div>
       <div class="receipt-line"><span>Destination</span><strong>Apple Music</strong></div>
     </div>
     <div class="success-next-step">
@@ -1006,9 +1001,9 @@ function errorCopy(error, kind) {
 
   if (lower.includes("developer token")) {
     return {
-      title: "Apple Music setup is missing.",
-      body: message,
-      next: "Refresh the developer token in the Transfer API environment, then restart the API.",
+      title: "Apple Music is temporarily unavailable.",
+      body: "We could not search Apple Music right now.",
+      next: "Please try again later.",
       showFallback: false
     };
   }
@@ -1016,7 +1011,7 @@ function errorCopy(error, kind) {
   if (lower.includes("spotify") || lower.includes("public") || kind === "preview") {
     return {
       title: "We could not read this Spotify link.",
-      body: message,
+      body: "This link may be private, unavailable, or not a supported Spotify playlist or song.",
       next: "Use the fallback guide below, then paste the new Spotify link here.",
       showFallback: true
     };
@@ -1024,7 +1019,7 @@ function errorCopy(error, kind) {
 
   return {
     title: "Something interrupted this transfer.",
-    body: message,
+    body: "We could not complete this step. Please try again.",
     next: "Nothing was written unless you saw the transfer-complete receipt. You can safely retry.",
     showFallback: false
   };
@@ -1078,7 +1073,7 @@ async function updateReviewDecision(index, action, candidateIndex = null) {
       candidateIndex
     });
   } catch (error) {
-    setStatus(errorMessage(error), "error");
+    setStatus("We could not save that choice. Please try again.", "error");
     showToast("Review was not saved.", "error");
     trackEvent("review_decision_failed", {
       durationMs: elapsedMs(startedAt),
@@ -1125,7 +1120,7 @@ async function previewPlaylist() {
     state.analysisInput = null;
     clearStoredTransfer();
     resetProgress();
-    setStatus(errorMessage(error), "error");
+    setStatus("We could not read that Spotify link.", "error");
     renderError(error, "preview");
     trackEvent("preview_failed", {
       durationMs: elapsedMs(startedAt),
@@ -1162,14 +1157,14 @@ async function analyzeMatches() {
     adoptAnalysis(data);
     renderAnalysis(data);
     resetProgress();
-    setStatus("Analysis complete and saved. Refreshing now will keep this transfer.");
+    setStatus("Matches ready and saved. Refreshing now will keep this transfer.");
     trackEvent("analysis_succeeded", {
       ...summaryProperties(data),
       durationMs: elapsedMs(startedAt)
     });
   } catch (error) {
     resetProgress();
-    setStatus(errorMessage(error), "error");
+    setStatus("We could not finish matching this playlist.", "error");
     renderError(error, "analysis");
     trackEvent("analysis_failed", {
       durationMs: elapsedMs(startedAt),
@@ -1235,7 +1230,7 @@ async function createPlaylist() {
     });
   } catch (error) {
     resetProgress();
-    setStatus(errorMessage(error), "error");
+    setStatus("We could not create the Apple Music playlist.", "error");
     renderError(error, "create");
     trackEvent("transfer_create_failed", {
       ...summaryProperties(state.analysis),
@@ -1263,7 +1258,7 @@ async function restoreStoredTransfer() {
       setStatus("Restored your completed transfer receipt.");
     } else {
       renderAnalysis(data);
-      setStatus("Restored your last transfer. Review decisions are saved on the server.");
+      setStatus("Restored your last transfer and saved choices.");
     }
   } catch (error) {
     clearStoredTransfer();
@@ -1360,7 +1355,7 @@ results.addEventListener("click", async (event) => {
       setStatus("Playlist name copied. Search this exact name inside your Apple Music library.");
     } catch (error) {
       showToast("Could not copy playlist name.", "error");
-      setStatus(errorMessage(error), "error");
+      setStatus("We could not copy the playlist name. You can select it manually instead.", "error");
     }
     return;
   }

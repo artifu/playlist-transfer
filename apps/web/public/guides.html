@@ -21,12 +21,11 @@
           "@type": "HowTo",
           "name": "How to transfer a Spotify playlist to Apple Music with PlaylistXfer",
           "description": "Preview a public Spotify playlist, review Apple Music matches, and create a new Apple Music playlist after authorization.",
-          "totalTime": "PT15M",
           "step": [
             {"@type": "HowToStep", "name": "Copy a public Spotify link", "text": "In Spotify, open a public playlist or song and use Share to copy its normal Spotify URL."},
             {"@type": "HowToStep", "name": "Preview the source", "text": "Paste the link into PlaylistXfer and confirm the source title and readable track count."},
-            {"@type": "HowToStep", "name": "Match with Apple Music", "text": "Run the Apple Music match report for the full playlist or an intentionally limited test scope."},
-            {"@type": "HowToStep", "name": "Review uncertain rows", "text": "Inspect Review and Missing rows, approve only acceptable candidates, and leave unsafe substitutions out."},
+            {"@type": "HowToStep", "name": "Match with Apple Music", "text": "Let PlaylistXfer search Apple Music for every track it can read."},
+            {"@type": "HowToStep", "name": "Review uncertain tracks", "text": "Inspect unsure tracks, choose the right version, and leave incorrect matches out."},
             {"@type": "HowToStep", "name": "Create and verify the playlist", "text": "Authorize Apple Music at the create step, create the playlist, and compare the receipt with the finished playlist."}
           ]
         },
@@ -50,7 +49,7 @@
   </script>
   <link rel="icon" href="/playlistxfer-icon.svg" type="image/svg+xml" sizes="any" />
   <link rel="icon" href="/playlistxfer-icon-32.png" type="image/png" sizes="32x32" />
-  <link rel="stylesheet" href="/styles.css?v=20260817-guide" />
+  <link rel="stylesheet" href="/styles.css?v=20261008-slop-cleanup" />
   <script defer src="/config.js"></script>
   <script defer src="/analytics.js?v=20260817-guide"></script>
 </head>
@@ -61,20 +60,19 @@
       <div>
         <a aria-current="page" href="/guides">Guide</a>
         <a href="/how-playlist-matching-works">Matching</a>
-        <a href="/playlist-transfer-test-results">Test results</a>
+        <a href="/contact">Support</a>
       </div>
     </nav>
 
     <article class="legal-document guide-article guide-manual">
-      <p class="eyebrow">PlaylistXfer field manual · 15 minute read</p>
-      <h1>The practical Spotify to Apple Music transfer guide.</h1>
+      <p class="eyebrow">PlaylistXfer guide</p>
+      <h1>Move a Spotify playlist to Apple Music.</h1>
       <p class="guide-deck">Start with a public Spotify link, understand every Apple Music match, fix common problems, and verify what actually arrived.</p>
-      <p class="guide-byline">Written, tested, and maintained by the PlaylistXfer project · Last reviewed August 17, 2026</p>
 
       <div class="guide-quick-facts" aria-label="What PlaylistXfer does">
         <div><strong>What can move?</strong><p>Normal public Spotify playlist and song links, matched against the Apple Music catalog.</p></div>
-        <div><strong>What happens first?</strong><p>A read-only preview and match report. Spotify login is not requested.</p></div>
-        <div><strong>When can it write?</strong><p>Only after you review the report and explicitly connect Apple Music.</p></div>
+        <div><strong>What happens first?</strong><p>You preview the Spotify playlist and check its Apple Music matches.</p></div>
+        <div><strong>When do I connect Apple Music?</strong><p>When you are ready to create the new playlist.</p></div>
       </div>
 
       <div class="content-cta guide-opening-cta">
@@ -92,7 +90,7 @@
           <a href="#missing-songs" data-guide-section="missing-songs">Missing songs</a>
           <a href="#after-transfer" data-guide-section="after-transfer">Check the result</a>
           <a href="#faq" data-guide-section="faq">Questions</a>
-          <a href="#evidence" data-guide-section="evidence">Production evidence</a>
+          <a href="#references" data-guide-section="references">Official references</a>
         </nav>
 
         <div class="guide-manual-content">
@@ -102,40 +100,29 @@
             <ol class="content-steps guide-primary-steps">
               <li><strong>Copy a normal Spotify URL.</strong> Open the public playlist or song in Spotify and choose Share → Copy link.</li>
               <li><strong>Preview the source.</strong> Paste the link on PlaylistXfer and confirm the title and readable track count.</li>
-              <li><strong>Choose the analysis scope.</strong> Full playlist is the normal choice. The 50- and 150-track modes are intentionally limited tests.</li>
-              <li><strong>Run the Apple Music match report.</strong> PlaylistXfer analyzes the selected rows without asking for Apple Music write permission.</li>
-              <li><strong>Review uncertain and missing rows.</strong> Approve only candidates you trust. Unsafe substitutions stay out.</li>
+              <li><strong>Find the Apple Music matches.</strong> PlaylistXfer checks every track it can read, up to 500 at a time.</li>
+              <li><strong>Review unsure and unmatched tracks.</strong> Choose only versions you recognize. Incorrect substitutions stay out.</li>
               <li><strong>Connect Apple Music and create.</strong> Authorization appears beside the action that writes the new playlist.</li>
               <li><strong>Verify the destination.</strong> Compare the receipt, order, versions, omissions, and playback inside Apple Music.</li>
             </ol>
 
-            <div class="guide-table-wrap">
-              <table class="guide-table">
-                <thead><tr><th>Review mode</th><th>Use it for</th><th>What can be created</th></tr></thead>
-                <tbody>
-                  <tr><td>Full playlist</td><td>The actual transfer, up to the current 500-row web limit</td><td>All analyzed and approved rows</td></tr>
-                  <tr><td>First 150 tracks</td><td>A representative catalog and workflow test</td><td>Only those first 150 analyzed rows</td></tr>
-                  <tr><td>First 50 tracks</td><td>A fast link, storefront, and match-quality check</td><td>Only those first 50 analyzed rows</td></tr>
-                </tbody>
-              </table>
-            </div>
-            <p>For a source larger than 500 transferable rows, split it into clearly named sections in Spotify and transfer each section separately. The <a href="/transferring-large-spotify-playlists">large-playlist guide</a> covers scope, recovery, and splitting strategies in depth.</p>
+            <div class="guide-callout compact"><strong>Playlists over 500 tracks</strong><p>PlaylistXfer checks up to 500 tracks in one transfer. Split anything larger into clearly named sections first. The <a href="/transferring-large-spotify-playlists">large-playlist guide</a> shows a simple way to do it.</p></div>
           </section>
 
           <section class="guide-section" id="how-it-works">
-            <p class="guide-section-kicker">02 · Product boundaries</p>
+            <p class="guide-section-kicker">02 · How it works</p>
             <h2>How the transfer works</h2>
             <div class="content-grid process-overview">
               <div><h3>Public preview</h3><p>PlaylistXfer validates the submitted Spotify URL and reads public source metadata. It cannot edit the Spotify playlist.</p></div>
-              <div><h3>Catalog matching</h3><p>Each source row is compared with Apple Music using identifiers, title, artist, album, duration, edition markers, and storefront context.</p></div>
-              <div><h3>Human review</h3><p>Strong matches are Ready. Ambiguous candidates require Review. Unsafe or absent candidates stay Missing.</p></div>
-              <div><h3>Authorized creation</h3><p>Only then does PlaylistXfer request Apple Music access, add approved catalog tracks in order, and return a receipt.</p></div>
+              <div><h3>Find matches</h3><p>PlaylistXfer compares the title, artist, album, duration, and recording information with Apple Music.</p></div>
+              <div><h3>Review</h3><p>Clear matches are ready. Unsure tracks wait for you. Songs with no match stay out.</p></div>
+              <div><h3>Create</h3><p>Connect Apple Music, create the playlist, and check the result.</p></div>
             </div>
 
             <div class="status-explainer">
-              <div class="ready"><strong>Ready</strong><p>Evidence is strong enough for automatic inclusion.</p></div>
-              <div class="review"><strong>Review</strong><p>A likely candidate exists, but the version needs your judgment.</p></div>
-              <div class="missing"><strong>Missing</strong><p>No candidate passed the safety threshold, so nothing is substituted.</p></div>
+              <div class="ready"><strong>Matched</strong><p>PlaylistXfer found a strong match.</p></div>
+              <div class="review"><strong>Unsure</strong><p>A likely match exists, but you should check the version.</p></div>
+              <div class="missing"><strong>No match</strong><p>PlaylistXfer could not find a safe match.</p></div>
             </div>
 
             <div class="guide-table-wrap">
@@ -232,8 +219,8 @@
                 <tbody>
                   <tr><td>Spotify total</td><td>Everything Spotify reports, including rows that may not be publicly readable or transferable</td></tr>
                   <tr><td>Readable tracks</td><td>Music rows available to the public preview</td></tr>
-                  <tr><td>Analyzed tracks</td><td>Rows included in Full, 150-track, or 50-track scope</td></tr>
-                  <tr><td>Ready + approved Review</td><td>Rows eligible for playlist creation</td></tr>
+                  <tr><td>Checked tracks</td><td>Tracks PlaylistXfer searched for in Apple Music</td></tr>
+                  <tr><td>Matched + approved unsure</td><td>Tracks ready for playlist creation</td></tr>
                   <tr><td>Created tracks</td><td>Apple Music catalog items accepted into the destination</td></tr>
                 </tbody>
               </table>
@@ -247,7 +234,7 @@
               <li><strong>Repair omissions cautiously.</strong> Search manually and listen before adding an alternate edition.</li>
               <li><strong>Test playback.</strong> Use the destination device and account to catch unavailable, restricted, or greyed-out catalog items.</li>
             </ol>
-            <p>If creation stopped after matching, restore the saved report in the same browser, reconnect Apple Music, and retry creation. Start a new analysis only when the source, scope, storefront, or report evidence was wrong.</p>
+            <p>If creation stopped after matching, restore the saved results in the same browser, reconnect Apple Music, and try again. Start over only when you used the wrong Spotify playlist or the matches need to be refreshed.</p>
           </section>
 
           <section class="guide-section guide-faq" id="faq">
@@ -265,17 +252,11 @@
             <details><summary>How do I contact PlaylistXfer support?</summary><p>Use the <a href="/contact" data-analytics-support="guide_faq">contact page</a>. Include the failed step, visible error, approximate time, browser, and whether the Spotify link worked while signed out. Do not send account credentials or tokens.</p></details>
           </section>
 
-          <section class="guide-section" id="evidence">
-            <p class="guide-section-kicker">08 · Evidence</p>
-            <h2>Production evidence and deeper reading</h2>
-            <p>These pages remain separate because they document reproducible tests or a distinct technical method rather than repeating the general workflow.</p>
-            <div class="guide-evidence-grid">
-              <a href="/playlist-transfer-test-results" data-analytics-evidence="production_tests"><span>Production test ledger</span><strong>Three dated runs, 433 confident matches, and six honest omissions.</strong><p>Inspect the public sources, scopes, match counts, and limitations.</p></a>
-              <a href="/spotify-to-apple-music-match-report-example" data-analytics-evidence="ingestion_incident"><span>46-versus-340 incident</span><strong>How a plausible partial result exposed an ingestion bug.</strong><p>See the root cause, fix, and complete follow-up run.</p></a>
-              <a href="/how-playlist-matching-works" data-analytics-evidence="matching_methodology"><span>Matching methodology</span><strong>How identifiers, metadata, duration, editions, and confidence interact.</strong><p>Read the technical explanation behind each proposed match.</p></a>
-            </div>
+          <section class="guide-section" id="references">
+            <p class="guide-section-kicker">08 · More help</p>
+            <h2>Official references</h2>
+            <p>For more detail on matching, read <a href="/how-playlist-matching-works">how PlaylistXfer chooses a song</a>. These official pages explain playlist visibility, local files, Apple Music search, and account authorization.</p>
             <div class="source-section guide-sources">
-              <h3>Official references</h3>
               <ul class="source-list">
                 <li><a href="https://support.spotify.com/br-pt/article/playlist-privacy-and-access/">Spotify Support: playlist privacy and access</a></li>
                 <li><a href="https://support.spotify.com/na-en/article/local-files/">Spotify Support: local files</a></li>

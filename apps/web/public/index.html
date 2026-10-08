@@ -42,7 +42,7 @@
   <link rel="icon" href="/playlistxfer-icon-32.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="/playlistxfer-icon-180.png" />
   <link rel="manifest" href="/site.webmanifest" />
-  <link rel="stylesheet" href="/styles.css?v=20261007-cleanup" />
+  <link rel="stylesheet" href="/styles.css?v=20261008-slop-cleanup" />
   <script defer src="/config.js"></script>
   <script defer src="/analytics.js"></script>
 </head>
@@ -97,15 +97,7 @@
         <button id="connect-apple" type="button" class="soft-action">Connect Apple Music</button>
       </section>
 
-      <label class="select-card analysis-scope-card" for="analysis-limit" data-progressive-control hidden>
-        <span class="select-label">Review mode</span>
-        <select id="analysis-limit">
-          <option value="500">Full playlist</option>
-          <option value="150">Faster test: first 150 tracks</option>
-          <option value="50">Quick test: first 50 tracks</option>
-        </select>
-        <span class="select-hint">Full playlist is the default. Use a test mode only when you want a faster dry run; the Apple Music playlist is created from the tracks you analyze.</span>
-      </label>
+      <input id="analysis-limit" type="hidden" value="500" />
 
       <p class="status-line" id="status-line">Paste a playlist or song link to begin.</p>
       <nav class="legal-links" aria-label="Legal">
@@ -137,33 +129,13 @@
       </section>
 
       <section class="homepage-content" data-publisher-content>
-        <section class="homepage-section homepage-trust" aria-labelledby="homepage-trust-title">
-          <div>
-            <p class="eyebrow">What the result means</p>
-            <h2 id="homepage-trust-title">A clean transfer is not always a complete transfer.</h2>
-            <p>Spotify and Apple Music do not share one universal catalog. Local files, regional availability, removed releases, clean edits, remasters, live recordings, and compilations can all change what is available. PlaylistXfer is designed to leave a row out when the evidence is weak.</p>
-            <p>After creation, check the new playlist inside Apple Music and add any missing recording manually. The <a href="/guides#after-transfer">post-transfer checklist</a> explains how to verify order, versions, duplicates, and omissions.</p>
-          </div>
-          <div class="homepage-trust-card">
-            <strong>Current web scope</strong>
-            <ul>
-              <li>Public Spotify playlist and song links</li>
-              <li>Apple Music catalog matching and manual review</li>
-              <li>New private Apple Music library playlists</li>
-              <li>Up to 500 analyzed rows per web transfer</li>
-            </ul>
-            <p>Private Spotify sessions, podcasts, uploaded local audio, likes, follows, and listening history are outside the current transfer scope.</p>
-          </div>
-        </section>
-
         <section class="homepage-section homepage-reading" aria-labelledby="homepage-reading-title">
-          <p class="eyebrow">Practical field guides</p>
-          <h2 id="homepage-reading-title">Plan the transfer around the playlist you actually have.</h2>
+          <p class="eyebrow">Need help?</p>
+          <h2 id="homepage-reading-title">Make the transfer easier.</h2>
           <div class="homepage-reading-grid">
             <a href="/guides#start"><strong>Complete transfer guide</strong><span>Preview, match, review, authorize, and create.</span></a>
-            <a href="/transferring-large-spotify-playlists"><strong>Large playlist strategy</strong><span>Choose a review scope and avoid repeating expensive work.</span></a>
+            <a href="/transferring-large-spotify-playlists"><strong>Large playlists</strong><span>Move up to 500 tracks at a time and split anything larger.</span></a>
             <a href="/guides#missing-songs"><strong>Missing songs</strong><span>Diagnose local files, alternate versions, and regional gaps.</span></a>
-            <a href="/how-playlist-matching-works"><strong>Matching evidence</strong><span>Understand ISRC, metadata, duration, and confidence.</span></a>
           </div>
           <div class="homepage-reading-actions">
             <a class="button-link" href="/guides" data-analytics-cta="homepage_guides">Browse every guide</a>
@@ -178,6 +150,6 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script src="/app.js?v=20261007-cleanup" type="module"></script>
+  <script src="/app.js?v=20261008-slop-cleanup" type="module"></script>
 </body>
 </html>

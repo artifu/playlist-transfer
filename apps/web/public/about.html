@@ -15,7 +15,7 @@
   <meta property="og:image" content="https://playlistxfer.com/playlistxfer-icon-512.png" />
   <link rel="icon" href="/playlistxfer-icon.svg" type="image/svg+xml" sizes="any" />
   <link rel="icon" href="/playlistxfer-icon-32.png" type="image/png" sizes="32x32" />
-  <link rel="stylesheet" href="/styles.css?v=20260802-content" />
+  <link rel="stylesheet" href="/styles.css?v=20261008-slop-cleanup" />
   <script defer src="/config.js"></script>
   <script defer src="/analytics.js"></script>
 </head>
@@ -31,49 +31,26 @@
     </nav>
     <article class="legal-document">
       <p class="eyebrow">About</p>
-      <h1>A playlist transfer tool built around trust.</h1>
-      <p class="legal-updated">Independent, review-first, and focused on one transfer direction.</p>
+      <h1>Move Spotify playlists to Apple Music with the matches visible.</h1>
+      <p>PlaylistXfer turns a public Spotify playlist or song link into a new Apple Music playlist. Before anything is created, you can see which songs matched, review uncertain results, and leave out anything that looks wrong.</p>
 
-      <p>PlaylistXfer started with one practical problem: moving Spotify playlists into Apple Music without accepting a black-box result. The first prototype proved that catalog matching was possible; it also made the harder problem obvious. Two services can describe the same recording differently, and a plausible search result is not always the song a listener intended.</p>
+      <h2>What PlaylistXfer does</h2>
+      <ul>
+        <li>Reads public Spotify playlist and song links without asking for a Spotify login.</li>
+        <li>Finds Apple Music matches and lets you review uncertain songs.</li>
+        <li>Creates a new playlist after you connect Apple Music.</li>
+      </ul>
+      <p>Spotify and Apple Music have different catalogs, so local files, unavailable releases, and some alternate versions may not have an exact match. PlaylistXfer shows those gaps instead of silently replacing a song.</p>
 
-      <p>The product is therefore intentionally review-first. It shows what Spotify link it could read, what Apple Music candidates it found, and what it could not safely match before asking for permission to create anything.</p>
+      <h2>Privacy</h2>
+      <p>Apple Music access is requested only when you create the destination playlist. PlaylistXfer does not need your Spotify password and never modifies the source playlist. Read the <a href="/privacy">Privacy Policy</a> for details.</p>
 
-      <h2>Three product principles</h2>
-      <div class="content-grid">
-        <div>
-          <h2>Evidence before automation</h2>
-          <p>Recording identifiers and catalog metadata improve confidence, but alternate releases still need context. Ambiguous rows wait for review.</p>
-        </div>
-        <div>
-          <h2>Permission near the action</h2>
-          <p>Spotify preview and Apple Music analysis happen before Apple Music write access is requested.</p>
-        </div>
-        <div>
-          <h2>Visible failure</h2>
-          <p>Missing tracks, provider errors, and skipped rows belong in the result. A transfer receipt should not hide them behind a success percentage.</p>
-        </div>
-        <div>
-          <h2>Narrow scope</h2>
-          <p>The current web product focuses on public Spotify playlist and track links moving into Apple Music. It does not promise every service pair.</p>
-        </div>
-      </div>
-
-      <h2>Current status</h2>
-      <p>The web MVP supports public Spotify playlist and song previews, Apple Music match analysis, candidate review, and authorized playlist creation. The iOS app is in active development. Private Spotify account access, other streaming destinations, and local-file migration are outside the current scope.</p>
-
-      <h2>Claims backed by reproducible tests</h2>
-      <p>PlaylistXfer publishes dated production reports when a result can be reproduced from a public source. An August 2, 2026 audit found that one public playlist produced 340 readable tracks through the ingestion backend but only 46 through the original production Worker. The incomplete match report was rejected, the ingestion boundary was corrected, and the discrepancy was documented instead of being presented as a success metric. Read the <a href="/spotify-to-apple-music-match-report-example">incident method, fix, and verification checklist</a>.</p>
-      <p>A follow-up on August 14 ran three public sources through production and analyzed 439 rows against the US Apple Music storefront. The published <a href="/playlist-transfer-test-results">test ledger</a> names every source, distinguishes full reports from a 50-row sample, lists the six unmatched rows, and explains why the combined total is not a universal success-rate promise.</p>
-
-      <h2>Why the guides are part of the product</h2>
-      <p>A useful transfer tool should explain its limits. The <a href="/guides">PlaylistXfer guides</a> document playlist visibility, catalog matching, missing tracks, and troubleshooting with links to first-party Spotify and Apple references. They are written for people making an actual transfer, not as filler around the form.</p>
-
-      <h2>Open project</h2>
-      <p>The source and product decisions are documented publicly for people who want to inspect or reproduce the flow. Follow development, report reproducible problems, or review the implementation in the <a href="https://github.com/artifu/playlist-transfer">PlaylistXfer GitHub repository</a>.</p>
+      <h2>Independent project</h2>
+      <p>PlaylistXfer is not affiliated with Spotify or Apple. You can report a problem through <a href="/contact">support</a> or inspect the project on <a href="https://github.com/artifu/playlist-transfer">GitHub</a>.</p>
 
       <div class="content-cta">
-        <a class="button-link" href="/" data-analytics-cta="about">Try the web MVP</a>
-        <a class="soft-link" href="/guides">Read the guides</a>
+        <a class="button-link" href="/" data-analytics-cta="about">Start a transfer</a>
+        <a class="soft-link" href="/guides">Get help</a>
       </div>
     </article>
   </main>

@@ -20,7 +20,7 @@
       "@type": "TechArticle",
       "headline": "How Spotify to Apple Music playlist matching works",
       "description": "A practical explanation of the signals PlaylistXfer uses to compare Spotify tracks with Apple Music catalog songs.",
-      "dateModified": "2026-07-22",
+      "dateModified": "2026-10-08",
       "author": {
         "@type": "Organization",
         "name": "PlaylistXfer"
@@ -34,7 +34,7 @@
   </script>
   <link rel="icon" href="/playlistxfer-icon.svg" type="image/svg+xml" sizes="any" />
   <link rel="icon" href="/playlistxfer-icon-32.png" type="image/png" sizes="32x32" />
-  <link rel="stylesheet" href="/styles.css?v=20260722-content" />
+  <link rel="stylesheet" href="/styles.css?v=20261008-slop-cleanup" />
   <script defer src="/config.js"></script>
   <script defer src="/analytics.js"></script>
 </head>
@@ -50,14 +50,13 @@
     </nav>
 
     <article class="legal-document guide-article">
-      <p class="eyebrow">Matching guide · 8 minute read</p>
+      <p class="eyebrow">Matching guide</p>
       <h1>How playlist matching actually works.</h1>
       <p class="guide-deck">A song title is a clue, not proof. Reliable transfers combine recording identifiers, metadata, catalog context, and a human decision when the evidence conflicts.</p>
-      <p class="guide-byline">PlaylistXfer editorial · Last reviewed July 22, 2026</p>
 
       <div class="guide-callout">
         <strong>The short version</strong>
-        <p>PlaylistXfer first looks for strong recording-level evidence. When that is not enough, it compares descriptive metadata. Confident results are marked ready; ambiguous results wait for review; unsupported tracks remain missing.</p>
+        <p>PlaylistXfer first looks for a recording identifier. When that is not enough, it compares the title, artist, album, and duration. Clear results are matched; ambiguous results are marked unsure; songs with no safe result stay unmatched.</p>
       </div>
 
       <nav class="guide-toc" aria-label="On this page">
@@ -66,7 +65,7 @@
         <a href="#signals">Signals used in matching</a>
         <a href="#isrc">What ISRC can and cannot prove</a>
         <a href="#alternate-versions">Alternate versions</a>
-        <a href="#confidence">Ready, review, and missing</a>
+        <a href="#confidence">Matched, unsure, and no match</a>
         <a href="#review-checklist">Review checklist</a>
       </nav>
 
@@ -171,22 +170,22 @@
       </section>
 
       <section class="guide-section" id="confidence">
-        <h2>What ready, review, and missing mean</h2>
+        <h2>What matched, unsure, and no match mean</h2>
         <div class="status-explainer">
           <div class="ready">
-            <strong>Ready</strong>
-            <p>The evidence is strong enough to include the Apple Music candidate automatically.</p>
+            <strong>Matched</strong>
+            <p>PlaylistXfer found a strong Apple Music match.</p>
           </div>
           <div class="review">
-            <strong>Review</strong>
-            <p>A plausible candidate exists, but one or more signals are ambiguous. Nothing moves until you approve or skip it.</p>
+            <strong>Unsure</strong>
+            <p>A likely match exists, but you should check the version before including it.</p>
           </div>
           <div class="missing">
-            <strong>Missing</strong>
-            <p>No candidate met the current confidence threshold. The track stays out rather than forcing a weak replacement.</p>
+            <strong>No match</strong>
+            <p>PlaylistXfer could not find a safe match, so the track stays out.</p>
           </div>
         </div>
-        <p>A high ready percentage is useful, but accuracy matters more than a perfect-looking number. A cautious missing result is better than silently adding the wrong song.</p>
+        <p>Accuracy matters more than a perfect-looking number. Leaving a song unmatched is better than silently adding the wrong version.</p>
       </section>
 
       <section class="guide-section" id="review-checklist">

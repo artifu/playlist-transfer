@@ -5,8 +5,6 @@ PlaylistXfer is an independent web and iOS project for moving public Spotify pla
 Canonical site: https://playlistxfer.com/
 Complete transfer and troubleshooting guide: https://playlistxfer.com/guides
 Playlist matching guide: https://playlistxfer.com/how-playlist-matching-works
-Reproducible match report: https://playlistxfer.com/spotify-to-apple-music-match-report-example
-Production test ledger: https://playlistxfer.com/playlist-transfer-test-results
 Large playlist guide: https://playlistxfer.com/transferring-large-spotify-playlists
 Privacy: https://playlistxfer.com/privacy
 Terms: https://playlistxfer.com/terms
@@ -17,7 +15,7 @@ Core user flow:
 1. User pastes a public Spotify playlist or song URL.
 2. PlaylistXfer previews public Spotify metadata.
 3. PlaylistXfer matches the playlist tracks or song against Apple Music.
-4. User reviews ready, review, and missing tracks.
+4. User reviews matched, unsure, and unmatched tracks.
 5. User authorizes Apple Music only when creating the destination playlist.
 
 Important safety notes:

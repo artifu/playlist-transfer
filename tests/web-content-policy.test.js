@@ -7,8 +7,6 @@ const adsenseLoader = "pagead2.googlesyndication.com/pagead/js/adsbygoogle.js";
 
 const editorialPages = [
   "how-playlist-matching-works.html",
-  "playlist-transfer-test-results.html",
-  "spotify-to-apple-music-match-report-example.html",
   "transferring-large-spotify-playlists.html"
 ];
 
@@ -63,8 +61,6 @@ test("all public pages retain analytics bootstrap and editorial routes are liste
   const expectedRoutes = [
     "/guides",
     "/how-playlist-matching-works",
-    "/playlist-transfer-test-results",
-    "/spotify-to-apple-music-match-report-example",
     "/transferring-large-spotify-playlists"
   ];
 
@@ -95,7 +91,9 @@ test("retired guide routes permanently redirect to consolidated sections", async
     ["/public-vs-private-spotify-playlists", "/guides#before-you-start"],
     ["/spotify-playlist-not-loading", "/guides#troubleshooting"],
     ["/spotify-to-apple-music", "/guides#start"],
-    ["/spotify-to-apple-music-missing-songs", "/guides#missing-songs"]
+    ["/spotify-to-apple-music-missing-songs", "/guides#missing-songs"],
+    ["/playlist-transfer-test-results", "/guides"],
+    ["/spotify-to-apple-music-match-report-example", "/guides"]
   ]);
 
   for (const [route, destination] of expectedRedirects) {
@@ -111,7 +109,7 @@ test("consolidated guide exposes one clear manual and valid anchors", async () =
 
   assert.equal((html.match(/<h1\b/g) || []).length, 1);
   assert.equal((html.match(/<details>/g) || []).length, 10);
-  assert.match(html, /The practical Spotify to Apple Music transfer guide/);
+  assert.match(html, /Move a Spotify playlist to Apple Music/);
   assert.match(html, /"@type": "HowTo"/);
   assert.match(html, /"@type": "FAQPage"/);
   assert.deepEqual(fragments.filter((id) => !ids.has(id)), []);
@@ -125,24 +123,21 @@ test("Cloudflare Pages has a real noindex 404 instead of a homepage fallback", a
   assert.doesNotMatch(html, new RegExp(adsenseLoader.replaceAll(".", "\\.")));
 });
 
-test("homepage contains substantive visible publisher content", async () => {
+test("homepage stays focused on starting a transfer", async () => {
   const html = await readFile(new URL("index.html", publicDir), "utf8");
-  const publisherContent = html.match(/<section class="homepage-content"[\s\S]*?<\/section>\s*<\/section>/)?.[0] ?? "";
-  const words = publisherContent
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&[a-z#0-9]+;/gi, " ")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
 
   assert.match(html, /data-publisher-content/);
   assert.match(html, /Share a Spotify playlist or song\. PlaylistXfer finds its Apple Music matches and converts it for you\./);
+  assert.match(html, /Preview my playlist/);
+  assert.match(html, /Complete transfer guide/);
   assert.doesNotMatch(html, /Production audit/);
   assert.doesNotMatch(html, /46-versus-340/);
   assert.doesNotMatch(html, /Production test results/);
   assert.doesNotMatch(html, /Evidence before access/);
   assert.doesNotMatch(html, /Three stages, with a clear boundary/);
-  assert.ok(words.length >= 180, `homepage publisher content should be substantive, found ${words.length} words`);
+  assert.doesNotMatch(html, /Review mode/);
+  assert.doesNotMatch(html, /Faster test/);
+  assert.doesNotMatch(html, /Quick test/);
 });
 
 test("match report uses customer language and hides backend source diagnostics", async () => {
@@ -150,8 +145,14 @@ test("match report uses customer language and hides backend source diagnostics",
 
   assert.match(script, /We are unsure about/);
   assert.match(script, /We did not find a match for/);
+  assert.match(script, /No match found/);
   assert.doesNotMatch(script, /Source: \$\{esc\(data\.playlist\.source\)\}/);
   assert.doesNotMatch(script, /need a quick look/);
+  assert.doesNotMatch(script, /Will not transfer/);
+  assert.doesNotMatch(script, /Any match/);
+  assert.doesNotMatch(script, /free-tier/);
+  assert.doesNotMatch(script, /Sending the playlist to the matcher/);
+  assert.doesNotMatch(script, /Developer token missing/);
 });
 
 test("editorial articles are substantive and use unique canonical URLs", async () => {
@@ -174,17 +175,4 @@ test("editorial articles are substantive and use unique canonical URLs", async (
     assert.ok(!canonicals.has(canonical), `${fileName} should not duplicate canonical ${canonical}`);
     canonicals.add(canonical);
   }
-});
-
-test("production test ledger states sources, scopes, outcomes, and write boundary", async () => {
-  const html = await readFile(new URL("playlist-transfer-test-results.html", publicDir), "utf8");
-
-  assert.match(html, /What happened when PlaylistXfer tested 439 Apple Music matches/);
-  assert.match(html, /315j5OaNjSO3C5AifquhBc/);
-  assert.match(html, /0h8JNovqXS97ygva27IHfi/);
-  assert.match(html, /4fQ8a2Pg2llDd76J9a5WzH/);
-  assert.match(html, /333/);
-  assert.match(html, /First 50 of 494/);
-  assert.match(html, /No Apple Music account was connected and no destination playlist was created/);
-  assert.match(html, /not be read as “PlaylistXfer always matches 98\.6%\.”/);
 });
