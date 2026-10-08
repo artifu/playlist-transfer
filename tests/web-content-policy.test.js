@@ -136,10 +136,22 @@ test("homepage contains substantive visible publisher content", async () => {
     .filter(Boolean);
 
   assert.match(html, /data-publisher-content/);
+  assert.match(html, /Share a Spotify playlist or song\. PlaylistXfer finds its Apple Music matches and converts it for you\./);
   assert.doesNotMatch(html, /Production audit/);
   assert.doesNotMatch(html, /46-versus-340/);
   assert.doesNotMatch(html, /Production test results/);
-  assert.ok(words.length >= 350, `homepage publisher content should be substantive, found ${words.length} words`);
+  assert.doesNotMatch(html, /Evidence before access/);
+  assert.doesNotMatch(html, /Three stages, with a clear boundary/);
+  assert.ok(words.length >= 180, `homepage publisher content should be substantive, found ${words.length} words`);
+});
+
+test("match report uses customer language and hides backend source diagnostics", async () => {
+  const script = await readFile(new URL("app.js", publicDir), "utf8");
+
+  assert.match(script, /We are unsure about/);
+  assert.match(script, /We did not find a match for/);
+  assert.doesNotMatch(script, /Source: \$\{esc\(data\.playlist\.source\)\}/);
+  assert.doesNotMatch(script, /need a quick look/);
 });
 
 test("editorial articles are substantive and use unique canonical URLs", async () => {

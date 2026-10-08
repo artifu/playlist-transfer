@@ -766,12 +766,6 @@ async function startJob(path, body, options = {}) {
   throw new Error("Timed out waiting for the transfer job.");
 }
 
-function sourceNote(data) {
-  if (!data.playlist?.source) return "";
-  const limitation = (data.playlist.limitations || [])[0] || "";
-  return `<div class="trust-note">Source: ${esc(data.playlist.source)}. ${esc(limitation)}</div>`;
-}
-
 function partialNote(data) {
   if (!data.playlist?.partialAnalysis) return "";
   return `<div class="trust-note warn">This report analyzed ${esc(data.playlist.analyzedTrackCount)} of ${esc(data.playlist.originalTotalItems)} readable tracks. Create will only transfer ready tracks from this analyzed scope.</div>`;
@@ -836,7 +830,6 @@ function renderPreview(data) {
       ${applePillHtml()}
       <div class="route-copy">${singleTrack ? "Will create a one-song Apple Music playlist after review." : "Will create a new Apple Music playlist after review."}</div>
     </div>
-    ${sourceNote(data)}
     <section class="group-section">
       <h3 class="group-title">${singleTrack ? "Spotify song" : "First tracks"}</h3>
       <div class="track-list">${rows}</div>
@@ -946,11 +939,10 @@ function renderAnalysis(data) {
     <div class="screen-head">
       <p class="eyebrow">Step 2 of 3 - Match report</p>
       <h2 class="screen-title">${percent(readyRate)} ready to transfer cleanly.</h2>
-      <p class="screen-copy">We matched ${data.summary.confidentMatchCount} of ${data.items.length} tracks confidently. ${data.summary.needsReviewCount} need a quick look. ${data.summary.unmatchedCount} will not transfer.</p>
+      <p class="screen-copy">We matched ${data.summary.confidentMatchCount} of ${data.items.length} tracks confidently. We are unsure about ${data.summary.needsReviewCount} ${data.summary.needsReviewCount === 1 ? "track" : "tracks"}. We did not find a match for ${data.summary.unmatchedCount}.</p>
     </div>
     ${renderMetrics(data)}
     ${partialNote(data)}
-    ${sourceNote(data)}
     ${transferNote}
     ${renderMatchGroup("Needs review", review, "review", 32)}
     ${renderMatchGroup("Will not transfer", missing, "missing", 32)}
