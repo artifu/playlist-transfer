@@ -1,6 +1,6 @@
 # Web Analytics Runbook
 
-Last reviewed: 2026-07-17
+Last reviewed: 2026-10-16
 
 ## Funnel
 
@@ -30,6 +30,19 @@ To verify or recreate it:
 3. Add `playlist_transfer_completed` as a key event.
 
 GA4 can register the key-event name before its first occurrence. Historical events from before it is marked are not retroactively counted as key events.
+
+## GA4 exploration
+
+The PlaylistXfer GA4 property has a saved funnel exploration named `PlaylistXfer web transfer funnel` with the tab `Web funnel`. It uses a 28-day lookback, breaks results down by device category, and follows these steps:
+
+1. `page_view`
+2. `transfer_form_started`
+3. `preview_succeeded`
+4. `analysis_succeeded`
+5. `apple_connect_succeeded`
+6. `playlist_transfer_completed`
+
+On 2026-10-16, the exploration showed 85 visitors, 58 link-entry starts, 27 successful previews, 21 successful analyses, 14 Apple Music connections, and 12 completed transfers. The largest measured drop was link entry to successful preview: 31 users, or 53.45% of link-entry starts. Treat these values as a dated snapshot, not a permanent baseline.
 
 ## Durable first-party events
 

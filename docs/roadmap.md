@@ -164,15 +164,15 @@ Guardrails:
 Current SEO and analytics operations:
 
 - Branded 1200x630 Open Graph image and App Store download link are part of the public site.
-- Google Search Console owns the verified production property; resubmit `https://playlistxfer.com/sitemap.xml` after meaningful canonical-page updates and inspect canonical URLs rather than retired redirects.
-- `GA_MEASUREMENT_ID` is configured in production. `playlist_transfer_completed` is the stable GA4 key event, and first-party D1 events remain the operational source of truth when GA4 is blocked.
+- Google Search Console owns the verified production property. The eight-URL sitemap was successfully resubmitted and read on 2026-10-16; resubmit it after meaningful canonical-page updates and inspect canonical URLs rather than retired redirects.
+- `GA_MEASUREMENT_ID` is configured in production. `playlist_transfer_completed` is the stable GA4 key event, and the saved `PlaylistXfer web transfer funnel` exploration tracks the visit-to-transfer path by device category. First-party D1 events remain the operational source of truth when GA4 is blocked.
 - AdSense belongs only on substantive editorial pages, never in the transfer, authorization, progress, review, error, contact, or legal flows.
 
 Post-indexing editorial consolidation (implemented August 17, 2026):
 
 - Follow the detailed implementation and migration plan in [web-guide-consolidation-spec.md](./web-guide-consolidation-spec.md).
 - Baseline captured before consolidation: 0 Search clicks, 7 indexed pages, and 10 not-indexed pages in the verified URL-prefix property.
-- Reduced the sitemap from 17 public URLs to 10 stronger canonical pages; quality and clear intent matter more than the raw page count.
+- Reduced the sitemap from 17 public URLs to 8 stronger canonical pages; quality and clear intent matter more than the raw page count.
 - Made `/guides` the authoritative product manual and merged `/spotify-to-apple-music`, `/how-it-works`, and `/faq` into anchored sections.
 - Folded `/public-vs-private-spotify-playlists` and `/spotify-playlist-not-loading` into the `/guides` readiness and troubleshooting sections.
 - Folded `/spotify-to-apple-music-missing-songs` and `/after-spotify-to-apple-music-transfer` into the `/guides` recovery and verification sections.
