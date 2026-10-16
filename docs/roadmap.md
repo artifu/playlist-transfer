@@ -1,14 +1,16 @@
 # Roadmap
 
-Last reviewed: 2026-09-06
+Agent transfer track: [Roadmap de transferência pelo agente](agent-transfer-roadmap.md). This is the current plan for authenticated MCP tools, conversational match review, and agent-driven playlist creation. Monetization is outside that track; the existing web/iOS roadmap remains below.
+
+Last reviewed: 2026-10-16
 
 ## Current Position
 
-PlaylistTransfer has moved past technical feasibility. The local product web shell can:
+PlaylistXfer is publicly available on the [App Store](https://apps.apple.com/us/app/playlistxfer/id6791439177), and the production web flow can:
 
 - read public Spotify playlist links without Spotify OAuth when Spotify public surfaces cooperate
 - analyze Apple Music catalog matches
-- show ready, review, and missing groups
+- show customer-facing Matched, Unsure, and No match groups
 - save review decisions server-side
 - request Apple Music access at create time
 - create an Apple Music playlist from confident or approved matches
@@ -18,13 +20,13 @@ PlaylistTransfer has moved past technical feasibility. The local product web she
 
 The matching pipeline now resolves ISRCs in Apple Music batches of up to 25, caches catalog results in D1 for 30 days, and runs bounded concurrent text fallback only for unresolved tracks. This replaces the previous mostly sequential search path and is the baseline for the next performance UAT.
 
-The current local backend uses a small SQLite file for developer convenience. It should stay lightweight on local machines while the production storage target is tested online.
+Local development keeps a small SQLite store for convenience. Production uses Cloudflare D1 for durable transfer and analytics data, with Oracle as the primary ingestion dependency and Render as the fallback.
 
 ## Immediate Next Sprint
 
-The next push should remove the hosted Spotify-ingestion dependency from the normal iOS path while keeping a remotely fixable fallback.
+The product is launched. The next sprint is post-launch stabilization and measurement rather than another redesign.
 
-1. Urgent: local-first iOS ingestion and matching with remote fallback. **Implementation complete; device UAT pending.**
+1. Local-first iOS ingestion and matching with remote fallback. **Implementation complete; device UAT remains part of regression coverage.**
    Read public Spotify playlist/song metadata on-device without Spotify OAuth, perform Apple Music catalog search and matching with MusicKit on-device, and write to Apple Music only after confirmation. Keep the hosted ingestion/matching API behind a feature-controlled fallback for Spotify surface changes, device/network incompatibilities, and emergency recovery. Instrument local success, fallback reason, fallback success, duration, playlist size, and completeness without logging full URLs or library contents. Ship only after side-by-side quality and completeness tests prove that local results match or beat the current hosted path.
 
 2. iOS UAT and short polish.
@@ -33,16 +35,16 @@ The next push should remove the hosted Spotify-ingestion dependency from the nor
 3. Designer-package incorporation.
    Pull only the useful missing components from the latest `DesignSuggestions/newpackage/` drop. Avoid a full redesign for now; focus on final icon/brand assets, mobile layout polish, loading states, match cards, and the post-transfer screen.
 
-4. App Store basics.
-   Clean up bundle/signing, privacy copy, screenshots, final app icon, display name, short description, MusicKit/Media Library permission strings, and an App Review checklist.
+4. App Store maintenance.
+   Keep screenshots, privacy disclosures, release notes, support URL, icon, and MusicKit permission copy current for each release. The public listing is `https://apps.apple.com/us/app/playlistxfer/id6791439177`.
 
-5. Web SEO and analytics finishing.
-   Verify `playlistxfer.com` title/meta, guide pages, sitemap/robots, GA events, and the main funnel logs: preview, analyze, review, create.
+5. Web SEO and analytics operations.
+   Keep `playlistxfer.com` metadata, guide pages, sitemap/robots, GA events, Search Console status, and the preview → analyze → review → create funnel healthy. Code instrumentation and the GA4 `playlist_transfer_completed` key event are implemented; dashboards and indexing need ongoing review rather than new product UI.
 
 6. Reliability pass.
    Test large playlists, individual song links, `spotify.link` URLs, duplicates, bad matches, denied Apple authorization, expired sessions, and interrupted creation. This is the pass that turns the demo into a product.
 
-Recommended sequencing: run the new default-local build through internal TestFlight, compare local and fallback quality on the UAT matrix, then promote it to external TestFlight while preserving the hosted recovery path. Web SEO/analytics can continue in parallel as long as it does not slow down the iOS transfer loop.
+Recommended sequencing: protect the released transfer loop with device regression tests and production monitoring, review Search Console and GA4 regularly, then prioritize reliability and retention work over landing-page redesigns.
 
 ## Phase 0: Technical Validation
 
@@ -75,7 +77,6 @@ Goal: make the backend safe enough to put behind a public web/mobile client.
 - Guided Spotify fallback when public-link ingestion fails.
 - Apple Music authorization at create time.
 - Clean transfer receipt.
-- Unmatched-track export.
 - First hosted API deployment.
 - First mobile app shell after the API contract is stable.
 
@@ -136,7 +137,7 @@ Definition of done:
 
 Goal: make `playlistxfer.com` discoverable and monetizable without slowing down the transfer tool.
 
-Status: foundation in progress. The production site now has search-focused static pages for the main Spotify to Apple Music intent, how the matching flow works, FAQ, about, contact, privacy, and terms.
+Status: launched and operational. The production site has a focused transfer landing page, canonical guide and editorial pages, trust/legal pages, GA4 plus first-party funnel analytics, production monitoring, and a public App Store link.
 
 Recommended scope:
 
@@ -160,12 +161,12 @@ Guardrails:
 - SEO copy should be honest: "public Spotify playlist links" and "review before creating" are safer promises than "any playlist instantly."
 - The production app should continue working if ads fail to load.
 
-Next SEO tasks:
+Current SEO and analytics operations:
 
-- Add a branded 1200x630 Open Graph image instead of reusing the SVG favicon.
-- Add Google Search Console, submit `https://playlistxfer.com/sitemap.xml`, and request indexing for the homepage, guide, how-it-works, and FAQ pages.
-- Configure `GA_MEASUREMENT_ID` in Cloudflare Pages so Google Analytics records organic landing-page visits and high-level funnel events without waking the Transfer API.
-- Consider AdSense only after Search Console sees indexed pages and the privacy/contact/about pages are stable.
+- Branded 1200x630 Open Graph image and App Store download link are part of the public site.
+- Google Search Console owns the verified production property; resubmit `https://playlistxfer.com/sitemap.xml` after meaningful canonical-page updates and inspect canonical URLs rather than retired redirects.
+- `GA_MEASUREMENT_ID` is configured in production. `playlist_transfer_completed` is the stable GA4 key event, and first-party D1 events remain the operational source of truth when GA4 is blocked.
+- AdSense belongs only on substantive editorial pages, never in the transfer, authorization, progress, review, error, contact, or legal flows.
 
 Post-indexing editorial consolidation (implemented August 17, 2026):
 
@@ -175,9 +176,9 @@ Post-indexing editorial consolidation (implemented August 17, 2026):
 - Made `/guides` the authoritative product manual and merged `/spotify-to-apple-music`, `/how-it-works`, and `/faq` into anchored sections.
 - Folded `/public-vs-private-spotify-playlists` and `/spotify-playlist-not-loading` into the `/guides` readiness and troubleshooting sections.
 - Folded `/spotify-to-apple-music-missing-songs` and `/after-spotify-to-apple-music-transfer` into the `/guides` recovery and verification sections.
-- Keep the production test ledger, the 46-versus-340 incident report, matching methodology, large-playlist guide, About, Contact, Privacy, and Terms as distinct pages while each continues to provide a separate purpose.
+- Keep matching methodology, the large-playlist guide, About, Contact, Privacy, and Terms as distinct pages while each continues to provide a separate purpose. Internal test ledgers and incident reports are not public product content.
 - Permanent 301 redirects, canonical links, internal links, `llms.txt`, sitemap entries, and safe guide analytics were updated together; no retired URL returns a 404.
-- Next: after production verification, resubmit the sitemap in Search Console. Request a new AdSense review only after Google can crawl the consolidated guide and redirects.
+- After any canonical-page update, verify production and resubmit the sitemap in Search Console. Request a new AdSense review only after Google can crawl the consolidated guide and redirects.
 
 ## Phase 6: AI and Agent Distribution
 

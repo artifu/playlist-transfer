@@ -39,6 +39,22 @@ test("homepage preserves AdSense ownership verification without loading ads", as
   assert.match(html, /name="google-site-verification" content="3F7Qim3-rpeOtRkXc-76GNCaAr4Hf_jLziTY2hmdTno"/);
 });
 
+test("public pages use the branded social card and homepage links to the released iOS app", async () => {
+  const publicPages = [...editorialPages, ...adFreePages].filter((fileName) => fileName !== "404.html");
+
+  for (const fileName of publicPages) {
+    const html = await readFile(new URL(fileName, publicDir), "utf8");
+    assert.match(html, /property="og:image" content="https:\/\/playlistxfer\.com\/playlistxfer-og-1200x630\.png"/, `${fileName} should use the branded social card`);
+    assert.match(html, /name="twitter:card" content="summary_large_image"/, `${fileName} should use a large Twitter card`);
+  }
+
+  const homepage = await readFile(new URL("index.html", publicDir), "utf8");
+  assert.match(homepage, /href="https:\/\/apps\.apple\.com\/us\/app\/playlistxfer\/id6791439177"/);
+
+  const socialCard = await readFile(new URL("playlistxfer-og-1200x630.png", publicDir));
+  assert.ok(socialCard.length > 100_000, "branded social card should be a real image asset");
+});
+
 test("support page provides a direct first-party request form", async () => {
   const html = await readFile(new URL("contact.html", publicDir), "utf8");
 

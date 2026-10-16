@@ -588,6 +588,40 @@ p {
   background: var(--ink);
 }
 
+.app-store-link {
+  display: inline-grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 8px;
+  align-items: center;
+  min-height: 48px;
+  padding: 8px 14px;
+  border: 1px solid var(--ink);
+  border-radius: 14px;
+  color: #fff;
+  background: var(--ink);
+  text-decoration: none;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.app-store-link:hover,
+.app-store-link:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(23, 20, 18, 0.16);
+}
+
+.app-store-link span {
+  grid-row: 1 / span 2;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.app-store-link strong {
+  font-size: 0.92rem;
+  line-height: 1.1;
+}
+
 .homepage-disclosure {
   margin: 0 6px 24px;
   color: var(--muted);
