@@ -1,3 +1,5 @@
+import { normalizeSpotifyInput, SpotifyInputError } from "./spotify-input.js?v=20261017-preview-input";
+
 const input = document.querySelector("#playlist-input");
 const form = document.querySelector("#transfer-form");
 const analysisLimit = document.querySelector("#analysis-limit");
@@ -13,6 +15,7 @@ const progressPercent = document.querySelector("#progress-percent");
 const progressBar = document.querySelector("#progress-bar");
 const progressDetail = document.querySelector("#progress-detail");
 const statusLine = document.querySelector("#status-line");
+const inputFeedback = document.querySelector("#input-feedback");
 const results = document.querySelector("#results");
 const fallbackGuide = document.querySelector("#fallback-guide");
 const progressiveControls = document.querySelectorAll("[data-progressive-control]");
@@ -39,6 +42,7 @@ let musicKitLoadPromise = null;
 let progressPulseTimer = null;
 let displayedProgress = 0;
 let formStartTracked = false;
+let formStartSource = "unknown";
 
 function esc(value) {
   return String(value ?? "")
@@ -75,24 +79,6 @@ function artworkHtml(source, size = "small") {
 
 function applePillHtml() {
   return `<span class="service-pill apple" aria-label="Apple Music"><span aria-hidden="true">♪</span></span>`;
-}
-
-function spotifyPlaylistIdFromValue(value) {
-  const trimmed = String(value || "").trim();
-  const uriMatch = trimmed.match(/^spotify:playlist:([A-Za-z0-9]+)$/);
-  if (uriMatch) return uriMatch[1];
-
-  try {
-    const url = new URL(trimmed);
-    const parts = url.pathname.split("/").filter(Boolean);
-    const playlistIndex = parts.indexOf("playlist");
-    if (playlistIndex >= 0 && parts[playlistIndex + 1]) return parts[playlistIndex + 1];
-  } catch {
-    const looseMatch = trimmed.match(/playlist\/([A-Za-z0-9]+)/);
-    if (looseMatch) return looseMatch[1];
-  }
-
-  return "";
 }
 
 function destinationPlaylistName(data) {
@@ -173,9 +159,89 @@ function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
 }
 
+function previewFailureDetails(error) {
+  if (error instanceof SpotifyInputError) {
+    return {
+      category: "client_validation",
+      code: error.code,
+      message: error.message,
+      showFallback: false
+    };
+  }
+
+  const message = errorMessage(error).toLowerCase();
+  const status = Number(error?.status || 0);
+
+  if (message.includes("redirect") || message.includes("spotify.link")) {
+    return {
+      category: "spotify_redirect",
+      code: "spotify_redirect_failed",
+      message: "Spotify's shortened share link did not open. Copy a fresh link from Spotify and try again.",
+      showFallback: false
+    };
+  }
+
+  if (message.includes("incomplete") || message.includes("no readable") || message.includes("could not read tracks")) {
+    return {
+      category: "spotify_content",
+      code: "incomplete_preview",
+      message: "Spotify opened the link but returned no readable songs. Local files and unavailable episodes cannot be transferred.",
+      showFallback: false
+    };
+  }
+
+  if (
+    message.includes("private") ||
+    message.includes("unavailable") ||
+    message.includes("not find") ||
+    message.includes("not found") ||
+    message.includes("refused access")
+  ) {
+    return {
+      category: "spotify_content",
+      code: "private_or_unavailable",
+      message: "Spotify could not open this content. Make sure the playlist is public, then copy a fresh share link.",
+      showFallback: false
+    };
+  }
+
+  if (message.includes("timed out") || message.includes("timeout") || message.includes("did not respond")) {
+    return {
+      category: "spotify_upstream",
+      code: "upstream_timeout",
+      message: "Spotify is taking too long to respond. Wait a moment, then try Preview again.",
+      showFallback: false
+    };
+  }
+
+  if (error instanceof TypeError || message.includes("network") || message.includes("failed to fetch")) {
+    return {
+      category: "network",
+      code: "network",
+      message: "The preview request could not reach PlaylistXfer. Check your connection and try again.",
+      showFallback: false
+    };
+  }
+
+  if (status >= 500 || message.includes("ingestion service")) {
+    return {
+      category: "spotify_upstream",
+      code: "spotify_upstream",
+      message: "Spotify preview is temporarily unavailable. Please try again in a moment.",
+      showFallback: false
+    };
+  }
+
+  return {
+    category: "spotify_public_preview",
+    code: "unknown",
+    message: "We could not preview this Spotify link. Copy a fresh public playlist or song link and try again.",
+    showFallback: false
+  };
+}
+
 function summaryProperties(data = {}) {
   return {
-    transferId: data.transferId || data.transfer?.id || state.transferId || "",
     totalTracks: data.playlist?.originalTotalItems || data.playlist?.totalItems || data.items?.length || data.tracks?.length || 0,
     readableTracks: data.playlist?.analyzedTrackCount || data.items?.length || data.tracks?.length || 0,
     withIsrcCount: Array.isArray(data.tracks)
@@ -193,9 +259,7 @@ function analyticsContext(properties = {}) {
   return {
     path: window.location.pathname,
     host: window.location.host,
-    playlistId: spotifyPlaylistIdFromValue(input.value),
     analysisLimit: analysisLimit.value,
-    transferId: state.transferId || "",
     ...properties
   };
 }
@@ -242,6 +306,14 @@ function setStatus(message, kind = "info") {
   statusLine.hidden = !cleanMessage;
   statusLine.textContent = cleanMessage;
   statusLine.className = kind === "error" ? "status-line error" : "status-line";
+}
+
+function setInputFeedback(message, kind = "info") {
+  const cleanMessage = String(message || "").trim();
+  inputFeedback.hidden = !cleanMessage;
+  inputFeedback.textContent = cleanMessage;
+  inputFeedback.className = kind === "error" ? "input-feedback error" : "input-feedback";
+  input.setAttribute("aria-invalid", kind === "error" ? "true" : "false");
 }
 
 function hasDeveloperToken() {
@@ -371,7 +443,12 @@ async function apiFetch(path, options = {}) {
     headers: sessionHeaders(options.headers)
   });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.message || "Request failed.");
+  if (!response.ok) {
+    const error = new Error(data.message || "Request failed.");
+    error.name = "ApiError";
+    error.status = response.status;
+    throw error;
+  }
   return data;
 }
 
@@ -1089,15 +1166,36 @@ async function updateReviewDecision(index, action, candidateIndex = null) {
 }
 
 async function previewPlaylist() {
-  const value = input.value.trim();
-  if (!value) return;
+  const startedAt = performance.now();
+  trackEvent("preview_started", { sourceSurface: formStartSource });
 
+  let normalizedInput;
+  try {
+    normalizedInput = normalizeSpotifyInput(input.value);
+  } catch (error) {
+    const failure = previewFailureDetails(error);
+    setInputFeedback(failure.message, "error");
+    setStatus("Fix the Spotify link above, then try Preview again.", "error");
+    fallbackGuide.hidden = !failure.showFallback;
+    trackEvent("preview_failed", {
+      durationMs: elapsedMs(startedAt),
+      errorCategory: failure.category,
+      errorCode: failure.code,
+      sourceSurface: formStartSource,
+      inputKind: "invalid"
+    });
+    input.focus();
+    refreshActions();
+    return;
+  }
+
+  const value = normalizedInput.value;
+  input.value = value;
+  setInputFeedback("");
   fallbackGuide.hidden = true;
   resetProgress();
   setBusy(true, "Reading public Spotify link...");
   startOptimisticProgress({ kind: "preview" });
-  const startedAt = performance.now();
-  trackEvent("preview_started");
 
   try {
     const data = await postJson("/api/spotify/public-playlist-preview", { input: value });
@@ -1111,21 +1209,28 @@ async function previewPlaylist() {
     setStatus(isSingleTrack(data) ? "Song loaded. Next: find its Apple Music match." : "Playlist loaded. Next: analyze Apple Music matches.");
     trackEvent("preview_succeeded", {
       ...summaryProperties(data),
-      durationMs: elapsedMs(startedAt)
+      durationMs: elapsedMs(startedAt),
+      inputKind: normalizedInput.kind,
+      sourceSurface: formStartSource
     });
   } catch (error) {
+    const failure = previewFailureDetails(error);
     state.preview = null;
     state.previewInput = null;
     state.analysis = null;
     state.analysisInput = null;
     clearStoredTransfer();
     resetProgress();
-    setStatus("We could not read that Spotify link.", "error");
-    renderError(error, "preview");
+    renderStartState({ hasInput: true });
+    setInputFeedback(failure.message, "error");
+    setStatus("Preview did not complete. Nothing was moved; you can safely retry.", "error");
+    fallbackGuide.hidden = !failure.showFallback;
     trackEvent("preview_failed", {
       durationMs: elapsedMs(startedAt),
-      errorCategory: "spotify_public_preview",
-      errorMessage: errorMessage(error)
+      errorCategory: failure.category,
+      errorCode: failure.code,
+      inputKind: normalizedInput.kind,
+      sourceSurface: formStartSource
     });
   } finally {
     setBusy(false);
@@ -1277,6 +1382,8 @@ function startAnotherTransfer() {
   state.analysisInput = null;
   clearStoredTransfer();
   formStartTracked = false;
+  formStartSource = "unknown";
+  setInputFeedback("");
   fallbackGuide.hidden = true;
   resetProgress();
   renderStartState();
@@ -1303,12 +1410,15 @@ input.addEventListener("input", (event) => {
   const hasInput = Boolean(input.value.trim());
   if (hasInput && !formStartTracked) {
     formStartTracked = true;
+    formStartSource = event.inputType === "insertFromPaste" ? "paste" : "typing";
     trackEvent("transfer_form_started", {
-      sourceSurface: event.inputType === "insertFromPaste" ? "paste" : "typing"
+      sourceSurface: formStartSource
     });
   } else if (!hasInput) {
     formStartTracked = false;
+    formStartSource = "unknown";
   }
+  setInputFeedback("");
   state.preview = null;
   state.previewInput = null;
   state.analysis = null;
@@ -1321,7 +1431,6 @@ input.addEventListener("input", (event) => {
   refreshActions();
 });
 
-previewButton.addEventListener("click", previewPlaylist);
 analyzeButton.addEventListener("click", analyzeMatches);
 createButton.addEventListener("click", createPlaylist);
 connectAppleButton.addEventListener("click", toggleAppleMusicConnection);

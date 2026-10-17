@@ -63,3 +63,22 @@ test("GA analytics records intent without leaking unapproved properties", async 
   assert.equal(eventCall[2].sourceSurface, "paste");
   assert.equal(eventCall[2].playlistId, undefined);
 });
+
+test("GA analytics records categorical preview failure diagnostics", async () => {
+  const { window } = await analyticsWindow();
+
+  window.PlaylistXferAnalytics.track("preview_failed", {
+    errorCategory: "client_validation",
+    errorCode: "unsupported_spotify_input",
+    inputKind: "invalid",
+    sourceSurface: "paste",
+    rawInput: "must-not-reach-ga"
+  });
+
+  const eventCall = window.dataLayer.find((entry) => entry[0] === "event");
+  assert.equal(eventCall[1], "preview_failed");
+  assert.equal(eventCall[2].errorCategory, "client_validation");
+  assert.equal(eventCall[2].errorCode, "unsupported_spotify_input");
+  assert.equal(eventCall[2].inputKind, "invalid");
+  assert.equal(eventCall[2].rawInput, undefined);
+});

@@ -125,3 +125,13 @@ test("analytics policy accepts only aggregate lifecycle and diagnostics fields",
   assert.ok(!SAFE_ANALYTICS_PROPERTY_KEYS.includes("appleMusicUserToken"));
   assert.ok(!SAFE_ANALYTICS_PROPERTY_KEYS.includes("email"));
 });
+
+test("analytics policy supports categorical preview diagnostics without raw input", () => {
+  for (const property of ["errorCategory", "errorCode", "inputKind", "sourceSurface"]) {
+    assert.ok(SAFE_ANALYTICS_PROPERTY_KEYS.includes(property), `${property} should be allowlisted`);
+  }
+
+  for (const property of ["spotifyUrl", "rawInput", "sharedText"]) {
+    assert.ok(!SAFE_ANALYTICS_PROPERTY_KEYS.includes(property), `${property} must remain excluded`);
+  }
+});

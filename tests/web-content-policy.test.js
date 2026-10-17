@@ -156,6 +156,29 @@ test("homepage stays focused on starting a transfer", async () => {
   assert.doesNotMatch(html, /Quick test/);
 });
 
+test("homepage preview input supports share text and one click-or-enter submission path", async () => {
+  const html = await readFile(new URL("index.html", publicDir), "utf8");
+  const script = await readFile(new URL("app.js", publicDir), "utf8");
+
+  assert.match(html, /id="playlist-input"[^>]+type="text"[^>]+inputmode="url"/);
+  assert.match(html, /id="playlist-input"[^>]+aria-describedby="input-feedback"/);
+  assert.match(html, /id="preview-button" type="submit" aria-label="Preview in Apple Music"/);
+  assert.match(html, /id="input-feedback"[^>]+aria-live="polite"/);
+  assert.match(script, /form\.addEventListener\("submit"/);
+  assert.doesNotMatch(script, /previewButton\.addEventListener\("click"/);
+});
+
+test("web preview analytics use categorical diagnostics without source identifiers", async () => {
+  const script = await readFile(new URL("app.js", publicDir), "utf8");
+  const analyticsContext = script.match(/function analyticsContext\(properties = \{\}\) \{([\s\S]*?)\n\}/)?.[1] ?? "";
+  const summaryProperties = script.match(/function summaryProperties\(data = \{\}\) \{([\s\S]*?)\n\}/)?.[1] ?? "";
+
+  assert.match(script, /errorCode: failure\.code/);
+  assert.match(script, /inputKind: normalizedInput\.kind/);
+  assert.doesNotMatch(analyticsContext, /playlistId|transferId/);
+  assert.doesNotMatch(summaryProperties, /transferId/);
+});
+
 test("match report uses customer language and hides backend source diagnostics", async () => {
   const script = await readFile(new URL("app.js", publicDir), "utf8");
 

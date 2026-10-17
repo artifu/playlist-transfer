@@ -47,7 +47,7 @@
   <link rel="icon" href="/playlistxfer-icon-32.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="/playlistxfer-icon-180.png" />
   <link rel="manifest" href="/site.webmanifest" />
-  <link rel="stylesheet" href="/styles.css?v=20261016-app-store" />
+  <link rel="stylesheet" href="/styles.css?v=20261017-preview-input" />
   <script defer src="/config.js"></script>
   <script defer src="/analytics.js"></script>
 </head>
@@ -71,9 +71,10 @@
           <span class="service-pill spotify">S</span>
           <label class="input-label" for="playlist-input">Spotify link</label>
           <div class="input-row">
-            <input id="playlist-input" name="playlist" type="url" inputmode="url" placeholder="Paste link" autocomplete="off" />
-            <button class="inline-preview-action" id="preview-button" type="button">Preview</button>
+            <input id="playlist-input" name="playlist" type="text" inputmode="url" placeholder="Paste link" autocomplete="off" aria-describedby="input-feedback" />
+            <button class="inline-preview-action" id="preview-button" type="submit" aria-label="Preview in Apple Music">Preview</button>
           </div>
+          <p class="input-feedback" id="input-feedback" role="status" aria-live="polite" hidden></p>
         </div>
 
         <div class="action-stack" data-progressive-control hidden>
@@ -159,6 +160,6 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script src="/app.js?v=20261008-slop-cleanup" type="module"></script>
+  <script src="/app.js?v=20261017-preview-input" type="module"></script>
 </body>
 </html>
