@@ -2,7 +2,7 @@
 
 Last reviewed: 2026-10-17
 
-Status: ready to execute when coding credits are available.
+Status: product implementation, tests, deployment, and production verification completed on 2026-10-17 in commit `62ef59d`. Phase 5 observation started on 2026-10-17. The saved GA4 exploration still needs `preview_started` inserted between link entry and preview success when the logged-in Chrome session is available.
 
 ## Objective
 
@@ -213,6 +213,8 @@ Rollback immediately if preview success, analysis, Apple authorization, or compl
 ## Phase 5: observe before further redesign
 
 Observe for at least 14 days or 100 `preview_started` attempts, whichever takes longer.
+
+Observation started: 2026-10-17. Earliest time-based review: 2026-10-31, subject to reaching at least 100 production `preview_started` attempts.
 
 Track these ratios overall and by device category:
 
