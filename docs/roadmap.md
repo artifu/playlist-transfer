@@ -166,6 +166,7 @@ Current SEO and analytics operations:
 - Branded 1200x630 Open Graph image and App Store download link are part of the public site.
 - Google Search Console owns the verified production property. The eight-URL sitemap was successfully resubmitted and read on 2026-10-16; resubmit it after meaningful canonical-page updates and inspect canonical URLs rather than retired redirects.
 - `GA_MEASUREMENT_ID` is configured in production. `playlist_transfer_completed` is the stable GA4 key event, and the saved `PlaylistXfer web transfer funnel` exploration tracks the visit-to-transfer path by device category. First-party D1 events remain the operational source of truth when GA4 is blocked.
+- The next scoped web initiative is the [preview-conversion roadmap](./web-preview-conversion-roadmap.md): separate input abandonment from preview failure, harden supported Spotify input formats, and measure the result before considering another landing-page redesign.
 - AdSense belongs only on substantive editorial pages, never in the transfer, authorization, progress, review, error, contact, or legal flows.
 
 Post-indexing editorial consolidation (implemented August 17, 2026):
