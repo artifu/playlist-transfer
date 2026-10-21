@@ -26,15 +26,22 @@ async function checkHealth() {
   const body = await jsonResponse(response);
   const primary = body?.dependencies?.spotifyIngestionPrimary;
   const fallback = body?.dependencies?.spotifyIngestionFallback;
+  const appleToken = body?.dependencies?.appleMusicDeveloperToken;
+  let detail = body?.status || "health response was invalid";
+
+  if (["expired", "expiring", "invalid", "missing"].includes(appleToken?.status)) {
+    detail = `Apple developer token ${appleToken.status}`;
+    if (appleToken.expiresAt) detail += ` at ${appleToken.expiresAt}`;
+  } else if (body?.status === "degraded") {
+    detail = `primary=${primary?.status ?? "unreachable"}; fallback=${fallback?.status ?? "unreachable"}`;
+  }
 
   return {
     name: "production_health",
     ok: response.ok && body?.ok === true && body?.status === "healthy",
     status: response.status,
     category: body?.status || "invalid_response",
-    detail: body?.status === "degraded"
-      ? `primary=${primary?.status ?? "unreachable"}; fallback=${fallback?.status ?? "unreachable"}`
-      : body?.status || "health response was invalid"
+    detail
   };
 }
 

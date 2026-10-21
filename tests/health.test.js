@@ -3,9 +3,14 @@ import test from "node:test";
 
 import { buildHealthResponse } from "../functions/health.js";
 
+function developerTokenExpiringAt(timestamp) {
+  const encode = (value) => Buffer.from(JSON.stringify(value)).toString("base64url");
+  return `${encode({ alg: "ES256" })}.${encode({ exp: Math.floor(timestamp / 1000) })}.signature`;
+}
+
 const productionEnv = {
   PLAYLIST_TRANSFER_DB: {},
-  APPLE_MUSIC_DEVELOPER_TOKEN: "configured",
+  APPLE_MUSIC_DEVELOPER_TOKEN: developerTokenExpiringAt(Date.UTC(2050, 0, 1)),
   TRANSFER_API_URL: "https://oracle.example.com",
   TRANSFER_API_FALLBACK_URL: "https://render.example.com"
 };
@@ -51,4 +56,37 @@ test("health reports unhealthy when native Apple Music configuration is missing"
   assert.equal(response.status, 503);
   assert.equal(body.ok, false);
   assert.equal(body.status, "unhealthy");
+});
+
+test("health reports degraded before the Apple Music developer token expires", async () => {
+  const response = await buildHealthResponse(
+    {
+      ...productionEnv,
+      APPLE_MUSIC_DEVELOPER_TOKEN: developerTokenExpiringAt(Date.now() + 7 * 24 * 60 * 60 * 1000)
+    },
+    async () => Response.json({ ok: true })
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(body.ok, true);
+  assert.equal(body.status, "degraded");
+  assert.equal(body.dependencies.appleMusicDeveloperToken.status, "expiring");
+  assert.equal(body.dependencies.appleMusicDeveloperToken.expiresInDays, 7);
+});
+
+test("health reports unhealthy after the Apple Music developer token expires", async () => {
+  const response = await buildHealthResponse(
+    {
+      ...productionEnv,
+      APPLE_MUSIC_DEVELOPER_TOKEN: developerTokenExpiringAt(Date.now() - 60_000)
+    },
+    async () => Response.json({ ok: true })
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 503);
+  assert.equal(body.ok, false);
+  assert.equal(body.status, "unhealthy");
+  assert.equal(body.dependencies.appleMusicDeveloperToken.status, "expired");
 });
