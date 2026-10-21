@@ -46,7 +46,7 @@ The PlaylistXfer GA4 property has a saved funnel exploration named `PlaylistXfer
 
 On 2026-10-16, the exploration showed 85 visitors, 58 link-entry starts, 27 successful previews, 21 successful analyses, 14 Apple Music connections, and 12 completed transfers. The largest measured drop was link entry to successful preview: 31 users, or 53.45% of link-entry starts. Treat these values as a dated snapshot, not a permanent baseline.
 
-The `preview_started` step was added to the product instrumentation on 2026-10-17 so future reports can separate users who stop after entering a link from attempts that fail technically. Preview failures now send only allowlisted `errorCategory`, `errorCode`, `inputKind`, and `sourceSurface` values. The web client no longer sends playlist IDs or transfer IDs with analytics events. The saved GA4 exploration still needs the `preview_started` step inserted manually; the attempt on 2026-10-17 was blocked because the logged-in Chrome session was locked.
+The `preview_started` step was added to the product instrumentation on 2026-10-17 so future reports can separate users who stop after entering a link from attempts that fail technically. Preview failures now send only allowlisted `errorCategory`, `errorCode`, `inputKind`, and `sourceSurface` values. The web client no longer sends playlist IDs or transfer IDs with analytics events. The saved GA4 exploration was updated on 2026-10-20 to include `preview_started` between link entry and preview success while preserving the device-category breakdown.
 
 ## Preview baseline and outage correction
 

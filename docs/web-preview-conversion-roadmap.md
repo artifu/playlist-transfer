@@ -1,8 +1,8 @@
 # Web Preview Conversion Roadmap
 
-Last reviewed: 2026-10-17
+Last reviewed: 2026-10-20
 
-Status: product implementation, tests, deployment, and production verification completed on 2026-10-17 in commit `62ef59d`. Phase 5 observation started on 2026-10-17. The saved GA4 exploration still needs `preview_started` inserted between link entry and preview success when the logged-in Chrome session is available.
+Status: product implementation, tests, deployment, and production verification completed on 2026-10-17 in commit `62ef59d`. The saved GA4 exploration was updated on 2026-10-20 with `preview_started` between link entry and preview success. Phase 5 observation started on 2026-10-17 and remains open until both the 14-day and 100-attempt thresholds are met.
 
 ## Objective
 
